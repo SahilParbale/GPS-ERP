@@ -48,17 +48,22 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
       {/* Spindle Digital Twin Banner & Schematic */}
       <div className="section-card">
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h1 className="mono" style={{ fontSize: '22px', fontWeight: 700 }}>{sp.serialNumber}</h1>
-              <StatusBadge status={sp.status} />
-              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                {sp.type}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', flexShrink: 0 }}>
+              <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '36px', display: 'block', objectFit: 'contain' }} />
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              Model: <strong>{sp.model}</strong> • Deployed at: <strong>{sp.customer}</strong>
-            </p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h1 className="mono" style={{ fontSize: '22px', fontWeight: 700 }}>{sp.serialNumber}</h1>
+                <StatusBadge status={sp.status} />
+                <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                  {sp.type}
+                </span>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+                Model: <strong>{sp.model}</strong> • Deployed at: <strong>{sp.customer}</strong>
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>

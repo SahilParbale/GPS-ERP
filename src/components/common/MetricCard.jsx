@@ -1,7 +1,6 @@
-import React from 'react';
 import { 
   Cpu, Cog, CheckCircle2, Truck, Wrench, AlertTriangle, 
-  DollarSign, TrendingUp, TrendingDown 
+  DollarSign, TrendingUp, TrendingDown, Users, Clock, CheckSquare, UserCheck
 } from 'lucide-react';
 
 const iconMap = {
@@ -11,11 +10,15 @@ const iconMap = {
   Truck,
   Wrench,
   AlertTriangle,
-  DollarSign
+  DollarSign,
+  Users,
+  Clock,
+  CheckSquare,
+  UserCheck
 };
 
 export default function MetricCard({ label, value, trend, isUp, alert, icon, onClick }) {
-  const IconComponent = iconMap[icon] || Cpu;
+  const IconComponent = typeof icon === 'function' ? icon : (iconMap[icon] || Cpu);
 
   return (
     <div 

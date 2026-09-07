@@ -3,7 +3,7 @@ import {
   LayoutDashboard, ShoppingBag, Cog, Disc, Boxes, 
   ShieldCheck, Wrench, Users, Truck, FileText, 
   BarChart3, Settings, ChevronRight, Activity, 
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Building2
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 
@@ -26,6 +26,16 @@ export const NAV_ITEMS = [
     subItems: [
       { id: 'production', label: 'Pipeline & Bays' },
       { id: 'production-wos', label: 'Work Orders' }
+    ]
+  },
+  { 
+    id: 'workforce', 
+    label: 'Staff & Workforce', 
+    icon: Users, 
+    badge: '31',
+    subItems: [
+      { id: 'workforce', label: 'Live Shop Floor' },
+      { id: 'workforce-directory', label: 'Staff Directory' }
     ]
   },
   { 
@@ -67,7 +77,7 @@ export const NAV_ITEMS = [
       { id: 'service-detail', label: 'Repair Lifecycle' }
     ]
   },
-  { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'customers', label: 'Customers', icon: Building2 },
   { id: 'suppliers', label: 'Suppliers', icon: Truck },
   { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
   { id: 'reports', label: 'Reports & BI', icon: BarChart3 },
@@ -92,18 +102,44 @@ export default function Sidebar({
           <div 
             className="brand-badge"
             onClick={isCollapsed ? onToggleCollapse : undefined}
-            style={{ cursor: isCollapsed ? 'pointer' : 'default' }}
-            title={isCollapsed ? "GPS Spindle (Click to expand)" : "GPS Spindle"}
+            style={{ 
+              cursor: isCollapsed ? 'pointer' : 'default',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              minWidth: 0,
+              maxWidth: '100%'
+            }}
+            title={isCollapsed ? "General Precision Spindles (Click to expand)" : "General Precision Spindles"}
           >
-            <div className="brand-logo">
-              <Activity size={18} strokeWidth={2.5} />
+            <div 
+              style={{
+                background: '#ffffff',
+                borderRadius: '5px',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                flexShrink: 0,
+                height: '30px',
+                width: isCollapsed ? '32px' : 'auto',
+                maxWidth: isCollapsed ? '32px' : '170px',
+                overflow: 'hidden'
+              }}
+            >
+              <img 
+                src="/logo.jpg" 
+                alt="General Precision Spindles" 
+                style={{
+                  height: '26px',
+                  width: isCollapsed ? '26px' : 'auto',
+                  objectFit: isCollapsed ? 'cover' : 'contain',
+                  objectPosition: 'left center',
+                  display: 'block'
+                }} 
+              />
             </div>
-            {!isCollapsed && (
-              <div className="brand-text">
-                <span className="brand-name">GPS SPINDLE</span>
-                <span className="brand-sub">PRECISION ERP</span>
-              </div>
-            )}
           </div>
           {!isCollapsed && (
             <button

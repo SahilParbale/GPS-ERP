@@ -50,14 +50,19 @@ export default function QualityScreen({ onNotify }) {
       <div className="section-card">
         {/* Certificate Header Banner */}
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span className="mono" style={{ fontSize: '20px', fontWeight: 700 }}>{selectedInspection.id}</span>
-              <StatusBadge status={verdict} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', flexShrink: 0 }}>
+              <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '36px', display: 'block', objectFit: 'contain' }} />
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              Work Order: <strong className="mono">{selectedInspection.workOrder}</strong> • Spindle Serial: <strong className="mono">{selectedInspection.spindleSerial}</strong> • Model: <strong>{selectedInspection.spindleModel}</strong>
-            </p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span className="mono" style={{ fontSize: '20px', fontWeight: 700 }}>{selectedInspection.id}</span>
+                <StatusBadge status={verdict} />
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+                Work Order: <strong className="mono">{selectedInspection.workOrder}</strong> • Spindle Serial: <strong className="mono">{selectedInspection.spindleSerial}</strong> • Model: <strong>{selectedInspection.spindleModel}</strong>
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>

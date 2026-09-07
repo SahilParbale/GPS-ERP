@@ -52,6 +52,16 @@ export default function SettingsScreen({ onNotify }) {
             </div>
           </div>
           <form onSubmit={handleSave} style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', marginBottom: '20px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <div style={{ background: '#ffffff', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+                <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '44px', display: 'block', objectFit: 'contain' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>General Precision Spindles Emblem & Logo</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Official brand emblem active across navigation shell, invoices, metrology reports, and shop floor documentation.</div>
+              </div>
+            </div>
+
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Corporate Entity Name</label>

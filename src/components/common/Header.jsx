@@ -21,6 +21,7 @@ export default function Header({
   const breadcrumbMap = {
     'dashboard': 'Executive Dashboard',
     'production': 'Production Management',
+    'workforce': 'Staff & Workforce Management',
     'work-order-detail': 'Work Order Detail (WO-2026-104)',
     'spindles': 'Spindle Fleet Registry',
     'spindle-detail': 'Digital Twin Profile (GPS-2026-0842)',
@@ -60,7 +61,18 @@ export default function Header({
         </button>
 
         <div className="breadcrumbs">
-          <span>GPS Spindle</span>
+          <img 
+            src="/logo.jpg" 
+            alt="General Precision Spindles" 
+            style={{ 
+              height: '22px', 
+              borderRadius: '3px',
+              background: '#ffffff',
+              padding: '1px 3px',
+              border: '1px solid var(--border-color)',
+              verticalAlign: 'middle'
+            }} 
+          />
           <ChevronRight size={14} />
           <span className="breadcrumb-curr">{breadcrumbMap[currentScreen] || 'Dashboard'}</span>
         </div>
@@ -147,8 +159,8 @@ export default function Header({
           className="user-profile-menu"
           onClick={() => setShowUserMenu(!showUserMenu)}
         >
-          <div className="user-avatar" style={{ background: '#0284c7', color: '#ffffff', fontWeight: 700 }}>
-            <span>GPS</span>
+          <div className="user-avatar" style={{ background: '#ffffff', border: '1px solid var(--border-color)', padding: '2px', overflow: 'hidden' }}>
+            <img src="/logo.jpg" alt="GPS Spindles" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center' }} />
           </div>
           <div className="user-info">
             <span className="user-name">GPS Spindles</span>

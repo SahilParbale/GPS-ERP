@@ -13,6 +13,7 @@ import SpindleDetailScreen from './screens/SpindleDetailScreen';
 import ServiceScreen from './screens/ServiceScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import QualityScreen from './screens/QualityScreen';
+import WorkforceScreen from './screens/WorkforceScreen';
 import SalesScreen from './screens/SalesScreen';
 import CustomersScreen from './screens/CustomersScreen';
 import SuppliersScreen from './screens/SuppliersScreen';
@@ -71,6 +72,8 @@ export default function App() {
       setCurrentScreen('quality');
     } else if (q.includes('stock') || q.includes('bearing') || q.includes('mat-')) {
       setCurrentScreen('inventory');
+    } else if (q.includes('staff') || q.includes('workforce') || q.includes('worker') || q.includes('operator') || q.includes('emp-')) {
+      setCurrentScreen('workforce');
     }
   };
 
@@ -87,6 +90,14 @@ export default function App() {
       case 'production':
         return (
           <ProductionScreen 
+            onNavigate={setCurrentScreen}
+            onSelectWorkOrder={setSelectedWorkOrder}
+            onNotify={addToast}
+          />
+        );
+      case 'workforce':
+        return (
+          <WorkforceScreen 
             onNavigate={setCurrentScreen}
             onSelectWorkOrder={setSelectedWorkOrder}
             onNotify={addToast}

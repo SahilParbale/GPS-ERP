@@ -6,7 +6,8 @@ import Tabs from '../components/common/Tabs';
 import { WORK_ORDERS } from '../data/mockData';
 import { 
   ArrowLeft, FileText, CheckCircle, Clock, ShieldCheck, 
-  User, Printer, Check, Download, AlertCircle, Wrench 
+  User, Printer, Check, Download, AlertCircle, Wrench,
+  Users, ArrowRight
 } from 'lucide-react';
 
 export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify }) {
@@ -55,15 +56,20 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
       {/* Main WO Info Card */}
       <div className="section-card">
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }} className="mono">{wo.id}</h1>
-              <StatusBadge status={wo.status} />
-              <StatusBadge status={wo.priority} size="sm" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', flexShrink: 0 }}>
+              <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '36px', display: 'block', objectFit: 'contain' }} />
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              Precision Spindle Manufacturing Traveler • Customer: <strong>{wo.customer}</strong>
-            </p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h1 style={{ fontSize: '22px', fontWeight: 700 }} className="mono">{wo.id}</h1>
+                <StatusBadge status={wo.status} />
+                <StatusBadge status={wo.priority} size="sm" />
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+                Precision Spindle Manufacturing Traveler • Customer: <strong>{wo.customer}</strong>
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
@@ -259,23 +265,38 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
         </div>
       )}
 
-      {/* Tab 4: Assigned Shop Technicians */}
+      {/* Tab 4: Team */}
       {activeTab === 'team' && (
         <div className="section-card">
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <div className="card-title">Shop Floor Personnel Assigned</div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate('workforce')}
+              title="Open Staff & Workforce Management Module"
+            >
+              <Users size={13} />
+              <span>Live Staff & Workforce Board</span>
+            </button>
           </div>
           <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             {(wo.team || []).map((member, idx) => (
-              <div key={idx} style={{ padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
+              <div 
+                key={idx} 
+                style={{ padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'var(--transition-base)' }}
+                onClick={() => onNavigate('workforce')}
+                title="Click to view personnel allocation in Staff & Workforce"
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7', flexShrink: 0 }}>
                   <User size={20} />
                 </div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: '13px' }}>{member.name}</div>
                   <div style={{ fontSize: '12px', color: 'var(--primary)' }}>{member.role}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{member.bay}</div>
                 </div>
+                <ArrowRight size={14} color="var(--text-muted)" />
               </div>
             ))}
           </div>

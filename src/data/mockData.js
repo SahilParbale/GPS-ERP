@@ -919,3 +919,608 @@ export const UPCOMING_DELIVERIES = [
   { id: 2, customer: "Bharat Forge Ltd", serial: "GPS-2026-0841", model: "GPS-BT40-15K", date: "Mar 02, 2026", status: "QC Pending" },
   { id: 3, customer: "Tata Advanced Systems", serial: "GPS-2026-0842", model: "GPS-HSK-A63-24K", date: "Mar 05, 2026", status: "In Progress" },
 ];
+
+export const WORKFORCE_KPIS = [
+  { id: "total_staff", label: "Total Staff", value: "42", trend: "Full Roster", isUp: true, icon: "Users" },
+  { id: "working_now", label: "Working Now", value: "31", trend: "74% active on bays", isUp: true, icon: "Cpu" },
+  { id: "on_break", label: "On Break", value: "4", trend: "Shift tea rotation", isUp: true, icon: "Clock" },
+  { id: "idle_staff", label: "Idle / Available", value: "5", trend: "Ready to deploy", isUp: true, icon: "CheckCircle2" },
+  { id: "overloaded", label: "Overloaded", value: "2", trend: ">95% bay cap", alert: true, isUp: false, icon: "AlertTriangle" },
+  { id: "tasks_done", label: "Tasks Completed Today", value: "27", trend: "+8 vs run rate", isUp: true, icon: "CheckSquare" }
+];
+
+export const WORKFORCE_STAFF = [
+  {
+    id: "EMP-021",
+    name: "Rahul Patil",
+    initials: "RP",
+    department: "Grinding",
+    designation: "Senior Grinding Technician",
+    skillLevel: "Level 4 · Master Grinder",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Taper Grinding",
+    workOrder: "WO-2026-104",
+    spindleSerial: "GPS-2026-0842",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Studer S33",
+    bay: "Bay 2",
+    started: "08:42 AM",
+    duration: "2h 14m",
+    progress: 72,
+    tasksToday: 7,
+    completedToday: 5,
+    utilization: 92,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "08:42 AM", title: "Started Taper Grinding", detail: "Mounted spindle shaft into Studer S33 chuck" },
+      { time: "10:15 AM", title: "Completed rough grinding", detail: "Rough pass tolerance within 0.005 mm limit" },
+      { time: "10:48 AM", title: "Dimensional inspection", detail: "Air gauge check confirmed 7:24 taper angle" },
+      { time: "10:56 AM", title: "Continued finishing pass", detail: "Final spark-out cycle active (target Ra 0.1 µm)" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-100", task: "Bearing Journal Finish Grind", spindle: "GPS-2026-0836", duration: "1h 45m", status: "Completed" },
+      { wo: "WO-2026-102", task: "Spindle Shaft OD Grinding", spindle: "GPS-2026-0840", duration: "2h 10m", status: "Completed" },
+      { wo: "WO-2026-098", task: "Flange Face Trueing", spindle: "GPS-2026-0832", duration: "50m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-014",
+    name: "Amit Kulkarni",
+    initials: "AK",
+    department: "Assembly",
+    designation: "Cleanroom Assembly Specialist",
+    skillLevel: "Level 3 · Precision Assembly",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Front Bearing Assembly",
+    workOrder: "WO-2026-107",
+    spindleSerial: "GPS-2026-0847",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Cleanroom Station",
+    bay: "Bay 3",
+    started: "09:10 AM",
+    duration: "1h 46m",
+    progress: 54,
+    tasksToday: 5,
+    completedToday: 3,
+    utilization: 84,
+    avatarColor: "#059669",
+    activity: [
+      { time: "09:10 AM", title: "Cleanroom preparation", detail: "Component de-magnetization and solvent wash" },
+      { time: "09:40 AM", title: "Bearing Induction Heating", detail: "Heated ceramic bearing pair to 110°C" },
+      { time: "10:20 AM", title: "Shaft seat fitment", detail: "Preload disc spring seating verified" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-101", task: "Rear Bearing Pack Fitting", spindle: "GPS-2026-0838", duration: "1h 30m", status: "Completed" },
+      { wo: "WO-2026-099", task: "Rotary Encoder Seating", spindle: "GPS-2026-0837", duration: "45m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-032",
+    name: "Vikram Shinde",
+    initials: "VS",
+    department: "Balancing",
+    designation: "Dynamic Balancing Specialist",
+    skillLevel: "Level 5 · ISO 1940 Balancer",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Dynamic Balancing",
+    workOrder: "WO-2026-103",
+    spindleSerial: "GPS-2026-0839",
+    spindleModel: "GPS-BT50-10K",
+    machine: "Schenck SmartBalancing Rig",
+    bay: "Bay 4",
+    started: "08:05 AM",
+    duration: "2h 51m",
+    progress: 88,
+    tasksToday: 6,
+    completedToday: 4,
+    utilization: 89,
+    avatarColor: "#d97706",
+    activity: [
+      { time: "08:05 AM", title: "Mounted on Schenck Rig", detail: "Dual-plane piezo accelerometer calibration" },
+      { time: "08:50 AM", title: "Initial Run at 6,000 RPM", detail: "Unbalance recorded at 1.4 g·mm" },
+      { time: "09:45 AM", title: "Grub Screw Correction", detail: "Threaded counter-weight inserted at Plane A" },
+      { time: "10:35 AM", title: "High-speed sweep at 15k RPM", detail: "Residual unbalance reduced to 0.14 g·mm (G0.28)" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-095", task: "Rotor Core Dynamic Balancing", spindle: "GPS-2026-0834", duration: "1h 15m", status: "Completed" },
+      { wo: "WO-2026-097", task: "HSK Taper Runout Dynamic Test", spindle: "GPS-2026-0835", duration: "1h 00m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-018",
+    name: "Priya Deshmukh",
+    initials: "PD",
+    department: "Quality",
+    designation: "Quality & Metrology Engineer",
+    skillLevel: "Level 4 · CMM & Metrology",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Final Runout Inspection",
+    workOrder: "WO-2026-101",
+    spindleSerial: "GPS-2026-0835",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Zeiss CMM & Mahr Gauges",
+    bay: "Bay 6",
+    started: "10:02 AM",
+    duration: "54m",
+    progress: 91,
+    tasksToday: 8,
+    completedToday: 6,
+    utilization: 91,
+    avatarColor: "#7c3aed",
+    activity: [
+      { time: "10:02 AM", title: "Metrology acclimatization", detail: "Stabilized unit at 20.0°C lab temperature" },
+      { time: "10:20 AM", title: "Zeiss CMM Taper Scan", detail: "Circularity measured at 0.0006 mm" },
+      { time: "10:45 AM", title: "Test bar runout @ 300mm", detail: "Dial gauge indicator showed 0.0022 mm" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-096", task: "Thermal Growth Sign-off", spindle: "GPS-2026-0833", duration: "1h 20m", status: "Completed" },
+      { wo: "WO-2026-094", task: "Clamp Force Calibration", spindle: "GPS-2026-0831", duration: "45m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-007",
+    name: "Suresh Sawant",
+    initials: "SS",
+    department: "Grinding",
+    designation: "Master Precision Grinder",
+    skillLevel: "Level 5 · Studer Specialist",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Overloaded",
+    currentTask: "Bearing Journal Micro-Finish",
+    workOrder: "WO-2026-104",
+    spindleSerial: "GPS-2026-0842",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Studer S33 Grinder",
+    bay: "Bay 2",
+    started: "08:00 AM",
+    duration: "2h 56m",
+    progress: 96,
+    tasksToday: 9,
+    completedToday: 6,
+    utilization: 98,
+    avatarColor: "#dc2626",
+    activity: [
+      { time: "08:00 AM", title: "Diamond dresser setup", detail: "Dressed CBN grinding wheel" },
+      { time: "08:40 AM", title: "Rear Journal Grinding", detail: "Finished journal to 35.002 mm (±0.001 mm)" },
+      { time: "09:30 AM", title: "Front Journal Grinding", detail: "Finished 3 bearing step lands" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-092", task: "Spindle Shaft Finish Grinding", spindle: "GPS-2026-0830", duration: "2h 30m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-011",
+    name: "Rajesh Patil",
+    initials: "RP",
+    department: "Machining",
+    designation: "CNC Turning Specialist",
+    skillLevel: "Level 4 · Okuma Programmer",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "CNC Turning & Internal Bore",
+    workOrder: "WO-2026-106",
+    spindleSerial: "GPS-2026-0844",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Okuma LB3000 Lathe",
+    bay: "Bay 1",
+    started: "08:15 AM",
+    duration: "2h 41m",
+    progress: 82,
+    tasksToday: 6,
+    completedToday: 4,
+    utilization: 88,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "08:15 AM", title: "Loaded 18CrNiMo7-6 bar stock", detail: "Chucked and centered workpiece" },
+      { time: "09:10 AM", title: "CNC Rough OD Turning", detail: "Turned 6-step spindle profile" },
+      { time: "10:10 AM", title: "Internal Bore Boring", detail: "Bored central coolant / drawbar passage" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-098", task: "Spindle Housing Turning", spindle: "GPS-2026-0837", duration: "2h 00m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-029",
+    name: "Dilip Shinde",
+    initials: "DS",
+    department: "Machining",
+    designation: "Sawing & Material Prep Tech",
+    skillLevel: "Level 3 · Material Prep",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Bar Stock Sawing & Testing",
+    workOrder: "WO-2026-105",
+    spindleSerial: "GPS-2026-0843",
+    spindleModel: "GPS-BT50-10K",
+    machine: "Bandsaw & Pit Furnace",
+    bay: "Bay 1",
+    started: "07:30 AM",
+    duration: "3h 26m",
+    progress: 60,
+    tasksToday: 5,
+    completedToday: 3,
+    utilization: 82,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "07:30 AM", title: "Bandsaw setup", detail: "Cut 180mm forged round bar" },
+      { time: "08:30 AM", title: "Ultrasonic Flaw Detection", detail: "Passed NDT ultrasonic porosity scan" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-099", task: "Sawing 120mm Alloy Bars", spindle: "GPS-2026-0838", duration: "1h 15m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-005",
+    name: "Milind Joshi",
+    initials: "MJ",
+    department: "Testing",
+    designation: "Test Rig Lead & Diagnostic Tech",
+    skillLevel: "Level 5 · Vibration Diagnostics",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "4h Dynamic Run-in & Temp Test",
+    workOrder: "WO-2026-109",
+    spindleSerial: "GPS-2026-0847",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Run-in Test Bench 1",
+    bay: "Bay 5",
+    started: "08:30 AM",
+    duration: "2h 26m",
+    progress: 75,
+    tasksToday: 4,
+    completedToday: 2,
+    utilization: 88,
+    avatarColor: "#2563eb",
+    activity: [
+      { time: "08:30 AM", title: "Chiller loop hookup", detail: "Coolant circuit connected at 20°C flow" },
+      { time: "09:00 AM", title: "Step ramp to 12,000 RPM", detail: "Bearing temp rise 8.2°C" },
+      { time: "10:00 AM", title: "Step ramp to 24,000 RPM", detail: "Vibration FFT 0.28 mm/s RMS (compliant)" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-101", task: "6h Thermal Soak Run", spindle: "GPS-2026-0835", duration: "3h 30m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-024",
+    name: "Ramesh Deshmukh",
+    initials: "RD",
+    department: "Balancing",
+    designation: "Dynamic Balancing Technician",
+    skillLevel: "Level 4 · Dynamic Balancing",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Dynamic Balancing Dual Plane",
+    workOrder: "WO-2026-108",
+    spindleSerial: "GPS-2026-0846",
+    spindleModel: "GPS-GR-18K",
+    machine: "Schenck SmartBalancing Rig",
+    bay: "Bay 4",
+    started: "09:30 AM",
+    duration: "1h 26m",
+    progress: 65,
+    tasksToday: 5,
+    completedToday: 3,
+    utilization: 78,
+    avatarColor: "#d97706",
+    activity: [
+      { time: "09:30 AM", title: "Spindle arbor balancing", detail: "Spin-up to 18,000 RPM on rig" },
+      { time: "10:15 AM", title: "Correction milling on nose", detail: "Removed 0.08g at 142 degrees" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-097", task: "Dynamic Balancing", spindle: "GPS-2026-0835", duration: "1h 10m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-037",
+    name: "Anand Kadam",
+    initials: "AK",
+    department: "Assembly",
+    designation: "Motor Core Stator Fitting Tech",
+    skillLevel: "Level 3 · Electro-Mechanical",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Stator Core Shrink Fitting",
+    workOrder: "WO-2026-110",
+    spindleSerial: "GPS-2026-0848",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Clean Room Station",
+    bay: "Bay 3",
+    started: "09:45 AM",
+    duration: "1h 11m",
+    progress: 40,
+    tasksToday: 4,
+    completedToday: 2,
+    utilization: 80,
+    avatarColor: "#059669",
+    activity: [
+      { time: "09:45 AM", title: "Housing oven pre-heat", detail: "Housing expansion to 135°C" },
+      { time: "10:25 AM", title: "Inserted 15kW Stator", detail: "Stator insulation tested at 250 MΩ" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-102", task: "Stator Lead Termination", spindle: "GPS-2026-0840", duration: "1h 05m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-033",
+    name: "Deepak Shinde",
+    initials: "DS",
+    department: "Service",
+    designation: "Senior Spindle Rebuild Specialist",
+    skillLevel: "Level 5 · Spindle Overhaul",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Overloaded",
+    currentTask: "Disassembly & Failure Analysis",
+    workOrder: "SR-2026-042",
+    spindleSerial: "GPS-2025-0721",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Service Bay Hydraulic Bench",
+    bay: "Service Bay",
+    started: "08:10 AM",
+    duration: "2h 46m",
+    progress: 68,
+    tasksToday: 7,
+    completedToday: 3,
+    utilization: 96,
+    avatarColor: "#dc2626",
+    activity: [
+      { time: "08:10 AM", title: "Teardown of failed unit", detail: "Hydraulic extractor pulled front bearing quad" },
+      { time: "09:20 AM", title: "Root cause analysis", detail: "Documented coolant wash-out on bearing balls" },
+      { time: "10:15 AM", title: "Taper regrind setup", detail: "Measured HSK cone fretting (0.0058 mm)" }
+    ],
+    taskHistory: [
+      { wo: "SR-2026-040", task: "Spring Stack Replacement", spindle: "GPS-2024-0419", duration: "1h 30m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-026",
+    name: "Sunita Jadhav",
+    initials: "SJ",
+    department: "Quality",
+    designation: "Air Gauging & Calibration Tech",
+    skillLevel: "Level 4 · ISO Calibration",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "On Break",
+    currentTask: "Air Gauging Calibration (Paused)",
+    workOrder: "WO-2026-104",
+    spindleSerial: "GPS-2026-0842",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Mahr Air Gauge Stand",
+    bay: "Bay 6",
+    started: "10:15 AM",
+    duration: "41m",
+    progress: 100,
+    tasksToday: 6,
+    completedToday: 5,
+    utilization: 75,
+    avatarColor: "#7c3aed",
+    activity: [
+      { time: "10:15 AM", title: "Master ring calibration", detail: "Zeroed 2-jet air gauge plug against standard" },
+      { time: "10:45 AM", title: "Commenced shift break", detail: "Scheduled 20m morning rotation" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-098", task: "Bore Concentricity Check", spindle: "GPS-2026-0837", duration: "45m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-041",
+    name: "Sachin More",
+    initials: "SM",
+    department: "Stores",
+    designation: "Precision Tooling & Kitting Tech",
+    skillLevel: "Level 3 · Inventory & Kitting",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Available",
+    currentTask: "HSK-A63 Drawbar Collet Prep",
+    workOrder: "WO-2026-104",
+    spindleSerial: "GPS-2026-0842",
+    spindleModel: "GPS-HSK-A63-24K",
+    machine: "Tooling Station",
+    bay: "Stores / Kitting",
+    started: "10:30 AM",
+    duration: "26m",
+    progress: 85,
+    tasksToday: 5,
+    completedToday: 4,
+    utilization: 65,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "10:30 AM", title: "Kitted OTT-Jakob gripper assembly", detail: "Dispatched to Bay 3 Cleanroom" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-106", task: "Alloy Round Bar Kitting", spindle: "GPS-2026-0844", duration: "30m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-044",
+    name: "Nitin Bhosale",
+    initials: "NB",
+    department: "Testing",
+    designation: "Spindle Chiller & Electrical Tech",
+    skillLevel: "Level 4 · Maintenance & Chiller",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Available",
+    currentTask: "Standby for Run-in Bench 2",
+    workOrder: "—",
+    spindleSerial: "—",
+    spindleModel: "—",
+    machine: "Dual Channel Test Bench",
+    bay: "Bay 5",
+    started: "—",
+    duration: "—",
+    progress: 0,
+    tasksToday: 4,
+    completedToday: 4,
+    utilization: 62,
+    avatarColor: "#2563eb",
+    activity: [
+      { time: "07:30 AM", title: "Replaced chiller glycol filter", detail: "Flow rate restored to 8.5 L/min" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-102", task: "Run-in Chiller Calibration", spindle: "GPS-2026-0840", duration: "1h 15m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-019",
+    name: "Vinod Gaikwad",
+    initials: "VG",
+    department: "Machining",
+    designation: "Senior Gun Drilling Machinist",
+    skillLevel: "Level 4 · Deep Hole Specialist",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "In Meeting",
+    currentTask: "Machining Team Tooling Briefing",
+    workOrder: "—",
+    spindleSerial: "—",
+    spindleModel: "—",
+    machine: "Okuma Lathe Station",
+    bay: "Bay 1",
+    started: "10:30 AM",
+    duration: "25m",
+    progress: 50,
+    tasksToday: 4,
+    completedToday: 3,
+    utilization: 70,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "10:30 AM", title: "Attending Tooling Review", detail: "Discussion with Sandvik rep on carbide drill life" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-104", task: "Deep Hole Coolant Gun Drilling", spindle: "GPS-2026-0842", duration: "2h 00m", status: "Completed" }
+    ]
+  },
+  {
+    id: "EMP-050",
+    name: "Ganesh Pawar",
+    initials: "GP",
+    department: "Stores",
+    designation: "Packaging & Dispatch Supervisor",
+    skillLevel: "Level 3 · Logistics & Export Packing",
+    shift: "Morning Shift (06:00 - 14:30)",
+    status: "Working",
+    currentTask: "Anti-Corrosion Shock-Crate Pack",
+    workOrder: "WO-2026-102",
+    spindleSerial: "GPS-2026-0840",
+    spindleModel: "GPS-HF-60K",
+    machine: "Shock Crate Rig",
+    bay: "Bay 7",
+    started: "07:00 AM",
+    duration: "4h 00m",
+    progress: 100,
+    tasksToday: 5,
+    completedToday: 5,
+    utilization: 90,
+    avatarColor: "#0284c7",
+    activity: [
+      { time: "07:00 AM", title: "VCI wax coating applied", detail: "Hermetic barrier sealed with desiccant packs" },
+      { time: "09:30 AM", title: "Crated in hardwood export box", detail: "Accelerometer shock tilt sensors armed" }
+    ],
+    taskHistory: [
+      { wo: "WO-2026-090", task: "Export Packing for TASL", spindle: "GPS-2026-0828", duration: "1h 45m", status: "Completed" }
+    ]
+  }
+];
+
+export const DEPARTMENTS_WORKLOAD = [
+  { department: "Machining", staffCount: 8, activeTasks: 7, completedToday: 14, utilization: 88 },
+  { department: "Grinding", staffCount: 8, activeTasks: 6, completedToday: 11, utilization: 92 },
+  { department: "Assembly", staffCount: 6, activeTasks: 5, completedToday: 8, utilization: 85 },
+  { department: "Balancing", staffCount: 4, activeTasks: 3, completedToday: 6, utilization: 78 },
+  { department: "Testing", staffCount: 4, activeTasks: 3, completedToday: 5, utilization: 82 },
+  { department: "Quality", staffCount: 5, activeTasks: 4, completedToday: 9, utilization: 90 },
+  { department: "Service", staffCount: 4, activeTasks: 2, completedToday: 4, utilization: 75 },
+  { department: "Stores", staffCount: 3, activeTasks: 1, completedToday: 7, utilization: 64 },
+];
+
+export const BAY_ALLOCATIONS = [
+  {
+    bayId: 1,
+    bayName: "Bay 1 — CNC Lathe / Okuma",
+    machine: "Okuma LB3000 Space Turn",
+    assignedStaff: "Rajesh Patil (EMP-011)",
+    spindleSerial: "GPS-2026-0844",
+    workOrder: "WO-2026-106",
+    operation: "CNC Turning & Internal Bore Boring",
+    utilization: 88,
+    status: "Operating"
+  },
+  {
+    bayId: 2,
+    bayName: "Bay 2 — Studer S33 Grinder",
+    machine: "Studer S33 Precision Cylindrical Grinder",
+    assignedStaff: "Rahul Patil (EMP-021)",
+    spindleSerial: "GPS-2026-0842",
+    workOrder: "WO-2026-104",
+    operation: "Taper Grinding & Journal Spark-Out",
+    utilization: 96,
+    status: "Overloaded"
+  },
+  {
+    bayId: 3,
+    bayName: "Bay 3 — Cleanroom Assembly",
+    machine: "Class 1000 Clean Room Workstation",
+    assignedStaff: "Amit Kulkarni (EMP-014)",
+    spindleSerial: "GPS-2026-0847",
+    workOrder: "WO-2026-107",
+    operation: "Front Bearing Ceramic Pack Assembly",
+    utilization: 85,
+    status: "Operating"
+  },
+  {
+    bayId: 4,
+    bayName: "Bay 4 — Schenck Balancing",
+    machine: "Schenck SmartBalancing Rig Dual-Plane",
+    assignedStaff: "Vikram Shinde (EMP-032)",
+    spindleSerial: "GPS-2026-0839",
+    workOrder: "WO-2026-103",
+    operation: "Dynamic Balancing to ISO 1940 G0.4",
+    utilization: 78,
+    status: "Operating"
+  },
+  {
+    bayId: 5,
+    bayName: "Bay 5 — Spindle Test Bench",
+    machine: "Dual Channel Motor Test Bench 24k RPM",
+    assignedStaff: "Milind Joshi (EMP-005)",
+    spindleSerial: "GPS-2026-0847",
+    workOrder: "WO-2026-109",
+    operation: "4-Hour Dynamic Run-in & Temp Test",
+    utilization: 88,
+    status: "Operating"
+  },
+  {
+    bayId: 6,
+    bayName: "Bay 6 — QC Metrology",
+    machine: "Zeiss CMM & Mahr Precision Air Gauges",
+    assignedStaff: "Priya Deshmukh (EMP-018)",
+    spindleSerial: "GPS-2026-0835",
+    workOrder: "WO-2026-101",
+    operation: "Final Runout & CMM Inspection",
+    utilization: 94,
+    status: "Operating"
+  }
+];
+
+export const WORKFORCE_ALERTS = [
+  { id: 1, type: "danger", title: "Rahul Patil is at 96% utilization", subtitle: "Continuous high-duty grinding on Bay 2 with zero queue buffer", icon: "AlertTriangle" },
+  { id: 2, type: "warning", title: "Bay 2 has 2 queued operators", subtitle: "Suresh Sawant and Rahul Patil waiting for Studer CBN dressing wheel", icon: "Clock" },
+  { id: 3, type: "warning", title: "3 grinding tasks are approaching their due time", subtitle: "WO-2026-104, WO-2026-105 require shift sign-off before 14:00", icon: "AlertCircle" },
+  { id: 4, type: "danger", title: "1 critical work order has no assigned operator", subtitle: "WO-2026-108 emergency balance check currently unallocated", icon: "AlertTriangle" },
+  { id: 5, type: "success", title: "Assembly workload normalized", subtitle: "Cleanroom Bay 3 running smoothly at 85% optimal throughput", icon: "CheckCircle2" }
+];
+
+export const SHIFT_SUMMARY = {
+  shiftName: "Morning Shift (Shift A)",
+  timing: "06:00 — 14:00",
+  supervisor: "V. R. Kulkarni (Production Head)",
+  staffScheduled: 36,
+  staffPresent: 34,
+  staffWorking: 31,
+  completedTasks: 27,
+  openTasks: 19,
+  progressPercentage: 68
+};
+

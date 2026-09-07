@@ -188,10 +188,13 @@ export default function InvoicesScreen({ onNotify }) {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Invoice Top Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '15px' }}>GPS Spindle Pvt. Ltd.</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Plot B-42, Chakan Phase II, Pune • GSTIN: 27AABCG1492K1Z8</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '36px', borderRadius: '4px', background: '#ffffff', padding: '2px', border: '1px solid var(--border-color)' }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px' }}>General Precision Spindles Pvt. Ltd.</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Plot B-12, Nanded City Industrial Complex, Pune • GSTIN: 27AABCG1492K1Z8</div>
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div className="mono" style={{ fontWeight: 700, fontSize: '15px' }}>{selectedInvoice.id}</div>
