@@ -741,9 +741,10 @@ html, body {
 
 .grid-2col-sales {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
+  align-items: start;
 }
 
 .grid-2col-cust {
@@ -1421,8 +1422,13 @@ select.form-control {
 /* Responsive Media Queries */
 @media (max-width: 1100px) {
   .grid-2col,
-  .grid-2col-sales,
   .grid-2col-cust {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .grid-2col-sales {
     grid-template-columns: 1fr;
   }
 }
