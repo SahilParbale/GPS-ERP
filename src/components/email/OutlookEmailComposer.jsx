@@ -21,8 +21,6 @@ export default function OutlookEmailComposer({
   onSaveDraft,
   onNotify
 }) {
-  if (!isOpen && !isMinimizedState) return null;
-
   // Track whether minimized
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -283,6 +281,10 @@ export default function OutlookEmailComposer({
       }
     }
   };
+
+  if (!isOpen && !isMinimized) {
+    return null;
+  }
 
   // If Minimized, render floating dock button in bottom-right corner
   if (isMinimized) {

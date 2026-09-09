@@ -4,9 +4,10 @@ import {
   ShieldCheck, Wrench, Users, Truck, FileText, 
   BarChart3, Settings, ChevronRight, Activity, 
   PanelLeftClose, PanelLeftOpen, Building2, ShoppingCart,
-  Receipt, Mail
+  Receipt, Mail, Shield
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 
 export const NAV_SECTIONS = [
   {
@@ -69,6 +70,14 @@ export default function Sidebar({
   isMobileOpen, 
   onCloseMobile 
 }) {
+  const { canAccessScreen, role, roleLabel, employee } = useAuth();
+
+  // Filter navigation items by role-authorized screens
+  const visibleSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => canAccessScreen(item.id))
+  })).filter((section) => section.items.length > 0);
+
   return (
     <>
       {isMobileOpen && (
@@ -132,7 +141,7 @@ export default function Sidebar({
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.id} className="sidebar-category-wrap">
               {!isCollapsed && (
                 <div className="sidebar-category-header">
@@ -182,20 +191,42 @@ export default function Sidebar({
             </button>
           </div>
         ) : (
-          <div className="sidebar-footer">
-            <div className="sidebar-plant-status">
-              <span className="status-dot-pulse" />
-              <span>Nanded City Unit 1 • Shift A</span>
+          <div className="sidebar-footer" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div className="sidebar-plant-status">
+                <span className="status-dot-pulse" />
+                <span>Nanded City Plant 1</span>
+              </div>
+              <button
+                type="button"
+                className="sidebar-fullscreen-btn"
+                onClick={onToggleCollapse}
+                title="Collapse to icon rail"
+                aria-label="Collapse to icon rail"
+              >
+                <PanelLeftClose size={13} />
+              </button>
             </div>
-            <button
-              type="button"
-              className="sidebar-fullscreen-btn"
-              onClick={onToggleCollapse}
-              title="Collapse to icon rail"
-              aria-label="Collapse to icon rail"
+            {/* Active User Role Badge */}
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                backgroundColor: 'rgba(122, 31, 61, 0.08)',
+                color: '#7A1F3D',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontWeight: 600
+              }}
+              title={`Logged in as ${employee?.employeeCode || 'GPS'} (${roleLabel})`}
             >
-              <PanelLeftClose size={13} />
-            </button>
+              <Shield size={12} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {roleLabel}
+              </span>
+            </div>
           </div>
         )}
       </aside>

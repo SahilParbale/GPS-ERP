@@ -1,0 +1,1317 @@
+[
+  {
+    "table": "companies",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (Organization catalog)",
+    "insert_access": "ADMIN, MANAGEMENT",
+    "update_access": "ADMIN, MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Organization metadata needed by all authenticated users for routing & display."
+  },
+  {
+    "table": "branches",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (Organization catalog)",
+    "insert_access": "ADMIN, MANAGEMENT",
+    "update_access": "ADMIN, MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Organization metadata needed by all authenticated users for routing & display."
+  },
+  {
+    "table": "departments",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (Organization catalog)",
+    "insert_access": "ADMIN, MANAGEMENT",
+    "update_access": "ADMIN, MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Organization metadata needed by all authenticated users for routing & display."
+  },
+  {
+    "table": "locations",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (Organization catalog)",
+    "insert_access": "ADMIN, MANAGEMENT",
+    "update_access": "ADMIN, MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Organization metadata needed by all authenticated users for routing & display."
+  },
+  {
+    "table": "roles",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN (write)"
+    ],
+    "read_access": "Authenticated users (role evaluation)",
+    "insert_access": "ADMIN only",
+    "update_access": "ADMIN only",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Critical privilege escalation boundary. Non-admin modification strictly forbidden."
+  },
+  {
+    "table": "permissions",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN (write)"
+    ],
+    "read_access": "Authenticated users (role evaluation)",
+    "insert_access": "ADMIN only",
+    "update_access": "ADMIN only",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Critical privilege escalation boundary. Non-admin modification strictly forbidden."
+  },
+  {
+    "table": "role_permissions",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN (write)"
+    ],
+    "read_access": "Authenticated users (role evaluation)",
+    "insert_access": "ADMIN only",
+    "update_access": "ADMIN only",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Critical privilege escalation boundary. Non-admin modification strictly forbidden."
+  },
+  {
+    "table": "profiles",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Own profile OR ADMIN / MANAGEMENT",
+    "insert_access": "Own profile initial creation OR ADMIN",
+    "update_access": "Own personal fields only (name, phone, avatar); role_id & employee_id strictly immutable by non-admin",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Privilege escalation defense trigger prevents modifying role_id or user id."
+  },
+  {
+    "table": "shifts",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Factory work shift roster."
+  },
+  {
+    "table": "employees",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": "department_id",
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (employee directory for work orders/tasks)",
+    "insert_access": "ADMIN, MANAGEMENT",
+    "update_access": "ADMIN, MANAGEMENT (employee can update own current_status only; cannot modify role_id, dept, designation)",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Privilege escalation defense trigger prevents modifying role_id, employee_code, department."
+  },
+  {
+    "table": "employee_roles",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "employee_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN (write)"
+    ],
+    "read_access": "Authenticated users (role evaluation)",
+    "insert_access": "ADMIN only",
+    "update_access": "ADMIN only",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Critical privilege escalation boundary. Non-admin modification strictly forbidden."
+  },
+  {
+    "table": "attendance",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "employee_id",
+    "department_column": null,
+    "allowed_roles": [
+      "EMPLOYEE (own)",
+      "ADMIN",
+      "MANAGEMENT",
+      "PROD_MGR"
+    ],
+    "read_access": "Own attendance records OR ADMIN / MANAGEMENT / PROD_MGR",
+    "insert_access": "Own clock-in OR ADMIN / MANAGEMENT",
+    "update_access": "Own clock-out OR ADMIN / MANAGEMENT",
+    "delete_access": "ADMIN only",
+    "special_security_rules": "Employees can only clock in/out their own records for current date."
+  },
+  {
+    "table": "leave_requests",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "employee_id",
+    "department_column": null,
+    "allowed_roles": [
+      "EMPLOYEE (own)",
+      "ADMIN",
+      "MANAGEMENT",
+      "PROD_MGR"
+    ],
+    "read_access": "Own leave requests OR ADMIN / MANAGEMENT / PROD_MGR",
+    "insert_access": "Own leave submission",
+    "update_access": "ADMIN / MANAGEMENT / PROD_MGR (approvals) OR employee if Pending",
+    "delete_access": "Employee if Pending OR ADMIN",
+    "special_security_rules": "Only designated managers can approve leave requests."
+  },
+  {
+    "table": "production_bays",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Shop floor machinery and operational routing definitions."
+  },
+  {
+    "table": "machines",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Shop floor machinery and operational routing definitions."
+  },
+  {
+    "table": "production_operations",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Shop floor machinery and operational routing definitions."
+  },
+  {
+    "table": "machine_assignments",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": "employee_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Shop floor machinery and operational routing definitions."
+  },
+  {
+    "table": "spindle_models",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Precision spindle registry, telemetry, and sub-assembly BOM."
+  },
+  {
+    "table": "spindles",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Precision spindle registry, telemetry, and sub-assembly BOM."
+  },
+  {
+    "table": "spindle_components",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Precision spindle registry, telemetry, and sub-assembly BOM."
+  },
+  {
+    "table": "digital_twins",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR, QA_MGR, SERVICE",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Precision spindle registry, telemetry, and sub-assembly BOM."
+  },
+  {
+    "table": "work_orders",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Manufacturing traveler work orders (WO-2026-XXXX)."
+  },
+  {
+    "table": "work_order_items",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Manufacturing traveler work orders (WO-2026-XXXX)."
+  },
+  {
+    "table": "work_logs",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": "employee_id",
+    "department_column": "department_id",
+    "allowed_roles": [
+      "EMPLOYEE (own)",
+      "ADMIN",
+      "MANAGEMENT",
+      "PROD_MGR",
+      "QA_MGR"
+    ],
+    "read_access": "Own work logs OR ADMIN / MANAGEMENT / PROD_MGR / QA_MGR",
+    "insert_access": "Own work logs OR ADMIN / MANAGEMENT / PROD_MGR",
+    "update_access": "Own work logs OR ADMIN / MANAGEMENT / PROD_MGR",
+    "delete_access": "ADMIN, MANAGEMENT, PROD_MGR (ordinary operators cannot delete logs)",
+    "special_security_rules": "Operator daily activity tracking on spindle manufacturing work orders."
+  },
+  {
+    "table": "inspections",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "inspector_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, QA_MGR (write)"
+    ],
+    "read_access": "Authenticated users (inspections and quality certs)",
+    "insert_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "update_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Metrology test certificates and non-conformance records (NCR)."
+  },
+  {
+    "table": "inspection_results",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, QA_MGR (write)"
+    ],
+    "read_access": "Authenticated users (inspections and quality certs)",
+    "insert_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "update_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Metrology test certificates and non-conformance records (NCR)."
+  },
+  {
+    "table": "quality_certificates",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, QA_MGR (write)"
+    ],
+    "read_access": "Authenticated users (inspections and quality certs)",
+    "insert_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "update_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Metrology test certificates and non-conformance records (NCR)."
+  },
+  {
+    "table": "non_conformances",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "assigned_to",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, QA_MGR (write)"
+    ],
+    "read_access": "Authenticated users (inspections and quality certs)",
+    "insert_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "update_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Metrology test certificates and non-conformance records (NCR)."
+  },
+  {
+    "table": "spindle_quality_records",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "inspector_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, QA_MGR (write)"
+    ],
+    "read_access": "Authenticated users (inspections and quality certs)",
+    "insert_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "update_access": "ADMIN, MANAGEMENT, QA_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Metrology test certificates and non-conformance records (NCR)."
+  },
+  {
+    "table": "customers",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SALES (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Client master directory and contact cards."
+  },
+  {
+    "table": "customer_contacts",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SALES (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Client master directory and contact cards."
+  },
+  {
+    "table": "enquiries",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "assigned_to",
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Commercial sales pipeline, pricing costing, and client quotations."
+  },
+  {
+    "table": "quotations",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Commercial sales pipeline, pricing costing, and client quotations."
+  },
+  {
+    "table": "quotation_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Commercial sales pipeline, pricing costing, and client quotations."
+  },
+  {
+    "table": "sales_orders",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Commercial sales pipeline, pricing costing, and client quotations."
+  },
+  {
+    "table": "sales_order_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Commercial sales pipeline, pricing costing, and client quotations."
+  },
+  {
+    "table": "proforma_invoices",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "proforma_invoice_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "invoices",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "invoice_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "eway_bills",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "eway_bill_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Financial tax invoicing, bank details, and transit E-Way Bills. Inaccessible to non-commercial roles."
+  },
+  {
+    "table": "suppliers",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read/submit requisition)",
+      "ADMIN, MANAGEMENT, PURCHASE, STORES (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE (requisitions can be approved/modified)",
+    "delete_access": "ADMIN, MANAGEMENT, PURCHASE",
+    "special_security_rules": "Vendor directory and material purchase requests."
+  },
+  {
+    "table": "purchase_requisitions",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": "requested_by",
+    "employee_column": null,
+    "department_column": "department_id",
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read/submit requisition)",
+      "ADMIN, MANAGEMENT, PURCHASE, STORES (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "Authenticated users (any employee can request items)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE (requisitions can be approved/modified)",
+    "delete_access": "ADMIN, MANAGEMENT, PURCHASE",
+    "special_security_rules": "Vendor directory and material purchase requests."
+  },
+  {
+    "table": "purchase_requisition_items",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read/submit requisition)",
+      "ADMIN, MANAGEMENT, PURCHASE, STORES (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "Authenticated users (any employee can request items)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE (requisitions can be approved/modified)",
+    "delete_access": "ADMIN, MANAGEMENT, PURCHASE",
+    "special_security_rules": "Vendor directory and material purchase requests."
+  },
+  {
+    "table": "purchase_orders",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "PURCHASE",
+      "STORES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "insert_access": "ADMIN, MANAGEMENT, PURCHASE (GRNs by STORES too)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Procurement commitments and inward goods receipt inspection notes."
+  },
+  {
+    "table": "purchase_order_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "PURCHASE",
+      "STORES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "insert_access": "ADMIN, MANAGEMENT, PURCHASE (GRNs by STORES too)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Procurement commitments and inward goods receipt inspection notes."
+  },
+  {
+    "table": "goods_receipts",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "PURCHASE",
+      "STORES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "insert_access": "ADMIN, MANAGEMENT, PURCHASE (GRNs by STORES too)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Procurement commitments and inward goods receipt inspection notes."
+  },
+  {
+    "table": "goods_receipt_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "PURCHASE",
+      "STORES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "insert_access": "ADMIN, MANAGEMENT, PURCHASE (GRNs by STORES too)",
+    "update_access": "ADMIN, MANAGEMENT, PURCHASE, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Procurement commitments and inward goods receipt inspection notes."
+  },
+  {
+    "table": "product_categories",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Parts master, warehouse bins, and on-hand stock quantities."
+  },
+  {
+    "table": "products",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Parts master, warehouse bins, and on-hand stock quantities."
+  },
+  {
+    "table": "warehouses",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Parts master, warehouse bins, and on-hand stock quantities."
+  },
+  {
+    "table": "stock",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Parts master, warehouse bins, and on-hand stock quantities."
+  },
+  {
+    "table": "stock_movements",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "STORES",
+      "PURCHASE",
+      "PROD_MGR"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN only (Immutable inventory transaction ledger)",
+    "delete_access": "ADMIN only (Audit integrity)",
+    "special_security_rules": "Stock ledger records. Modifications restricted to audit corrections by Admin."
+  },
+  {
+    "table": "inventory_transactions",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "STORES",
+      "PURCHASE",
+      "PROD_MGR"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "insert_access": "ADMIN, MANAGEMENT, STORES, PURCHASE, PROD_MGR",
+    "update_access": "ADMIN only (Immutable inventory transaction ledger)",
+    "delete_access": "ADMIN only (Audit integrity)",
+    "special_security_rules": "Stock ledger records. Modifications restricted to audit corrections by Admin."
+  },
+  {
+    "table": "service_requests",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "service_jobs",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "service_items",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "service_history",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "spindle_service_history",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "assets",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "maintenance_orders",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": "technician_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "maintenance_history",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": "technician_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (read)",
+      "ADMIN, MANAGEMENT, SERVICE, PROD_MGR (write)"
+    ],
+    "read_access": "Authenticated users",
+    "insert_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "update_access": "ADMIN, MANAGEMENT, SERVICE, PROD_MGR",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Spindle aftermarket overhaul and machine tool preventative maintenance."
+  },
+  {
+    "table": "transporters",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES",
+      "STORES",
+      "PURCHASE"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES, STORES, PURCHASE",
+    "insert_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "update_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Freight shipping and dispatch crate tracking."
+  },
+  {
+    "table": "vehicles",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES",
+      "STORES",
+      "PURCHASE"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES, STORES, PURCHASE",
+    "insert_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "update_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Freight shipping and dispatch crate tracking."
+  },
+  {
+    "table": "dispatches",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": "created_by",
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES",
+      "STORES",
+      "PURCHASE"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES, STORES, PURCHASE",
+    "insert_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "update_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Freight shipping and dispatch crate tracking."
+  },
+  {
+    "table": "dispatch_items",
+    "primary_key": "id",
+    "sensitive_data": false,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES",
+      "STORES",
+      "PURCHASE"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES, STORES, PURCHASE",
+    "insert_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "update_access": "ADMIN, MANAGEMENT, SALES, STORES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Freight shipping and dispatch crate tracking."
+  },
+  {
+    "table": "expenses",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": "created_by",
+    "employee_column": "employee_id",
+    "department_column": "department_id",
+    "allowed_roles": [
+      "EMPLOYEE (own)",
+      "ADMIN",
+      "MANAGEMENT"
+    ],
+    "read_access": "Own expense claims OR ADMIN / MANAGEMENT",
+    "insert_access": "Authenticated users (submit claim)",
+    "update_access": "Own expense if pending OR ADMIN / MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Employee expense reimbursements and travel claims."
+  },
+  {
+    "table": "expense_items",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "EMPLOYEE (own)",
+      "ADMIN",
+      "MANAGEMENT"
+    ],
+    "read_access": "Own expense claims OR ADMIN / MANAGEMENT",
+    "insert_access": "Authenticated users (submit claim)",
+    "update_access": "Own expense if pending OR ADMIN / MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Employee expense reimbursements and travel claims."
+  },
+  {
+    "table": "payment_records",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES",
+    "insert_access": "ADMIN, MANAGEMENT, SALES",
+    "update_access": "ADMIN, MANAGEMENT, SALES",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Customer bank wire and RTGS payment receipts."
+  },
+  {
+    "table": "documents",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (CAD drawings & spec sheets)",
+    "insert_access": "Authenticated users",
+    "update_access": "Authenticated users",
+    "delete_access": "ADMIN, MANAGEMENT",
+    "special_security_rules": "Engineering document version control."
+  },
+  {
+    "table": "document_versions",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED"
+    ],
+    "read_access": "Authenticated users (CAD drawings & spec sheets)",
+    "insert_access": "Authenticated users",
+    "update_access": "Authenticated users",
+    "delete_access": "ADMIN, MANAGEMENT",
+    "special_security_rules": "Engineering document version control."
+  },
+  {
+    "table": "email_activity",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT",
+      "SALES",
+      "PURCHASE"
+    ],
+    "read_access": "ADMIN, MANAGEMENT, SALES, PURCHASE",
+    "insert_access": "ADMIN, MANAGEMENT, SALES, PURCHASE",
+    "update_access": "ADMIN, MANAGEMENT",
+    "delete_access": "ADMIN",
+    "special_security_rules": "Outlook client email logs and communication trail."
+  },
+  {
+    "table": "notifications",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": null,
+    "department_column": null,
+    "allowed_roles": [
+      "ALL_AUTHENTICATED (own)"
+    ],
+    "read_access": "Authenticated users (own notifications)",
+    "insert_access": "Authenticated users (system / user alerts)",
+    "update_access": "Authenticated users (mark as read)",
+    "delete_access": "Authenticated users (dismiss)",
+    "special_security_rules": "User alerts and system notifications."
+  },
+  {
+    "table": "audit_logs",
+    "primary_key": "id",
+    "sensitive_data": true,
+    "owner_column": null,
+    "employee_column": "user_id",
+    "department_column": null,
+    "allowed_roles": [
+      "ADMIN",
+      "MANAGEMENT (read only)"
+    ],
+    "read_access": "ADMIN, MANAGEMENT",
+    "insert_access": "Authenticated system trigger / service",
+    "update_access": "DENIED (Immutable audit trail)",
+    "delete_access": "DENIED (Immutable audit trail)",
+    "special_security_rules": "Critical audit trail. Update and Delete strictly forbidden to all users!"
+  }
+]

@@ -3,6 +3,11 @@ import Sidebar from './components/common/Sidebar';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
+import AccessDenied from './components/common/AccessDenied';
+
+// Auth Integration
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginScreen from './screens/LoginScreen';
 
 // Screens
 import DashboardScreen from './screens/DashboardScreen';
@@ -27,7 +32,9 @@ import SettingsScreen from './screens/SettingsScreen';
 
 import { WORK_ORDERS, SPINDLES } from './data/mockData';
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, isLoading, canAccessScreen, role } = useAuth();
+
   const [currentScreen, setCurrentScreen] = useState('dashboard');
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(WORK_ORDERS[0]);
   const [selectedSpindle, setSelectedSpindle] = useState(SPINDLES[0]);
@@ -59,35 +66,115 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Ensure user screen is permitted when role changes
+  useEffect(() => {
+    if (isAuthenticated && !canAccessScreen(currentScreen)) {
+      const defaultScreen = role === 'OPERATOR' || role === 'EMPLOYEE' ? 'workforce' : 'dashboard';
+      setCurrentScreen(defaultScreen);
+    }
+  }, [role, isAuthenticated, canAccessScreen, currentScreen]);
+
   const handleGlobalSearch = (query) => {
     setSearchQuery(query);
     const q = query.toLowerCase().trim();
     if (!q) return;
 
     if (q.includes('po-') || q.includes('purchase order') || q.includes('purchase') || q.includes('schaeffler') || q.includes('jakob')) {
-      setCurrentScreen('purchase-orders');
+      if (canAccessScreen('purchase-orders')) setCurrentScreen('purchase-orders');
     } else if (q.includes('pi-') || q.includes('proforma')) {
-      setCurrentScreen('proforma-invoices');
+      if (canAccessScreen('proforma-invoices')) setCurrentScreen('proforma-invoices');
     } else if (q.includes('ewb-') || q.includes('e-way') || q.includes('way bill') || q.includes('transporter')) {
-      setCurrentScreen('e-way-bills');
+      if (canAccessScreen('e-way-bills')) setCurrentScreen('e-way-bills');
     } else if (q.includes('wo-') || q.includes('work order') || q.includes('prod')) {
-      setCurrentScreen('production');
+      if (canAccessScreen('production')) setCurrentScreen('production');
     } else if (q.includes('gps-20') || q.includes('spindle') || q.includes('twin')) {
-      setCurrentScreen('spindles');
+      if (canAccessScreen('spindles')) setCurrentScreen('spindles');
     } else if (q.includes('sr-') || q.includes('repair') || q.includes('service')) {
-      setCurrentScreen('service');
+      if (canAccessScreen('service')) setCurrentScreen('service');
     } else if (q.includes('inv-') || q.includes('bill') || q.includes('tax')) {
-      setCurrentScreen('invoices');
+      if (canAccessScreen('invoices')) setCurrentScreen('invoices');
     } else if (q.includes('qc') || q.includes('runout') || q.includes('balance')) {
-      setCurrentScreen('quality');
+      if (canAccessScreen('quality')) setCurrentScreen('quality');
     } else if (q.includes('stock') || q.includes('bearing') || q.includes('mat-')) {
-      setCurrentScreen('inventory');
+      if (canAccessScreen('inventory')) setCurrentScreen('inventory');
     } else if (q.includes('staff') || q.includes('workforce') || q.includes('worker') || q.includes('operator') || q.includes('emp-')) {
-      setCurrentScreen('workforce');
+      if (canAccessScreen('workforce')) setCurrentScreen('workforce');
     }
   };
 
+  // 1. Splash Loading State (no flash of protected content)
+  if (isLoading) {
+    return (
+      <div 
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#FAF5F6',
+          fontFamily: 'var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)'
+        }}
+      >
+        <div 
+          style={{
+            padding: '24px 32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #E8D5DA',
+            boxShadow: '0 8px 24px rgba(122, 31, 61, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px'
+          }}
+        >
+          <div 
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #E8D5DA',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+            }}
+          >
+            <img src="/logo.jpg" alt="GPS Spindles" style={{ height: '32px', width: 'auto' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#7A5260', fontWeight: '500' }}>
+            <div 
+              style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                border: '2px solid #E8D5DA',
+                borderTopColor: '#7A1F3D',
+                animation: 'spin 0.8s linear infinite'
+              }} 
+            />
+            <span>Initializing Precision ERP Session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated User State
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  // 3. Screen Router
   const renderScreen = () => {
+    // Role-based route protection: Verify access to requested screen
+    if (!canAccessScreen(currentScreen)) {
+      return (
+        <AccessDenied 
+          attemptedScreen={currentScreen} 
+          onNavigate={setCurrentScreen} 
+        />
+      );
+    }
+
     switch (currentScreen) {
       case 'dashboard':
         return (
@@ -241,6 +328,18 @@ export default function App() {
     }
   };
 
+  // Filter quick actions by authorized screens
+  const permittedQuickActions = [
+    { label: 'Create Purchase Order (PO)', desc: 'Issue PO to Schaeffler, Bharat Steel, or OTT Jakob', screen: 'purchase-orders' },
+    { label: 'Issue Proforma Invoice (PI)', desc: 'Generate advance payment proforma linked to Sales Order', screen: 'proforma-invoices' },
+    { label: 'Generate E-Way Bill (EWB)', desc: 'Create dispatch transit pass for customer consignment', screen: 'e-way-bills' },
+    { label: 'Draft Precision Quotation', desc: 'Prepare proposal with 18% GST and terms', screen: 'sales' },
+    { label: 'Launch New Work Order', desc: 'Initialize traveler for CNC machining & grinding', screen: 'production' },
+    { label: 'Register Spindle Serial Asset', desc: 'Add new manufactured unit to digital fleet registry', screen: 'spindles' },
+    { label: 'Log Inward Service / Overhaul', desc: 'Create inspection ticket for customer rebuild', screen: 'service' },
+    { label: 'Final QC Air Gauge Inspection', desc: 'Perform micron dial test indicator sign-off', screen: 'quality' },
+  ].filter(action => canAccessScreen(action.screen));
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
@@ -288,16 +387,7 @@ export default function App() {
         maxWidth="500px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {[
-            { label: 'Create Purchase Order (PO)', desc: 'Issue PO to Schaeffler, Bharat Steel, or OTT Jakob', screen: 'purchase-orders' },
-            { label: 'Issue Proforma Invoice (PI)', desc: 'Generate advance payment proforma linked to Sales Order', screen: 'proforma-invoices' },
-            { label: 'Generate E-Way Bill (EWB)', desc: 'Create dispatch transit pass for customer consignment', screen: 'e-way-bills' },
-            { label: 'Draft Precision Quotation', desc: 'Prepare proposal with 18% GST and terms', screen: 'sales' },
-            { label: 'Launch New Work Order', desc: 'Initialize traveler for CNC machining & grinding', screen: 'production' },
-            { label: 'Register Spindle Serial Asset', desc: 'Add new manufactured unit to digital fleet registry', screen: 'spindles' },
-            { label: 'Log Inward Service / Overhaul', desc: 'Create inspection ticket for customer rebuild', screen: 'service' },
-            { label: 'Final QC Air Gauge Inspection', desc: 'Perform micron dial test indicator sign-off', screen: 'quality' },
-          ].map((action, idx) => (
+          {permittedQuickActions.map((action, idx) => (
             <div 
               key={idx}
               style={{
@@ -310,7 +400,7 @@ export default function App() {
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = 'var(--primary)';
-                e.currentTarget.style.backgroundColor = '#f0f9ff';
+                e.currentTarget.style.backgroundColor = '#FAF0F3';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
@@ -326,8 +416,21 @@ export default function App() {
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{action.desc}</div>
             </div>
           ))}
+          {permittedQuickActions.length === 0 && (
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '12px', textAlign: 'center' }}>
+              No quick actions available for your current role.
+            </div>
+          )}
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Menu, Search, Bell, Plus, ChevronRight, User, 
   Layers, CheckSquare, Factory, PanelLeftClose, PanelLeftOpen,
-  ArrowRight, FileText, ShoppingCart, Receipt, Truck
+  ArrowRight, FileText, ShoppingCart, Receipt, Truck,
+  LogOut, KeyRound, Shield, Check
 } from 'lucide-react';
 import { 
   PURCHASE_ORDERS, 
@@ -11,6 +12,10 @@ import {
   QUOTATIONS, 
   INVOICES 
 } from '../../data/mockData';
+import DatabaseStatusIndicator from './DatabaseStatusIndicator';
+import { useAuth } from '../../context/AuthContext';
+import UserProfileModal from '../auth/UserProfileModal';
+import ChangePasswordModal from '../auth/ChangePasswordModal';
 
 export default function Header({ 
   currentScreen, 
@@ -22,10 +27,25 @@ export default function Header({
   searchQuery,
   onNavigate 
 }) {
+  const { profile, employee, role, roleLabel, signOut, switchDemoRole, demoUsers } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchContainerRef = useRef(null);
+  const userMenuRef = useRef(null);
+
+  // Close user dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Friendly title mapping for breadcrumb
   const breadcrumbMap = {
@@ -321,6 +341,9 @@ export default function Header({
           <span>Nanded City Unit 1</span>
         </div>
 
+        {/* Supabase Database Connection Indicator */}
+        <DatabaseStatusIndicator />
+
         {/* Quick Action Button */}
         <button 
           type="button" 
@@ -380,18 +403,208 @@ export default function Header({
 
         {/* User Profile */}
         <div 
-          className="user-profile-menu"
-          onClick={() => setShowUserMenu(!showUserMenu)}
+          ref={userMenuRef}
+          style={{ position: 'relative' }}
         >
-          <div className="user-avatar" style={{ background: '#ffffff', border: '1px solid var(--border-color)', padding: '2px', overflow: 'hidden' }}>
-            <img src="/logo.jpg" alt="GPS Spindles" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center' }} />
+          <div 
+            className="user-profile-menu"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            style={{ cursor: 'pointer' }}
+          >
+            <div 
+              className="user-avatar" 
+              style={{ 
+                background: employee?.avatarColor || profile?.avatarColor || '#7A1F3D', 
+                color: '#ffffff', 
+                fontSize: '12px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden' 
+              }}
+            >
+              {(profile?.name || employee?.name || 'GPS').split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </div>
+            <div className="user-info">
+              <span className="user-name">{profile?.name || employee?.name || 'Rahul Patil'}</span>
+              <span className="user-role">{roleLabel || 'Plant Admin & Operations'}</span>
+            </div>
           </div>
-          <div className="user-info">
-            <span className="user-name">GPS Spindles</span>
-            <span className="user-role">Plant Admin & Operations</span>
-          </div>
+
+          {/* User Profile Dropdown */}
+          {showUserMenu && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: '48px',
+                right: '0',
+                width: '270px',
+                background: '#ffffff',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 100,
+                padding: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              {/* Identity Header */}
+              <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '6px', marginBottom: '4px' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                  {profile?.name || employee?.name || 'Rahul Patil'}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
+                  {employee?.employeeCode || 'GPS-EMP-101'} • {roleLabel}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {employee?.department || 'Production Machining'}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  setIsProfileModalOpen(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'var(--text-main)',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-subtle)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <User size={14} color="var(--primary)" />
+                <span>My Employee Profile</span>
+              </button>
+
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  setIsChangePasswordModalOpen(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'var(--text-main)',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-subtle)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <KeyRound size={14} color="var(--primary)" />
+                <span>Change Password</span>
+              </button>
+
+              {/* Dev Mode Role Switcher */}
+              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '4px', paddingTop: '6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', padding: '2px 12px', textTransform: 'uppercase' }}>
+                  Switch Role (Dev Testing)
+                </div>
+                <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {demoUsers.map((u) => (
+                    <button
+                      key={u.role}
+                      type="button"
+                      onClick={() => {
+                        switchDemoRole(u.role);
+                        setShowUserMenu(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '5px 12px',
+                        fontSize: '11px',
+                        color: role === u.role ? 'var(--primary)' : 'var(--text-main)',
+                        fontWeight: role === u.role ? 700 : 500,
+                        background: role === u.role ? '#FAF0F3' : 'none',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span>{u.roleLabel}</span>
+                      {role === u.role && <Check size={12} color="var(--primary)" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sign Out Button */}
+              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '4px', paddingTop: '4px' }}>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={async () => {
+                    setShowUserMenu(false);
+                    await signOut();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#dc2626',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <LogOut size={14} color="#dc2626" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modals */}
+      <UserProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
+      <ChangePasswordModal 
+        isOpen={isChangePasswordModalOpen} 
+        onClose={() => setIsChangePasswordModalOpen(false)} 
+      />
     </header>
   );
 }
