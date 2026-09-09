@@ -393,7 +393,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><ShoppingCart size={16} /></div>
           </div>
           <div className="metric-value">{metrics.openPOs}</div>
-          <div className="metric-footer" style={{ color: '#0F766E' }}>Sent & In-transit with vendors</div>
+          <div className="metric-footer" style={{ color: '#7A1F3D' }}>Sent & In-transit with vendors</div>
         </div>
 
         <div className="metric-card">
@@ -402,7 +402,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><Clock size={16} /></div>
           </div>
           <div className="metric-value">{metrics.pendingApproval}</div>
-          <div className="metric-footer" style={{ color: '#B7791F' }}>Awaiting technical sign-off</div>
+          <div className="metric-footer" style={{ color: '#9A6700' }}>Awaiting technical sign-off</div>
         </div>
 
         <div className="metric-card">
@@ -411,7 +411,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><Calendar size={16} /></div>
           </div>
           <div className="metric-value">{metrics.dueThisWeek}</div>
-          <div className="metric-footer">Expected delivery to stores</div>
+          <div className="metric-footer" style={{ color: '#7A1F3D' }}>Expected delivery to stores</div>
         </div>
 
         <div className="metric-card">
@@ -419,8 +419,8 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
             <span className="metric-label">Total Purchase Value</span>
             <div className="metric-icon-wrap"><DollarSign size={16} /></div>
           </div>
-          <div className="metric-value" style={{ color: '#0F766E' }}>{metrics.totalValue}</div>
-          <div className="metric-footer" style={{ color: '#16803C' }}>Active procurement commitments</div>
+          <div className="metric-value" style={{ color: 'var(--primary)' }}>{metrics.totalValue}</div>
+          <div className="metric-footer" style={{ color: '#176B3A' }}>Active procurement commitments</div>
         </div>
       </div>
 
@@ -485,7 +485,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{po.supplierContact}</div>
                     </td>
                     <td className="mono" style={{ fontSize: '12px' }}>{po.date}</td>
-                    <td className="mono" style={{ fontSize: '12px', color: '#0F766E', fontWeight: 600 }}>
+                    <td className="mono" style={{ fontSize: '12px', color: '#7A1F3D', fontWeight: 600 }}>
                       {po.expectedDelivery}
                     </td>
                     <td className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
@@ -566,7 +566,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Total: <strong className="mono" style={{ color: '#0F766E', fontSize: '14px' }}>₹{formTotals.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
+              Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formTotals.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
@@ -598,7 +598,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
         <form onSubmit={(e) => { e.preventDefault(); handleSavePO('Sent'); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Supplier Information Section */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0F766E', fontWeight: 700, fontSize: '12.5px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
               <Building2 size={15} />
               <span>Supplier Information</span>
             </div>
@@ -668,7 +668,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
           {/* PO Commercial & Delivery Information */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0F766E', fontWeight: 700, fontSize: '12.5px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
               <Truck size={15} />
               <span>PO Information & Delivery Terms</span>
             </div>
@@ -717,7 +717,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
           {/* Line Items Table */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#0F766E' }}>Line Items</span>
+              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items</span>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm"
@@ -847,7 +847,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                   <span style={{ color: 'var(--text-muted)' }}>GST:</span>
                   <span className="mono">₹{formTotals.gst.toLocaleString('en-IN')}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: '#0F766E', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: '#7A1F3D', fontSize: '13px' }}>
                   <span>Grand Total:</span>
                   <span className="mono">₹{formTotals.grandTotal.toLocaleString('en-IN')}</span>
                 </div>
@@ -879,7 +879,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
           footer={
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Status: <strong style={{ color: '#0F766E' }}>{selectedPO.status}</strong> • Expected: {selectedPO.expectedDelivery}
+                Status: <strong style={{ color: '#7A1F3D' }}>{selectedPO.status}</strong> • Expected: {selectedPO.expectedDelivery}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
@@ -930,25 +930,25 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               justifyContent: 'space-between', 
               alignItems: 'center', 
               padding: '14px 18px', 
-              background: '#E6F4F1', 
+              background: '#F5E8ED', 
               borderRadius: '6px',
-              border: '1px solid #c7e8e1' 
+              border: '1px solid var(--border-color)' 
             }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#7A1F3D' }}>
                     {selectedPO.poNumber}
                   </h3>
                   <StatusBadge status={selectedPO.status} />
                 </div>
-                <div style={{ fontSize: '12px', color: '#134e48', marginTop: '4px' }}>
+                <div style={{ fontSize: '12px', color: '#5A1730', marginTop: '4px' }}>
                   Supplier: <strong>{selectedPO.supplier}</strong> • Issued: {selectedPO.date}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#134e48', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Value</div>
-                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                <div style={{ fontSize: '11px', color: '#5A1730', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Value</div>
+                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: '#7A1F3D' }}>
                   {selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount).toLocaleString('en-IN')}`}
                 </div>
               </div>
@@ -956,25 +956,25 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
             {/* Supplier & Delivery Dossier */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Supplier Details
                 </div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{selectedPO.supplier}</div>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '3px' }}>{selectedPO.supplierContact}</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedPO.supplierAddress}</div>
                 <div style={{ marginTop: '8px', fontSize: '11.5px' }}>
-                  <div>Email: <strong style={{ color: '#0F766E' }}>{selectedPO.supplierEmail || 'purchase@vendor.com'}</strong></div>
+                  <div>Email: <strong style={{ color: '#7A1F3D' }}>{selectedPO.supplierEmail || 'purchase@vendor.com'}</strong></div>
                   <div>GSTIN: <strong className="mono">{selectedPO.supplierGstin || '27AAACS4821M1ZB'}</strong></div>
                 </div>
               </div>
 
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Delivery & Commercial
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
-                  <div>Expected Delivery: <strong className="mono" style={{ color: '#0F766E' }}>{selectedPO.expectedDelivery}</strong></div>
+                  <div>Expected Delivery: <strong className="mono" style={{ color: '#7A1F3D' }}>{selectedPO.expectedDelivery}</strong></div>
                   <div>Payment Terms: <strong>{selectedPO.paymentTerms || 'Net 30 Days'}</strong></div>
                   <div>Delivery Address: <span style={{ color: 'var(--text-secondary)' }}>{selectedPO.deliveryAddress || 'Plot B-12 Nanded City, Pune'}</span></div>
                 </div>
@@ -983,7 +983,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
             {/* Items Table */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
+              <div style={{ padding: '8px 12px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
                 Ordered Spindle Items & Material Specifications
               </div>
               <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
@@ -999,7 +999,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                 </thead>
                 <tbody>
                   {selectedPO.items && selectedPO.items.map((it, idx) => (
-                    <tr key={it.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr key={it.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '8px 10px', fontWeight: 600 }}>{it.item || it.name}</td>
                       <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{it.desc}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>
@@ -1009,7 +1009,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                         ₹{Number(it.rate || it.unitPrice || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{it.gst || 18}%</td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0F766E' }}>
+                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#7A1F3D' }}>
                         ₹{Number(it.total || (it.qty * it.rate)).toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -1017,16 +1017,16 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
 
-              <div style={{ padding: '10px 14px', background: '#F8FAF9', display: 'flex', justifyContent: 'flex-end', gap: '20px', fontSize: '12px' }}>
+              <div style={{ padding: '10px 14px', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '20px', fontSize: '12px' }}>
                 <div>Subtotal: <strong className="mono">₹{Number(selectedPO.subtotal || 0).toLocaleString('en-IN')}</strong></div>
                 <div>GST (18%): <strong className="mono">₹{Number(selectedPO.gstAmount || 0).toLocaleString('en-IN')}</strong></div>
-                <div>Grand Total: <strong className="mono" style={{ color: '#0F766E', fontSize: '13px' }}>{selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount).toLocaleString('en-IN')}`}</strong></div>
+                <div>Grand Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '13px' }}>{selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount).toLocaleString('en-IN')}`}</strong></div>
               </div>
             </div>
 
             {/* Notes */}
             {selectedPO.notes && (
-              <div style={{ padding: '10px 12px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '11.5px' }}>
+              <div style={{ padding: '10px 12px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '11.5px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Purchase Notes: </span>
                 <span style={{ color: 'var(--text-secondary)' }}>{selectedPO.notes}</span>
               </div>
@@ -1034,7 +1034,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
             {/* Realistic Activity Timeline */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F766E', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#7A1F3D', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Clock size={14} />
                 <span>PO Lifecycle & Activity Timeline</span>
               </div>
@@ -1050,8 +1050,8 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                       width: '20px', 
                       height: '20px', 
                       borderRadius: '50%', 
-                      background: '#E6F4F1', 
-                      color: '#0F766E', 
+                      background: '#F5E8ED', 
+                      color: '#7A1F3D', 
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center', 
@@ -1068,7 +1068,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                         <span className="mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{t.time}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {t.detail} • <span style={{ color: '#0F766E' }}>{t.user}</span>
+                        {t.detail} • <span style={{ color: '#7A1F3D' }}>{t.user}</span>
                       </div>
                     </div>
                   </div>

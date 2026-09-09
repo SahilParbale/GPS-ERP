@@ -793,7 +793,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       <div className="section-card" style={{ marginBottom: '14px' }}>
         <div className="card-header" style={{ padding: '10px 16px', background: 'var(--bg-surface-subtle)' }}>
           <div className="card-title" style={{ fontSize: '13px' }}>
-            <Activity size={15} color="#0F766E" />
+            <Activity size={15} color="#7A1F3D" />
             <span>Today's Work Activity (Live Shop Floor Feed)</span>
           </div>
           <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -975,7 +975,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           <div className="section-card">
             <div className="card-header">
               <div className="card-title">
-                <Users size={16} color="#0F766E" />
+                <Users size={16} color="#7A1F3D" />
                 <span>Employee Workforce & Live Activity Register</span>
               </div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1018,7 +1018,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                         {/* Employee Avatar + Name */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                            <div className="staff-avatar" style={{ background: emp.avatarColor || '#0F766E' }}>
+                            <div className="staff-avatar" style={{ background: emp.avatarColor || '#7A1F3D' }}>
                               {emp.initials}
                             </div>
                             <div>
@@ -1168,7 +1168,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           <div className="section-card">
             <div className="card-header" style={{ padding: '10px 16px' }}>
               <div className="card-title" style={{ fontSize: '13px' }}>
-                <Shield size={15} color="#0F766E" />
+                <Shield size={15} color="#7A1F3D" />
                 <span>Workforce Overview & Management Insights</span>
               </div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1268,7 +1268,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Layers size={16} color="#0F766E" />
+              <Layers size={16} color="#7A1F3D" />
               <span>Shop Floor Machine Allocation & Bay Utilization</span>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1366,7 +1366,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Briefcase size={16} color="#0F766E" />
+              <Briefcase size={16} color="#7A1F3D" />
               <span>Department Workload & Operational Capacity</span>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1449,7 +1449,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <FileText size={16} color="#0F766E" />
+              <FileText size={16} color="#7A1F3D" />
               <span>Plant-Wide Employee Work Log Register</span>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1564,7 +1564,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           <div className="section-card">
             <div className="card-header" style={{ padding: '10px 16px' }}>
               <div className="card-title" style={{ fontSize: '13px' }}>
-                <Clock size={15} color="#0F766E" />
+                <Clock size={15} color="#7A1F3D" />
                 <span>Shift Summary • {INITIAL_SHIFT_SUMMARY.shiftName}</span>
               </div>
               <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
@@ -1707,7 +1707,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             }}>
               <div
                 className="staff-avatar"
-                style={{ width: '52px', height: '52px', fontSize: '20px', background: selectedStaff.avatarColor || '#0F766E' }}
+                style={{ width: '52px', height: '52px', fontSize: '20px', background: selectedStaff.avatarColor || '#7A1F3D' }}
               >
                 {selectedStaff.initials}
               </div>

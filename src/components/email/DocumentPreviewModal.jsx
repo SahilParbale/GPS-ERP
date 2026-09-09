@@ -152,12 +152,12 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         )}
 
         {/* Document Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #0F766E', paddingBottom: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #7A1F3D', paddingBottom: '16px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
             <div style={{ 
               width: '56px', 
               height: '56px', 
-              border: '1px solid #e2e8f0', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '6px', 
               padding: '3px',
               display: 'flex', 
@@ -168,16 +168,16 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
               <img src="/logo.jpg" alt="GPS Spindle" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
             </div>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em', margin: 0 }}>
                 GENERAL PRECISION SPINDLES PVT. LTD.
               </h2>
-              <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 Manufacturer of High-Precision Motorized & Belt-Driven Spindles • ISO 9001:2015 Certified
               </div>
-              <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
                 Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra, India
               </div>
-              <div style={{ fontSize: '10.5px', color: '#0F766E', fontWeight: 600 }}>
+              <div style={{ fontSize: '10.5px', color: '#7A1F3D', fontWeight: 600 }}>
                 GSTIN: 27AABCG1492K1Z8 • MSME: MH26A0189736 • sales@gpsspindle.com
               </div>
             </div>
@@ -188,8 +188,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
               display: 'inline-block',
               padding: '4px 10px', 
               borderRadius: '4px', 
-              background: '#E6F4F1', 
-              color: '#0F766E', 
+              background: '#F5E8ED', 
+              color: '#7A1F3D', 
               fontWeight: 800, 
               fontSize: '12px',
               letterSpacing: '0.04em',
@@ -197,25 +197,25 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
             }}>
               {getDocTitle()}
             </div>
-            <div className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>
+            <div className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>
               {docId}
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-              Date: <strong className="mono" style={{ color: '#0f172a' }}>{dateStr}</strong>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Date: <strong className="mono" style={{ color: 'var(--text-main)' }}>{dateStr}</strong>
             </div>
             {isPO && doc.expectedDelivery && (
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                Expected: <strong className="mono" style={{ color: '#0F766E' }}>{doc.expectedDelivery}</strong>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Expected: <strong className="mono" style={{ color: '#7A1F3D' }}>{doc.expectedDelivery}</strong>
               </div>
             )}
             {isPI && doc.validUntil && (
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                Valid Until: <strong className="mono" style={{ color: '#B7791F' }}>{doc.validUntil}</strong>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Valid Until: <strong className="mono" style={{ color: '#9A6700' }}>{doc.validUntil}</strong>
               </div>
             )}
             {isEWB && (
-              <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                Valid Until: <strong className="mono" style={{ color: '#0F766E' }}>{doc.validUntil || '10 Sep 2026'}</strong>
+              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                Valid Until: <strong className="mono" style={{ color: '#7A1F3D' }}>{doc.validUntil || '10 Sep 2026'}</strong>
               </div>
             )}
           </div>
@@ -261,47 +261,47 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
 
         {/* Customer / Supplier & Commercial Info Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '14px', marginBottom: '16px' }}>
-          <div style={{ padding: '12px 14px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#F8FAF9' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-surface-subtle)' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {isPO ? 'Vendor / Supplier Information' : (isEWB ? 'Consignee / Recipient Details' : 'Billed To Client')}
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '3px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginTop: '3px' }}>
               {partyName}
             </div>
-            <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
               {partyAddress}
             </div>
             <div style={{ marginTop: '6px', fontSize: '11px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <div>
-                <span style={{ color: '#64748b' }}>GSTIN: </span>
-                <strong className="mono" style={{ color: '#0f172a' }}>{partyGstin}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>GSTIN: </span>
+                <strong className="mono" style={{ color: 'var(--text-main)' }}>{partyGstin}</strong>
               </div>
               {partyContact && (
                 <div>
-                  <span style={{ color: '#64748b' }}>Contact: </span>
-                  <strong style={{ color: '#0f172a' }}>{partyContact}</strong>
+                  <span style={{ color: 'var(--text-muted)' }}>Contact: </span>
+                  <strong style={{ color: 'var(--text-main)' }}>{partyContact}</strong>
                 </div>
               )}
             </div>
           </div>
 
-          <div style={{ padding: '12px 14px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#F8FAF9' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-surface-subtle)' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {isPO ? 'Delivery & Logistics' : (isEWB ? 'Part-B Transportation Details' : 'Commercial Reference')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', fontSize: '11.5px' }}>
               {isPO && (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Delivery Terms:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Delivery Terms:</span>
                     <span style={{ fontWeight: 600 }}>Door Delivery (GPS Stores)</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Payment Terms:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Payment Terms:</span>
                     <span style={{ fontWeight: 600 }}>{doc.paymentTerms || 'Net 30 Days'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Delivery Bay:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Delivery Bay:</span>
                     <span style={{ fontWeight: 600 }}>Bay 1 - Raw Stores</span>
                   </div>
                 </>
@@ -309,16 +309,16 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
 
               {isPI && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#E6F4F1', padding: '3px 6px', borderRadius: '3px' }}>
-                    <span style={{ color: '#0F766E', fontWeight: 700 }}>Linked Sales Order:</span>
-                    <span className="mono" style={{ fontWeight: 800, color: '#0F766E' }}>{doc.salesOrder || 'SO-2026-041'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F5E8ED', padding: '3px 6px', borderRadius: '3px' }}>
+                    <span style={{ color: '#7A1F3D', fontWeight: 700 }}>Linked Sales Order:</span>
+                    <span className="mono" style={{ fontWeight: 800, color: '#7A1F3D' }}>{doc.salesOrder || 'SO-2026-041'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Payment Terms:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Payment Terms:</span>
                     <span style={{ fontWeight: 600 }}>{doc.paymentTerms || '50% Advance'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Dispatch Window:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Dispatch Window:</span>
                     <span style={{ fontWeight: 600 }}>6 Weeks post-advance</span>
                   </div>
                 </>
@@ -327,23 +327,23 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
               {isEWB && (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Tax Invoice Ref:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Tax Invoice Ref:</span>
                     <span className="mono" style={{ fontWeight: 700 }}>{doc.invoice || 'INV-2026-019'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Vehicle Number:</span>
-                    <span className="mono" style={{ fontWeight: 700, color: '#0F766E' }}>{doc.vehicle || 'MH12AB1234'}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Vehicle Number:</span>
+                    <span className="mono" style={{ fontWeight: 700, color: '#7A1F3D' }}>{doc.vehicle || 'MH12AB1234'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Transporter:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Transporter:</span>
                     <span style={{ fontWeight: 600 }}>{doc.transporter || 'ABC Logistics'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Mode & Distance:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Mode & Distance:</span>
                     <span style={{ fontWeight: 600 }}>{doc.mode || 'Road'} • {doc.distance || '540 km'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>LR / Doc No:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>LR / Doc No:</span>
                     <span className="mono" style={{ fontWeight: 600 }}>{doc.transportDocNo || 'LR-2026-88192'}</span>
                   </div>
                 </>
@@ -426,11 +426,11 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Bank details for PI and Invoices */}
             {(isPI || isInvoice) && (
-              <div style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase' }}>
+              <div style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase' }}>
                   Bank Wire Coordinates (RTGS / NEFT)
                 </div>
-                <div style={{ fontSize: '11px', marginTop: '4px', color: '#334155' }}>
+                <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--text-main)' }}>
                   <div>Bank: <strong>ICICI BANK LIMITED, PUNE NANDED CITY</strong></div>
                   <div>Account Name: <strong>GENERAL PRECISION SPINDLES</strong></div>
                   <div>A/C Number: <strong className="mono">349105000701</strong></div>
@@ -440,48 +440,48 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
             )}
 
             {/* Notes / Special Instructions */}
-            <div style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#F8FAF9' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase' }}>
+            <div style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-surface-subtle)' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase' }}>
                 {isPO ? 'Purchase Order Notes & Quality Criteria' : 'Special Terms & Notes'}
               </div>
-              <div style={{ fontSize: '10.5px', color: '#475569', marginTop: '4px', lineHeight: 1.4 }}>
+              <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
                 {doc.notes || 'Goods subject to GPS incoming inspection. Test certificates and calibration sheets mandatory.'}
               </div>
             </div>
           </div>
 
           {/* Tax Calculation Card */}
-          <div style={{ padding: '12px 14px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '4px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ color: '#64748b' }}>Taxable Subtotal:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Taxable Subtotal:</span>
               <span className="mono" style={{ fontWeight: 600 }}>₹{Math.round(subtotal).toLocaleString('en-IN')}</span>
             </div>
             {discount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#16803C' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#176B3A' }}>
                 <span>Commercial Discount:</span>
                 <span className="mono">-₹{Math.round(discount).toLocaleString('en-IN')}</span>
               </div>
             )}
             {cgst > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 <span>Central GST (CGST 9%):</span>
                 <span className="mono">₹{Math.round(cgst).toLocaleString('en-IN')}</span>
               </div>
             )}
             {sgst > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 <span>State GST (SGST 9%):</span>
                 <span className="mono">₹{Math.round(sgst).toLocaleString('en-IN')}</span>
               </div>
             )}
             {igst > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 <span>Integrated GST (IGST 18%):</span>
                 <span className="mono">₹{Math.round(igst).toLocaleString('en-IN')}</span>
               </div>
             )}
             {!cgst && !sgst && !igst && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 <span>GST (18% Applicable):</span>
                 <span className="mono">₹{Math.round(taxAmount).toLocaleString('en-IN')}</span>
               </div>
@@ -491,31 +491,31 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
               justifyContent: 'space-between', 
               fontSize: '14px', 
               fontWeight: 800, 
-              borderTop: '2px solid #0F766E', 
+              borderTop: '2px solid #7A1F3D', 
               paddingTop: '8px', 
               marginTop: '4px',
-              color: '#0F766E' 
+              color: '#7A1F3D' 
             }}>
               <span>Grand Total:</span>
               <span className="mono">₹{Math.round(grandTotal).toLocaleString('en-IN')}</span>
             </div>
-            <div style={{ fontSize: '10.5px', color: '#475569', marginTop: '4px', lineHeight: 1.3 }}>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.3 }}>
               <strong>Amount in Words:</strong> {amountInWords}
             </div>
           </div>
         </div>
 
         {/* Signature Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '24px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '24px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
             Document Ref: {docId} • Generated via GPS ERP Core on {new Date().toLocaleDateString('en-GB')}
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}>For GENERAL PRECISION SPINDLES PVT. LTD.</div>
-            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontStyle: 'italic', color: '#0F766E', fontWeight: 600 }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)' }}>For GENERAL PRECISION SPINDLES PVT. LTD.</div>
+            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontStyle: 'italic', color: '#7A1F3D', fontWeight: 600 }}>
               Authorized Signatory
             </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Commercial Applications & Plant Operations</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Commercial Applications & Plant Operations</div>
           </div>
         </div>
       </div>

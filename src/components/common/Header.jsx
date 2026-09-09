@@ -83,7 +83,7 @@ export default function Header({
           status: po.status,
           targetScreen: 'purchase-orders',
           icon: ShoppingCart,
-          badgeColor: '#0F766E'
+          badgeColor: '#7A1F3D'
         });
       }
     });
@@ -268,7 +268,7 @@ export default function Header({
                       fontSize: '11.5px',
                       background: '#ffffff'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#F5F7F6'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#FAF0F3'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -276,7 +276,7 @@ export default function Header({
                         width: '26px', 
                         height: '26px', 
                         borderRadius: '4px', 
-                        background: '#E6F4F1', 
+                        background: '#F5E8ED', 
                         color: res.badgeColor,
                         display: 'flex',
                         alignItems: 'center',
@@ -290,7 +290,7 @@ export default function Header({
                           <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
                             {res.docNumber}
                           </span>
-                          <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: '#F1F5F9', color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--status-neutral-bg)', color: 'var(--text-muted)' }}>
                             {res.docType}
                           </span>
                         </div>
@@ -301,7 +301,7 @@ export default function Header({
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
-                      <div className="mono" style={{ fontWeight: 700, color: '#0F766E' }}>
+                      <div className="mono" style={{ fontWeight: 700, color: '#7A1F3D' }}>
                         {res.amount}
                       </div>
                       <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -317,7 +317,7 @@ export default function Header({
 
         {/* Plant Status Indicator */}
         <div className="header-plant-badge">
-          <Factory size={13} color="#0F766E" />
+          <Factory size={13} color="#7A1F3D" />
           <span>Nanded City Unit 1</span>
         </div>
 

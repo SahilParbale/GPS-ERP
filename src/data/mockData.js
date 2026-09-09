@@ -1002,7 +1002,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 7,
     completedToday: 5,
     utilization: 92,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "08:42 AM", title: "Started Taper Grinding", detail: "Mounted spindle shaft into Studer S33 chuck" },
       { time: "10:15 AM", title: "Completed rough grinding", detail: "Rough pass tolerance within 0.005 mm limit" },
@@ -1164,7 +1164,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 6,
     completedToday: 4,
     utilization: 88,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "08:15 AM", title: "Loaded 18CrNiMo7-6 bar stock", detail: "Chucked and centered workpiece" },
       { time: "09:10 AM", title: "CNC Rough OD Turning", detail: "Turned 6-step spindle profile" },
@@ -1195,7 +1195,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 3,
     utilization: 82,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "07:30 AM", title: "Bandsaw setup", detail: "Cut 180mm forged round bar" },
       { time: "08:30 AM", title: "Ultrasonic Flaw Detection", detail: "Passed NDT ultrasonic porosity scan" }
@@ -1377,7 +1377,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 4,
     utilization: 65,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "10:30 AM", title: "Kitted OTT-Jakob gripper assembly", detail: "Dispatched to Bay 3 Cleanroom" }
     ],
@@ -1435,7 +1435,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 4,
     completedToday: 3,
     utilization: 70,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "10:30 AM", title: "Attending Tooling Review", detail: "Discussion with Sandvik rep on carbide drill life" }
     ],
@@ -1464,7 +1464,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 5,
     utilization: 90,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     activity: [
       { time: "07:00 AM", title: "VCI wax coating applied", detail: "Hermetic barrier sealed with desiccant packs" },
       { time: "09:30 AM", title: "Crated in hardwood export box", detail: "Accelerometer shock tilt sensors armed" }

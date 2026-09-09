@@ -71,7 +71,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
       <div className="section-card">
         <div className="card-header">
           <div className="card-title">
-            <Factory size={16} color="#0F766E" />
+            <Factory size={16} color="#7A1F3D" />
             <span>Manufacturing Flow: Raw Stock to Final Metrology</span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>

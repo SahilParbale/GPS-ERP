@@ -410,7 +410,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><Send size={16} /></div>
           </div>
           <div className="metric-value">{metrics.sentPI}</div>
-          <div className="metric-footer" style={{ color: '#0F766E' }}>Awaiting client advance wire</div>
+          <div className="metric-footer" style={{ color: '#7A1F3D' }}>Awaiting client advance wire</div>
         </div>
 
         <div className="metric-card">
@@ -419,7 +419,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><CheckCircle2 size={16} /></div>
           </div>
           <div className="metric-value">{metrics.accepted}</div>
-          <div className="metric-footer" style={{ color: '#16803C' }}>PO released & advance credited</div>
+          <div className="metric-footer" style={{ color: '#176B3A' }}>PO released & advance credited</div>
         </div>
 
         <div className="metric-card">
@@ -427,8 +427,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <span className="metric-label">Total Value</span>
             <div className="metric-icon-wrap"><DollarSign size={16} /></div>
           </div>
-          <div className="metric-value" style={{ color: '#0F766E' }}>{metrics.totalValue}</div>
-          <div className="metric-footer" style={{ color: '#16803C' }}>Pipeline advance billing</div>
+          <div className="metric-value">{metrics.totalValue}</div>
+          <div className="metric-footer" style={{ color: '#176B3A' }}>Pipeline advance billing</div>
         </div>
       </div>
 
@@ -440,7 +440,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               <Search size={14} className="search-icon" />
               <input 
                 type="text" 
-                className="form-control"
+                className="form-control" 
                 placeholder="Search PI #, Customer, Sales Order..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -448,8 +448,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             </div>
 
             <select 
-              className="form-control"
-              value={statusFilter}
+              className="form-control" 
+              value={statusFilter} 
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">All Statuses ({proformaInvoices.length})</option>
@@ -494,7 +494,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{pi.customerContact}</div>
                     </td>
                     <td>
-                      <span className="badge" style={{ background: '#E6F4F1', color: '#0F766E', fontWeight: 700, fontFamily: 'monospace' }}>
+                      <span className="badge" style={{ background: '#F5E8ED', color: '#7A1F3D', fontWeight: 700, fontFamily: 'monospace' }}>
                         <Link2 size={10} style={{ marginRight: '3px', verticalAlign: 'middle' }} />
                         {pi.salesOrder}
                       </span>
@@ -568,7 +568,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Total: <strong className="mono" style={{ color: '#0F766E', fontSize: '14px' }}>₹{formCalculations.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
+              Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formCalculations.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
@@ -600,7 +600,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         <form onSubmit={(e) => { e.preventDefault(); handleSavePI('Sent'); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Customer Information */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0F766E', fontWeight: 700, fontSize: '12.5px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
               <Building2 size={15} />
               <span>Customer Information</span>
             </div>
@@ -667,7 +667,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
           {/* Sales Information & Order Reference */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0F766E', fontWeight: 700, fontSize: '12.5px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
               <Link2 size={15} />
               <span>Sales Order Linkage & Commercial Terms</span>
             </div>
@@ -717,7 +717,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           {/* Items Table */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#0F766E' }}>Spindle Line Items</span>
+              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Spindle Line Items</span>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm"
@@ -851,7 +851,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   </span>
                   <span className="mono">₹{formCalculations.gstTotal.toLocaleString('en-IN')}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: '#0F766E', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: 'var(--primary)', fontSize: '13px' }}>
                   <span>Grand Total:</span>
                   <span className="mono">₹{formCalculations.grandTotal.toLocaleString('en-IN')}</span>
                 </div>
@@ -871,7 +871,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           footer={
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Linked to <strong className="mono" style={{ color: '#0F766E' }}>{selectedPI.salesOrder}</strong> • Status: {selectedPI.status}
+                Linked to <strong className="mono" style={{ color: 'var(--primary)' }}>{selectedPI.salesOrder}</strong> • Status: {selectedPI.status}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
@@ -920,13 +920,13 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               justifyContent: 'space-between', 
               alignItems: 'center', 
               padding: '14px 18px', 
-              background: '#E6F4F1', 
+              background: 'var(--primary-light)', 
               borderRadius: '6px',
-              border: '1px solid #c7e8e1' 
+              border: '1px solid var(--border-color)' 
             }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                     {selectedPI.piNumber}
                   </h3>
                   <StatusBadge status={selectedPI.status} />
@@ -934,11 +934,11 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: '4px', 
-                    background: '#ffffff', 
+                    background: 'var(--bg-surface)', 
                     padding: '3px 8px', 
                     borderRadius: '4px',
-                    border: '1px solid #0F766E',
-                    color: '#0F766E',
+                    border: '1px solid var(--primary)',
+                    color: 'var(--primary)',
                     fontSize: '11px',
                     fontWeight: 700
                   }}>
@@ -946,14 +946,14 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     <span>Originated from {selectedPI.salesOrder}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#134e48', marginTop: '4px' }}>
+                <div style={{ fontSize: '12px', color: '#5A1730', marginTop: '4px' }}>
                   Customer: <strong>{selectedPI.customer}</strong> • Issued: {selectedPI.date} • Valid Until: {selectedPI.validUntil}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#134e48', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Proforma Value</div>
-                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                <div style={{ fontSize: '11px', color: '#5A1730', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Proforma Value</div>
+                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                   {selectedPI.formattedTotal || `₹${Number(selectedPI.totalAmount).toLocaleString('en-IN')}`}
                 </div>
               </div>
@@ -961,8 +961,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
             {/* Customer & Billing Coordinates */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Customer Dossier
                 </div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{selectedPI.customerFullName || selectedPI.customer}</div>
@@ -973,14 +973,14 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   <strong>Shipping:</strong> {selectedPI.shippingAddress || selectedPI.billingAddress}
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '11.5px' }}>
-                  <div>Email: <strong style={{ color: '#0F766E' }}>{selectedPI.customerEmail || 'accounts@customer.com'}</strong></div>
+                  <div>Email: <strong style={{ color: 'var(--primary)' }}>{selectedPI.customerEmail || 'accounts@customer.com'}</strong></div>
                   <div>GSTIN: <strong className="mono">{selectedPI.gstin || '36AAACT2718E1ZQ'}</strong></div>
                 </div>
               </div>
 
               {/* Bank Details */}
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Bank Coordinates for Advance Wire
                 </div>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -988,19 +988,19 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   <div>Beneficiary: <strong>GENERAL PRECISION SPINDLES</strong></div>
                   <div>A/C Number: <strong className="mono">349105000701</strong></div>
                   <div>IFSC Code: <strong className="mono">ICIC0003491</strong></div>
-                  <div>Payment Terms: <span style={{ color: '#0F766E', fontWeight: 600 }}>{selectedPI.paymentTerms}</span></div>
+                  <div>Payment Terms: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{selectedPI.paymentTerms}</span></div>
                 </div>
               </div>
             </div>
 
             {/* Line Items Table */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
+              <div style={{ padding: '8px 12px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
                 Proforma Line Items & Commercial Breakdown
               </div>
               <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#ffffff', borderBottom: '1px solid var(--border-color)' }}>
+                  <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Product</th>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Description</th>
                     <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
@@ -1012,14 +1012,14 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 </thead>
                 <tbody>
                   {selectedPI.items && selectedPI.items.map((it, idx) => (
-                    <tr key={it.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr key={it.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '8px 10px', fontWeight: 600 }}>{it.product}</td>
                       <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{it.desc}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>{it.qty}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'right' }}>₹{Number(it.rate || 0).toLocaleString('en-IN')}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', color: '#16803C' }}>-₹{Number(it.discount || 0).toLocaleString('en-IN')}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{it.gst || 18}%</td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0F766E' }}>
+                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
                         ₹{Number(it.total || 0).toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -1028,7 +1028,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </table>
 
               {/* Tax & GST Breakdown */}
-              <div style={{ padding: '12px 16px', background: '#F8FAF9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+              <div style={{ padding: '12px 16px', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
                 <div style={{ display: 'flex', gap: '16px', color: 'var(--text-secondary)' }}>
                   <div>CGST: <strong className="mono">₹{Number(selectedPI.cgstAmount || 0).toLocaleString('en-IN')}</strong></div>
                   <div>SGST: <strong className="mono">₹{Number(selectedPI.sgstAmount || 0).toLocaleString('en-IN')}</strong></div>
@@ -1036,22 +1036,22 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 </div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                   <div>Subtotal: <strong className="mono">₹{Number(selectedPI.subtotal || 0).toLocaleString('en-IN')}</strong></div>
-                  <div>Grand Total: <strong className="mono" style={{ color: '#0F766E', fontSize: '13px' }}>{selectedPI.formattedTotal || `₹${Number(selectedPI.totalAmount).toLocaleString('en-IN')}`}</strong></div>
+                  <div>Grand Total: <strong className="mono" style={{ color: 'var(--primary)', fontSize: '13px' }}>{selectedPI.formattedTotal || `₹${Number(selectedPI.totalAmount).toLocaleString('en-IN')}`}</strong></div>
                 </div>
               </div>
             </div>
 
             {/* Notes */}
             {selectedPI.notes && (
-              <div style={{ padding: '10px 12px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '11.5px' }}>
+              <div style={{ padding: '10px 12px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '11.5px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Notes: </span>
                 <span style={{ color: 'var(--text-secondary)' }}>{selectedPI.notes}</span>
               </div>
             )}
 
             {/* Activity Timeline */}
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F766E', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: 'var(--bg-surface)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Clock size={14} />
                 <span>Proforma Activity & Approval Timeline</span>
               </div>
@@ -1066,8 +1066,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       width: '20px', 
                       height: '20px', 
                       borderRadius: '50%', 
-                      background: '#E6F4F1', 
-                      color: '#0F766E', 
+                      background: 'var(--primary-light)', 
+                      color: 'var(--primary)', 
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center', 
@@ -1084,7 +1084,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                         <span className="mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{t.time}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {t.detail} • <span style={{ color: '#0F766E' }}>{t.user}</span>
+                        {t.detail} • <span style={{ color: 'var(--primary)' }}>{t.user}</span>
                       </div>
                     </div>
                   </div>

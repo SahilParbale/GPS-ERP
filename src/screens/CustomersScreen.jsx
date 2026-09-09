@@ -225,7 +225,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               ].map((doc, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={18} color="#0F766E" />
+                    <FileText size={18} color="#7A1F3D" />
                     <span style={{ fontSize: '13px', fontWeight: 500 }}>{doc.name}</span>
                   </div>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNotify(`Downloading ${doc.name}`)}>Download</button>

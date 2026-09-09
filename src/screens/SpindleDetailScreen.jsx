@@ -96,11 +96,11 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           <div style={{ width: '100%', overflowX: 'auto', textAlign: 'center', padding: '10px 0' }}>
             <svg viewBox="0 0 760 140" style={{ width: '100%', maxWidth: '760px', height: 'auto', background: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               {/* Spindle Body */}
-              <rect x="120" y="30" width="500" height="80" rx="4" fill="#F8FAF9" stroke="#0F766E" strokeWidth="1.5"/>
+              <rect x="120" y="30" width="500" height="80" rx="4" fill="#FCF8F9" stroke="#7A1F3D" strokeWidth="1.5"/>
               
               {/* Nose Taper */}
-              <polygon points="40,45 120,30 120,110 40,95" fill="#E6F4F1" stroke="#0F766E" strokeWidth="1.5"/>
-              <text x="50" y="75" fill="#0F766E" fontSize="10" fontWeight="bold" fontFamily="monospace">HSK-A63</text>
+              <polygon points="40,45 120,30 120,110 40,95" fill="#F5E8ED" stroke="#7A1F3D" strokeWidth="1.5"/>
+              <text x="50" y="75" fill="#7A1F3D" fontSize="10" fontWeight="bold" fontFamily="monospace">HSK-A63</text>
               
               {/* Front Bearing Pack */}
               <rect x="140" y="35" width="55" height="70" fill="#FFF6DD" stroke="#B7791F" strokeWidth="1.5" strokeDasharray="3 2"/>
@@ -116,15 +116,15 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
               <text x="495" y="75" fill="#B7791F" fontSize="9" fontWeight="bold" fontFamily="monospace">REAR P4S</text>
 
               {/* Rotary Encoder */}
-              <rect x="560" y="40" width="50" height="60" fill="#E6F4F1" stroke="#0F766E" strokeWidth="1.5"/>
-              <text x="568" y="75" fill="#0F766E" fontSize="9" fontWeight="bold" fontFamily="monospace">ENCODER</text>
+              <rect x="560" y="40" width="50" height="60" fill="#F5E8ED" stroke="#7A1F3D" strokeWidth="1.5"/>
+              <text x="568" y="75" fill="#7A1F3D" fontSize="9" fontWeight="bold" fontFamily="monospace">ENCODER</text>
 
               {/* Tool Drawbar Centerline */}
               <line x1="20" y1="70" x2="650" y2="70" stroke="#C2413B" strokeWidth="1" strokeDasharray="6 3"/>
 
               {/* Coolant Inlets */}
-              <circle cx="280" cy="30" r="5" fill="#0F766E" stroke="#E6F4F1"/>
-              <circle cx="380" cy="30" r="5" fill="#0F766E" stroke="#E6F4F1"/>
+              <circle cx="280" cy="30" r="5" fill="#7A1F3D" stroke="#F5E8ED"/>
+              <circle cx="380" cy="30" r="5" fill="#7A1F3D" stroke="#F5E8ED"/>
             </svg>
           </div>
 
@@ -334,7 +334,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
                 <rect x="46" y="14" width="6" height="6" fill="#0f172a" />
                 <rect x="56" y="10" width="6" height="6" fill="#0f172a" />
                 <rect x="36" y="24" width="6" height="6" fill="#0f172a" />
-                <rect x="50" y="34" width="10" height="10" fill="#0F766E" />
+                <rect x="50" y="34" width="10" height="10" fill="#7A1F3D" />
                 <rect x="20" y="44" width="8" height="8" fill="#0f172a" />
                 <rect x="36" y="54" width="14" height="6" fill="#0f172a" />
                 <rect x="64" y="44" width="8" height="12" fill="#0f172a" />

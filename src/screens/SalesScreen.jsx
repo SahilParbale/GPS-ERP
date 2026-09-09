@@ -786,7 +786,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           {/* SECTION 1: Estimate & Place of Supply */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Hash size={12} color="#0F766E" />
+              <Hash size={12} color="#7A1F3D" />
               <span>Estimate Number & Supply Jurisdiction</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -834,7 +834,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           {/* SECTION 2: Estimate For (Customer / Buyer Details) */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Building2 size={12} color="#0F766E" />
+              <Building2 size={12} color="#7A1F3D" />
               <span>Estimate For (Customer / Buyer Details)</span>
             </div>
             
@@ -905,7 +905,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           {/* SECTION 3: Spindle Description & Scope of Work */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <FileCheck size={12} color="#0F766E" />
+              <FileCheck size={12} color="#7A1F3D" />
               <span>Job Identification & Scope of Work</span>
             </div>
 
@@ -964,7 +964,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <DollarSign size={12} color="#0F766E" />
+                <DollarSign size={12} color="#7A1F3D" />
                 <span>Line Items (# Item name, HSN/SAC, Quantity, Price/Unit, Amount)</span>
               </div>
               <button 

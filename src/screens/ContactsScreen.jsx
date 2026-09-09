@@ -731,7 +731,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                                 fontSize: '10px',
                                 fontWeight: 700,
                                 textTransform: 'uppercase',
-                                color: isAccounts ? '#b45309' : isPlant ? '#0F766E' : isQuality ? '#7c3aed' : isInternal ? '#0284c7' : 'var(--text-muted)'
+                                color: isAccounts ? '#b45309' : isPlant ? '#7A1F3D' : isQuality ? '#7c3aed' : isInternal ? '#0284c7' : 'var(--text-muted)'
                               }}>
                                 {cc.label}
                               </span>

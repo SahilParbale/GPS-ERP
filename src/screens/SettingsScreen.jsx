@@ -47,7 +47,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Building size={16} color="#0F766E" />
+              <Building size={16} color="#7A1F3D" />
               <span>Enterprise Identity & Legal Registration</span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Users size={16} color="#0F766E" />
+              <Users size={16} color="#7A1F3D" />
               <span>Plant Operators & Role Access Control</span>
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNotify('New user invite generated')}>
@@ -169,7 +169,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Wrench size={16} color="#0F766E" />
+              <Wrench size={16} color="#7A1F3D" />
               <span>Machine Tool & Air Gauge Master Calibration Log</span>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Bell size={16} color="#0F766E" />
+              <Bell size={16} color="#7A1F3D" />
               <span>Plant Floor Alert Triggers</span>
             </div>
           </div>

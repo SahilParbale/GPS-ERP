@@ -493,7 +493,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
             <div className="metric-icon-wrap"><FileCheck size={16} /></div>
           </div>
           <div className="metric-value">{metrics.thisMonth}</div>
-          <div className="metric-footer" style={{ color: '#0F766E' }}>Total dispatch passes</div>
+          <div className="metric-footer" style={{ color: 'var(--primary)' }}>Total dispatch passes</div>
         </div>
       </div>
 
@@ -561,7 +561,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{ewb.customer}</div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ewb.customerGstin}</div>
                     </td>
-                    <td className="mono" style={{ fontWeight: 700, color: '#0F766E' }}>
+                    <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
                       {ewb.vehicle}
                     </td>
                     <td>
@@ -646,7 +646,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Total Invoice: <strong className="mono" style={{ color: '#0F766E', fontSize: '14px' }}>₹{calculations.totalInvoiceValue.toLocaleString('en-IN')}</strong>
+              Total Invoice: <strong className="mono" style={{ color: 'var(--primary)', fontSize: '14px' }}>₹{calculations.totalInvoiceValue.toLocaleString('en-IN')}</strong>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
@@ -677,8 +677,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSaveEWB('Active'); }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Section 1: DOCUMENT */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0F766E', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: 'var(--bg-surface)' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileText size={15} />
               <span>1. DOCUMENT INFORMATION</span>
             </div>
@@ -727,8 +727,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           </div>
 
           {/* Section 2: CUSTOMER */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0F766E', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: 'var(--bg-surface)' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Building2 size={15} />
               <span>2. RECIPIENT / CUSTOMER (PART-A)</span>
             </div>
@@ -790,8 +790,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           </div>
 
           {/* Section 3: TRANSPORT */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0F766E', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: 'var(--bg-surface)' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Truck size={15} />
               <span>3. TRANSPORT & VEHICLE (PART-B)</span>
             </div>
@@ -869,9 +869,9 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           </div>
 
           {/* Section 4: GOODS */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: 'var(--bg-surface)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0F766E', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Navigation size={15} />
                 <span>4. GOODS CONSIGNMENT DETAILS</span>
               </div>
@@ -1017,7 +1017,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                     <span className="mono">₹{calculations.igst.toLocaleString('en-IN')}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: '#0F766E', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: 'var(--primary)', fontSize: '13px' }}>
                   <span>Total Invoice Value:</span>
                   <span className="mono">₹{calculations.totalInvoiceValue.toLocaleString('en-IN')}</span>
                 </div>
@@ -1037,7 +1037,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           footer={
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Vehicle: <strong className="mono" style={{ color: '#0F766E' }}>{selectedEWB.vehicle}</strong> • Valid Until: {selectedEWB.validUntil}
+                Vehicle: <strong className="mono" style={{ color: 'var(--primary)' }}>{selectedEWB.vehicle}</strong> • Valid Until: {selectedEWB.validUntil}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
@@ -1104,25 +1104,25 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
               justifyContent: 'space-between', 
               alignItems: 'center', 
               padding: '14px 18px', 
-              background: '#E6F4F1', 
+              background: 'var(--primary-light)', 
               borderRadius: '6px',
-              border: '1px solid #c7e8e1' 
+              border: '1px solid var(--border-color)' 
             }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                     {selectedEWB.ewbNumber}
                   </h3>
                   <StatusBadge status={selectedEWB.status} />
                 </div>
-                <div style={{ fontSize: '12px', color: '#134e48', marginTop: '4px' }}>
+                <div style={{ fontSize: '12px', color: '#5A1730', marginTop: '4px' }}>
                   Invoice: <strong>{selectedEWB.invoice}</strong> • Generated: {selectedEWB.validFrom || selectedEWB.invoiceDate}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#134e48', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Invoice Value</div>
-                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: '#0F766E' }}>
+                <div style={{ fontSize: '11px', color: '#5A1730', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Invoice Value</div>
+                <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                   {selectedEWB.formattedTotal || `₹${Number(selectedEWB.totalInvoiceValue).toLocaleString('en-IN')}`}
                 </div>
               </div>
@@ -1134,8 +1134,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
               justifyContent: 'space-between', 
               alignItems: 'center', 
               padding: '10px 14px', 
-              background: '#F8FAF9', 
-              border: '1px dashed #cbd5e1', 
+              background: 'var(--bg-surface-subtle)', 
+              border: '1px dashed var(--border-color)', 
               borderRadius: '6px' 
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1144,27 +1144,27 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                   letterSpacing: '5px', 
                   fontSize: '18px', 
                   fontWeight: 800, 
-                  color: '#1e293b',
-                  background: '#e2e8f0',
+                  color: 'var(--text-main)',
+                  background: 'var(--border-subtle)',
                   padding: '4px 10px',
                   borderRadius: '3px'
                 }}>
                   ||| |||| | ||| |||| |
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}>12-Digit E-Way Bill Barcode & Dispatch Clearance</div>
-                  <div className="mono" style={{ fontSize: '10.5px', color: '#475569' }}>Doc Reference: {selectedEWB.transportDocNo || 'LR-2026-88192'}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)' }}>12-Digit E-Way Bill Barcode & Dispatch Clearance</div>
+                  <div className="mono" style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>Doc Reference: {selectedEWB.transportDocNo || 'LR-2026-88192'}</div>
                 </div>
               </div>
-              <div className="mono" style={{ fontSize: '11px', color: '#0F766E', fontWeight: 600 }}>
+              <div className="mono" style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
                 Valid Until: {selectedEWB.validUntil}
               </div>
             </div>
 
             {/* Supplier & Customer Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Supplier (From)
                 </div>
                 <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -1178,8 +1178,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </div>
               </div>
 
-              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#F8FAF9' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                   Recipient / Customer (To)
                 </div>
                 <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -1195,8 +1195,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
             </div>
 
             {/* Transport & Vehicle Details (Part-B) */}
-            <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: '#ffffff' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Truck size={14} />
                 <span>Part-B: Transporter & Vehicle Tracking</span>
               </div>
@@ -1207,7 +1207,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-muted)' }}>Vehicle Number:</span>
-                  <div className="mono" style={{ fontWeight: 700, color: '#0F766E' }}>{selectedEWB.vehicle}</div>
+                  <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedEWB.vehicle}</div>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-muted)' }}>Mode & Distance:</span>
@@ -1222,12 +1222,12 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
 
             {/* Goods Table */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
+              <div style={{ padding: '8px 12px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
                 Consignment Goods Specification
               </div>
               <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#ffffff', borderBottom: '1px solid var(--border-color)' }}>
+                  <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Product</th>
                     <th style={{ padding: '8px 10px', textAlign: 'center' }}>HSN</th>
                     <th style={{ padding: '8px 10px', textAlign: 'center' }}>Quantity</th>
@@ -1238,7 +1238,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </thead>
                 <tbody>
                   {selectedEWB.goods && selectedEWB.goods.map((g, idx) => (
-                    <tr key={g.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr key={g.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '8px 10px', fontWeight: 600 }}>{g.product}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{g.hsn || '84669390'}</td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>
@@ -1248,7 +1248,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                         ₹{Number(g.taxableValue || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{g.gstRate || 18}%</td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0F766E' }}>
+                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
                         ₹{Number(g.totalValue || (g.taxableValue * 1.18)).toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -1256,7 +1256,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
 
-              <div style={{ padding: '10px 14px', background: '#F8FAF9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+              <div style={{ padding: '10px 14px', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
                 <div style={{ display: 'flex', gap: '14px', color: 'var(--text-secondary)' }}>
                   <div>CGST: <strong className="mono">₹{Number(selectedEWB.cgstAmount || 0).toLocaleString('en-IN')}</strong></div>
                   <div>SGST: <strong className="mono">₹{Number(selectedEWB.sgstAmount || 0).toLocaleString('en-IN')}</strong></div>
@@ -1264,7 +1264,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </div>
                 <div style={{ display: 'flex', gap: '14px' }}>
                   <div>Taxable: <strong className="mono">₹{Number(selectedEWB.taxableValue || 0).toLocaleString('en-IN')}</strong></div>
-                  <div>Total Invoice: <strong className="mono" style={{ color: '#0F766E', fontSize: '13px' }}>{selectedEWB.formattedTotal || `₹${Number(selectedEWB.totalInvoiceValue).toLocaleString('en-IN')}`}</strong></div>
+                  <div>Total Invoice: <strong className="mono" style={{ color: 'var(--primary)', fontSize: '13px' }}>{selectedEWB.formattedTotal || `₹${Number(selectedEWB.totalInvoiceValue).toLocaleString('en-IN')}`}</strong></div>
                 </div>
               </div>
             </div>

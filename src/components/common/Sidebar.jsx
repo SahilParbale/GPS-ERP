@@ -8,25 +8,58 @@ import {
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 
-export const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'sales', label: 'Sales & Quotes', icon: ShoppingBag },
-  { id: 'proforma-invoices', label: 'Proforma Invoices', icon: Receipt, badge: '5' },
-  { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
-  { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
-  { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, badge: '5' },
-  { id: 'production', label: 'Production', icon: Cog, badge: '18' },
-  { id: 'workforce', label: 'Staff & Workforce', icon: Users, badge: '31' },
-  { id: 'spindles', label: 'Spindles Registry', icon: Disc },
-  { id: 'inventory', label: 'Inventory', icon: Boxes, badge: '3' },
-  { id: 'quality', label: 'Quality Control', icon: ShieldCheck, badge: '4' },
-  { id: 'service', label: 'Service & Repair', icon: Wrench, badge: '7' },
-  { id: 'customers', label: 'Customers', icon: Building2 },
-  { id: 'contacts', label: 'Contacts & Emails', icon: Mail },
-  { id: 'suppliers', label: 'Suppliers', icon: Truck },
-  { id: 'reports', label: 'Reports & BI', icon: BarChart3 },
-  { id: 'settings', label: 'Settings', icon: Settings },
+export const NAV_SECTIONS = [
+  {
+    id: 'overview',
+    category: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ]
+  },
+  {
+    id: 'commercial',
+    category: 'Commercial & Sales',
+    items: [
+      { id: 'sales', label: 'Sales & Quotes', icon: ShoppingBag },
+      { id: 'proforma-invoices', label: 'Proforma Invoices', icon: Receipt, badge: '5' },
+      { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
+      { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
+      { id: 'customers', label: 'Customers', icon: Building2 },
+      { id: 'contacts', label: 'Contacts & Directory', icon: Mail },
+    ]
+  },
+  {
+    id: 'manufacturing',
+    category: 'Shop Floor & Operations',
+    items: [
+      { id: 'production', label: 'Production Flow', icon: Cog, badge: '18' },
+      { id: 'workforce', label: 'Staff & Workforce', icon: Users, badge: '31' },
+      { id: 'spindles', label: 'Spindles Registry', icon: Disc },
+      { id: 'quality', label: 'Quality Control', icon: ShieldCheck, badge: '4' },
+      { id: 'service', label: 'Service & Repair', icon: Wrench, badge: '7' },
+    ]
+  },
+  {
+    id: 'supply-chain',
+    category: 'Supply Chain & Stores',
+    items: [
+      { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, badge: '5' },
+      { id: 'inventory', label: 'Inventory & Stock', icon: Boxes, badge: '3' },
+      { id: 'suppliers', label: 'Suppliers', icon: Truck },
+    ]
+  },
+  {
+    id: 'system',
+    category: 'Analytics & System',
+    items: [
+      { id: 'reports', label: 'Reports & BI', icon: BarChart3 },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ]
+  }
 ];
+
+// Flat array export for backwards compatibility
+export const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items);
 
 export default function Sidebar({ 
   currentScreen, 
@@ -99,29 +132,41 @@ export default function Sidebar({
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isTopActive = currentScreen === item.id || (item.id === 'production' && currentScreen === 'work-order-detail');
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.id} className="sidebar-category-wrap">
+              {!isCollapsed && (
+                <div className="sidebar-category-header">
+                  <span>{section.category}</span>
+                </div>
+              )}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isTopActive = 
+                  currentScreen === item.id || 
+                  (item.id === 'production' && currentScreen === 'work-order-detail') ||
+                  (item.id === 'spindles' && currentScreen === 'spindle-detail');
 
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={`nav-item ${isTopActive ? 'active' : ''}`}
-                onClick={() => {
-                  onNavigate(item.id);
-                  if (onCloseMobile) onCloseMobile();
-                }}
-                title={item.label}
-              >
-                <Icon size={isCollapsed ? 18 : 16} className="nav-icon" />
-                {!isCollapsed && <span>{item.label}</span>}
-                {!isCollapsed && item.badge && (
-                  <span className="nav-badge">{item.badge}</span>
-                )}
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`nav-item ${isTopActive ? 'active' : ''}`}
+                    onClick={() => {
+                      onNavigate(item.id);
+                      if (onCloseMobile) onCloseMobile();
+                    }}
+                    title={item.label}
+                  >
+                    <Icon size={isCollapsed ? 18 : 16} className="nav-icon" />
+                    {!isCollapsed && <span>{item.label}</span>}
+                    {!isCollapsed && item.badge && (
+                      <span className="nav-badge">{item.badge}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {isCollapsed ? (

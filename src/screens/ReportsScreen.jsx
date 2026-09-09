@@ -18,9 +18,9 @@ export default function ReportsScreen({ onNotify }) {
   ];
 
   const spindleDistribution = [
-    { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#0F766E' },
-    { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#14B8A6' },
-    { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#2DD4BF' },
+    { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#7A1F3D' },
+    { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#9B3A58' },
+    { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#C06C84' },
     { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94A3B8' },
   ];
 

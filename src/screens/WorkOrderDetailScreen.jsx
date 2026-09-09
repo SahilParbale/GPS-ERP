@@ -313,7 +313,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
             {(wo.documents || []).map((doc, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <FileText size={20} color="#0F766E" />
+                  <FileText size={20} color="#7A1F3D" />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '13px' }}>{doc.name}</div>
                     <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{doc.size} • Uploaded {doc.date}</div>

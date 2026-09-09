@@ -489,7 +489,7 @@ export default function OutlookEmailComposer({
                             gap: '5px', 
                             background: 'var(--primary-light)', 
                             color: 'var(--primary)', 
-                            border: '1px solid rgba(15, 118, 110, 0.25)', 
+                            border: '1px solid rgba(122, 31, 61, 0.20)', 
                             padding: '2px 8px', 
                             borderRadius: '12px', 
                             fontSize: '11.5px',
@@ -568,9 +568,9 @@ export default function OutlookEmailComposer({
                               display: 'inline-flex', 
                               alignItems: 'center', 
                               gap: '5px', 
-                              background: '#F1F5F9', 
-                              color: '#334155', 
-                              border: '1px solid #cbd5e1', 
+                              background: 'var(--status-neutral-bg)', 
+                              color: 'var(--text-secondary)', 
+                              border: '1px solid var(--border-color)', 
                               padding: '2px 8px', 
                               borderRadius: '12px', 
                               fontSize: '11.5px',
@@ -581,7 +581,7 @@ export default function OutlookEmailComposer({
                             <button 
                               type="button" 
                               onClick={() => handleRemoveCcRecipient(idx)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#64748b' }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
                             >
                               <X size={12} />
                             </button>
@@ -727,7 +727,7 @@ export default function OutlookEmailComposer({
                             style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('GPS_HSK_Spindle_Datasheet.pdf', 'Technical Specification', '420 KB')}
                           >
-                            <FileText size={13} color="#0F766E" />
+                            <FileText size={13} color="var(--primary)" />
                             <span>GPS Spindle Technical Datasheet</span>
                           </button>
                           <button 
@@ -735,7 +735,7 @@ export default function OutlookEmailComposer({
                             style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('Spindle_Runout_Vibration_QC.pdf', 'Calibration Certificate', '310 KB')}
                           >
-                            <FileText size={13} color="#0F766E" />
+                            <FileText size={13} color="var(--primary)" />
                             <span>Dynamic Runout & Vibration QC Report</span>
                           </button>
                           <button 
@@ -743,7 +743,7 @@ export default function OutlookEmailComposer({
                             style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('GPS_Warranty_and_Installation_Guide.pdf', 'Terms & Guide', '180 KB')}
                           >
-                            <FileText size={13} color="#0F766E" />
+                            <FileText size={13} color="var(--primary)" />
                             <span>GPS Warranty & Commissioning Guide</span>
                           </button>
                         </div>

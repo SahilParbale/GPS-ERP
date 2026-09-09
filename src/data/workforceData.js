@@ -44,7 +44,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "35m",
     avgProgress: 88,
     utilization: 112,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 6,
       tasksCompleted: 4,
@@ -478,7 +478,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "0m",
     avgProgress: 86,
     utilization: 88,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 6,
       tasksCompleted: 4,
@@ -540,7 +540,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "0m",
     avgProgress: 78,
     utilization: 82,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 5,
       tasksCompleted: 3,
@@ -726,7 +726,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "0m",
     avgProgress: 90,
     utilization: 65,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 5,
       tasksCompleted: 4,
@@ -850,7 +850,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "0m",
     avgProgress: 100,
     utilization: 90,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 5,
       tasksCompleted: 5,
@@ -912,7 +912,7 @@ export const INITIAL_WORKFORCE_STAFF = [
     overtime: "0m",
     avgProgress: 0,
     utilization: 0,
-    avatarColor: "#0F766E",
+    avatarColor: "#7A1F3D",
     todaySummary: {
       tasksAssigned: 0,
       tasksCompleted: 0,
