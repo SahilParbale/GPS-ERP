@@ -100,7 +100,7 @@ export default function QualityScreen({ onNotify }) {
                   <td className="mono" style={{ color: 'var(--text-secondary)' }}>
                     {param.required}
                   </td>
-                  <td className="mono" style={{ fontWeight: 700, color: '#0284c7' }}>
+                  <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
                     {param.actual}
                   </td>
                   <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

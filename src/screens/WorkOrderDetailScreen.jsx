@@ -199,7 +199,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
 
             <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Spindle Nose Taper Runout</div>
-              <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7', marginTop: '4px' }}>≤ 0.0010 mm (1.0 µm)</div>
+              <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)', marginTop: '4px' }}>≤ 0.0010 mm (1.0 µm)</div>
               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Measured with calibrated Mahr Federal air probe</div>
             </div>
 
@@ -288,7 +288,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                 onClick={() => onNavigate('workforce')}
                 title="Click to view personnel allocation in Staff & Workforce"
               >
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7', flexShrink: 0 }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
                   <User size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -313,7 +313,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
             {(wo.documents || []).map((doc, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <FileText size={20} color="#0284c7" />
+                  <FileText size={20} color="#0F766E" />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '13px' }}>{doc.name}</div>
                     <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{doc.size} • Uploaded {doc.date}</div>

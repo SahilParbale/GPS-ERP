@@ -16,8 +16,12 @@ import QualityScreen from './screens/QualityScreen';
 import WorkforceScreen from './screens/WorkforceScreen';
 import SalesScreen from './screens/SalesScreen';
 import CustomersScreen from './screens/CustomersScreen';
+import ContactsScreen from './screens/ContactsScreen';
 import SuppliersScreen from './screens/SuppliersScreen';
 import InvoicesScreen from './screens/InvoicesScreen';
+import PurchaseOrderScreen from './screens/PurchaseOrderScreen';
+import ProformaInvoiceScreen from './screens/ProformaInvoiceScreen';
+import EWayBillScreen from './screens/EWayBillScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 
@@ -60,7 +64,13 @@ export default function App() {
     const q = query.toLowerCase().trim();
     if (!q) return;
 
-    if (q.includes('wo-') || q.includes('work order') || q.includes('prod')) {
+    if (q.includes('po-') || q.includes('purchase order') || q.includes('purchase') || q.includes('schaeffler') || q.includes('jakob')) {
+      setCurrentScreen('purchase-orders');
+    } else if (q.includes('pi-') || q.includes('proforma')) {
+      setCurrentScreen('proforma-invoices');
+    } else if (q.includes('ewb-') || q.includes('e-way') || q.includes('way bill') || q.includes('transporter')) {
+      setCurrentScreen('e-way-bills');
+    } else if (q.includes('wo-') || q.includes('work order') || q.includes('prod')) {
       setCurrentScreen('production');
     } else if (q.includes('gps-20') || q.includes('spindle') || q.includes('twin')) {
       setCurrentScreen('spindles');
@@ -160,6 +170,13 @@ export default function App() {
             onNotify={addToast}
           />
         );
+      case 'contacts':
+        return (
+          <ContactsScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
       case 'suppliers':
         return (
           <SuppliersScreen 
@@ -169,6 +186,35 @@ export default function App() {
       case 'invoices':
         return (
           <InvoicesScreen 
+            onNotify={addToast}
+          />
+        );
+      case 'purchase-orders':
+        return (
+          <PurchaseOrderScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'proforma-invoices':
+        return (
+          <ProformaInvoiceScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'e-way-bills':
+        return (
+          <EWayBillScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'sales-activity':
+        return (
+          <SalesScreen 
+            initialTab="activity"
+            onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
         );
@@ -224,6 +270,7 @@ export default function App() {
           onOpenQuickAction={() => setQuickActionOpen(true)}
           onSearch={handleGlobalSearch}
           searchQuery={searchQuery}
+          onNavigate={setCurrentScreen}
         />
 
         {/* Dynamic Screen View */}
@@ -242,11 +289,13 @@ export default function App() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {[
+            { label: 'Create Purchase Order (PO)', desc: 'Issue PO to Schaeffler, Bharat Steel, or OTT Jakob', screen: 'purchase-orders' },
+            { label: 'Issue Proforma Invoice (PI)', desc: 'Generate advance payment proforma linked to Sales Order', screen: 'proforma-invoices' },
+            { label: 'Generate E-Way Bill (EWB)', desc: 'Create dispatch transit pass for customer consignment', screen: 'e-way-bills' },
+            { label: 'Draft Precision Quotation', desc: 'Prepare proposal with 18% GST and terms', screen: 'sales' },
             { label: 'Launch New Work Order', desc: 'Initialize traveler for CNC machining & grinding', screen: 'production' },
             { label: 'Register Spindle Serial Asset', desc: 'Add new manufactured unit to digital fleet registry', screen: 'spindles' },
             { label: 'Log Inward Service / Overhaul', desc: 'Create inspection ticket for customer rebuild', screen: 'service' },
-            { label: 'Draft Precision Quotation', desc: 'Prepare proposal with 18% GST and terms', screen: 'sales' },
-            { label: 'Raise Purchase Requisition (PO)', desc: 'Procure FAG bearings, bar stock, or stators', screen: 'inventory' },
             { label: 'Final QC Air Gauge Inspection', desc: 'Perform micron dial test indicator sign-off', screen: 'quality' },
           ].map((action, idx) => (
             <div 

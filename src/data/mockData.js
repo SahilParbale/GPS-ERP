@@ -1002,7 +1002,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 7,
     completedToday: 5,
     utilization: 92,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "08:42 AM", title: "Started Taper Grinding", detail: "Mounted spindle shaft into Studer S33 chuck" },
       { time: "10:15 AM", title: "Completed rough grinding", detail: "Rough pass tolerance within 0.005 mm limit" },
@@ -1164,7 +1164,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 6,
     completedToday: 4,
     utilization: 88,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "08:15 AM", title: "Loaded 18CrNiMo7-6 bar stock", detail: "Chucked and centered workpiece" },
       { time: "09:10 AM", title: "CNC Rough OD Turning", detail: "Turned 6-step spindle profile" },
@@ -1195,7 +1195,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 3,
     utilization: 82,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "07:30 AM", title: "Bandsaw setup", detail: "Cut 180mm forged round bar" },
       { time: "08:30 AM", title: "Ultrasonic Flaw Detection", detail: "Passed NDT ultrasonic porosity scan" }
@@ -1225,7 +1225,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 4,
     completedToday: 2,
     utilization: 88,
-    avatarColor: "#2563eb",
+    avatarColor: "#3B82A6",
     activity: [
       { time: "08:30 AM", title: "Chiller loop hookup", detail: "Coolant circuit connected at 20°C flow" },
       { time: "09:00 AM", title: "Step ramp to 12,000 RPM", detail: "Bearing temp rise 8.2°C" },
@@ -1377,7 +1377,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 4,
     utilization: 65,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "10:30 AM", title: "Kitted OTT-Jakob gripper assembly", detail: "Dispatched to Bay 3 Cleanroom" }
     ],
@@ -1406,7 +1406,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 4,
     completedToday: 4,
     utilization: 62,
-    avatarColor: "#2563eb",
+    avatarColor: "#3B82A6",
     activity: [
       { time: "07:30 AM", title: "Replaced chiller glycol filter", detail: "Flow rate restored to 8.5 L/min" }
     ],
@@ -1435,7 +1435,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 4,
     completedToday: 3,
     utilization: 70,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "10:30 AM", title: "Attending Tooling Review", detail: "Discussion with Sandvik rep on carbide drill life" }
     ],
@@ -1464,7 +1464,7 @@ export const WORKFORCE_STAFF = [
     tasksToday: 5,
     completedToday: 5,
     utilization: 90,
-    avatarColor: "#0284c7",
+    avatarColor: "#0F766E",
     activity: [
       { time: "07:00 AM", title: "VCI wax coating applied", detail: "Hermetic barrier sealed with desiccant packs" },
       { time: "09:30 AM", title: "Crated in hardwood export box", detail: "Accelerometer shock tilt sensors armed" }
@@ -1575,3 +1575,565 @@ export const SHIFT_SUMMARY = {
   progressPercentage: 68
 };
 
+// ==========================================
+// 3 COMMERCIAL MODULES MOCK DATA
+// ==========================================
+
+export const PURCHASE_ORDERS = [
+  {
+    id: "PO-2026-001",
+    poNumber: "PO-2026-001",
+    supplier: "Schaeffler India",
+    supplierContact: "Mr. Rajesh Nair (Sales Director - Spindle Bearings)",
+    supplierEmail: "r.nair@schaeffler.com",
+    supplierPhone: "+91 20 6608 4100",
+    supplierGstin: "27AAACS4821M1ZB",
+    supplierAddress: "Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra",
+    date: "02 Sep 2026",
+    expectedDelivery: "15 Sep 2026",
+    paymentTerms: "Net 30 Days from GRN inspection",
+    deliveryAddress: "General Precision Spindles Pvt. Ltd., Plot B-12 Nanded City Industrial Complex, Pune - 411041",
+    status: "Sent",
+    subtotal: 408475,
+    taxRate: 18,
+    gstAmount: 73525,
+    totalAmount: 482000,
+    formattedTotal: "₹4,82,000",
+    notes: "Critical order for high-speed ceramic spindle bearings. Original Manufacturer Inspection Certificate and DIN EN 10204 3.1 CoC mandatory with consignment.",
+    items: [
+      { id: 1, item: "HC7014-E-T-P4S-UL", desc: "FAG High-Precision Ceramic Angular Contact Spindle Bearings (15° Contact, Phenolic Cage)", qty: 4, unit: "Pairs", rate: 72000, gst: 18, total: 288000 },
+      { id: 2, item: "N1011-D-K-TVP-SP", desc: "FAG Super Precision Single Row Cylindrical Roller Bearing with Tapered Bore 1:12", qty: 4, unit: "Pcs", rate: 30118.75, gst: 18, total: 120475 }
+    ],
+    timeline: [
+      { id: 1, title: "Purchase Order Created", detail: "Generated against Purchase Requisition PR-2026-089 by Procurement Stores", time: "02 Sep 2026, 09:30 AM", user: "Ganesh Pawar" },
+      { id: 2, title: "Technical Sign-off & PO Approved", detail: "Authorized by Production Head (V. R. Kulkarni)", time: "02 Sep 2026, 11:45 AM", user: "V. R. Kulkarni" },
+      { id: 3, title: "PO Transmitted Electronically", detail: "Sent via ERP Outlook system to r.nair@schaeffler.com", time: "02 Sep 2026, 02:15 PM", user: "Rahul Patil" },
+      { id: 4, title: "Supplier Confirmation Received", detail: "Schaeffler order reference SO-SCH-88192 registered. Dispatch committed for 15 Sep 2026", time: "03 Sep 2026, 10:00 AM", user: "Rajesh Nair (Schaeffler)" }
+    ]
+  },
+  {
+    id: "PO-2026-002",
+    poNumber: "PO-2026-002",
+    supplier: "Bharat Special Steel",
+    supplierContact: "Mr. Manoj Gokhale (Head - Alloy Metallurgy)",
+    supplierEmail: "sales@bharatspecialsteel.com",
+    supplierPhone: "+91 20 2712 9182",
+    supplierGstin: "27AABCB9182L1ZX",
+    supplierAddress: "Plot 42, Bhosari Industrial Area, Pune - 411026, Maharashtra",
+    date: "04 Sep 2026",
+    expectedDelivery: "18 Sep 2026",
+    paymentTerms: "20% Advance, Balance upon Metallurgical Clearance",
+    deliveryAddress: "GPS Spindle Works, Raw Material Stores Bay 1, Pune - 411041",
+    status: "Draft",
+    subtotal: 181780,
+    taxRate: 18,
+    gstAmount: 32720,
+    totalAmount: 214500,
+    formattedTotal: "₹2,14,500",
+    notes: "Vacuum degassed alloy steel round billets for CNC spindle shafts. Ultrasonic test Grade 3 certified without blowholes or carbide segregation.",
+    items: [
+      { id: 1, item: "18CrNiMo7-6 Forged Round", desc: "Case Hardening Spindle Shaft Forged Round Billet (Ø110mm x 3000mm annealed)", qty: 6, unit: "Bars", rate: 24500, gst: 18, total: 147000 },
+      { id: 2, item: "16MnCr5 Precision Ground", desc: "Drawn & Ground Spindle Tooling Sleeve Stock (Ø85mm x 2500mm)", qty: 4, unit: "Bars", rate: 8695, gst: 18, total: 34780 }
+    ],
+    timeline: [
+      { id: 1, title: "Draft PO Initiated", detail: "Prepared by Stores In-charge based on reorder threshold alert", time: "04 Sep 2026, 11:20 AM", user: "Ganesh Pawar" }
+    ]
+  },
+  {
+    id: "PO-2026-003",
+    poNumber: "PO-2026-003",
+    supplier: "OTT Jakob",
+    supplierContact: "Mr. K. S. Raman (Country Applications Manager)",
+    supplierEmail: "raman@ottjakob-india.com",
+    supplierPhone: "+91 80 4112 0900",
+    supplierGstin: "29AAACJ3918K1Z3",
+    supplierAddress: "Bengaluru Technology Centre, 4th Phase, Peenya Industrial Area, Bengaluru - 560058, Karnataka",
+    date: "05 Sep 2026",
+    expectedDelivery: "20 Sep 2026",
+    paymentTerms: "Net 45 Days / 100% Irrevocable Letter of Credit",
+    deliveryAddress: "GPS Spindle Cleanroom Assembly Bay 3, Nanded City, Pune - 411041",
+    status: "Approved",
+    subtotal: 319322,
+    taxRate: 18,
+    gstAmount: 57478,
+    totalAmount: 376800,
+    formattedTotal: "₹3,76,800",
+    notes: "Precision power drawbar collets and retention hydraulic pistons for high-speed motorized spindles. Direct OEM replacement.",
+    items: [
+      { id: 1, item: "OTT-HSK-A63-COLLET", desc: "OTT Jakob Power Drawbar Gripper Segment Collet Set (Retention 18 kN)", qty: 4, unit: "Sets", rate: 58000, gst: 18, total: 232000 },
+      { id: 2, item: "OTT-UNCLAMP-CYL-95", desc: "Hydraulic Unclamping Cylinder Subassembly 95.600.038.2.2 (160 Bar)", qty: 1, unit: "Unit", rate: 87322, gst: 18, total: 87322 }
+    ],
+    timeline: [
+      { id: 1, title: "Purchase Order Created", detail: "Drafted for Tata Advanced Systems aerospace spindle line", time: "05 Sep 2026, 10:15 AM", user: "Rahul Patil" },
+      { id: 2, title: "Technical Director Approved", detail: "PO signed and released for foreign OEM procurement", time: "05 Sep 2026, 03:30 PM", user: "V. R. Kulkarni" }
+    ]
+  },
+  {
+    id: "PO-2026-004",
+    poNumber: "PO-2026-004",
+    supplier: "Heidenhain India",
+    supplierContact: "Mr. Suresh Babu (Regional Head)",
+    supplierEmail: "info@heidenhain.in",
+    supplierPhone: "+91 22 2831 4910",
+    supplierGstin: "27AABCH4910D1Z7",
+    supplierAddress: "Tech Park, Andheri East, Mumbai - 400069, Maharashtra",
+    date: "06 Sep 2026",
+    expectedDelivery: "22 Sep 2026",
+    paymentTerms: "Net 30 Days",
+    deliveryAddress: "GPS Spindle Metrology Lab, Pune - 411041",
+    status: "Received",
+    subtotal: 433898,
+    taxRate: 18,
+    gstAmount: 78102,
+    totalAmount: 512000,
+    formattedTotal: "₹5,12,000",
+    notes: "Optoelectronic spindle speed & angular position encoders ERM 280 series for C-axis synchronized milling.",
+    items: [
+      { id: 1, item: "ERM 2480-1024", desc: "Heidenhain Magnetic Rotary Encoder Kit 1024 lines / 1Vpp EnDat 2.2", qty: 2, unit: "Units", rate: 216949, gst: 18, total: 433898 }
+    ],
+    timeline: [
+      { id: 1, title: "PO Created & Sent", detail: "Direct ordering for Mahindra twin-spindle head", time: "28 Aug 2026, 11:00 AM", user: "Rahul Patil" },
+      { id: 2, title: "Goods Received (GRN-2026-104)", detail: "Inwarded into Stores, CMM inspection cleared", time: "06 Sep 2026, 02:00 PM", user: "Milind Joshi" }
+    ]
+  },
+  {
+    id: "PO-2026-005",
+    poNumber: "PO-2026-005",
+    supplier: "Sandvik Coromant India",
+    supplierContact: "Ms. Priya Sharma (Key Accounts)",
+    supplierEmail: "orders@sandvik.com",
+    supplierPhone: "+91 20 6734 5000",
+    supplierGstin: "27AAACS1928F1ZG",
+    supplierAddress: "Mumbai-Pune Road, Dapodi, Pune - 411012, Maharashtra",
+    date: "01 Sep 2026",
+    expectedDelivery: "10 Sep 2026",
+    paymentTerms: "Net 30 Days",
+    deliveryAddress: "GPS Spindle Works, Pune - 411041",
+    status: "Cancelled",
+    subtotal: 122881,
+    taxRate: 18,
+    gstAmount: 22119,
+    totalAmount: 145000,
+    formattedTotal: "₹14,5000",
+    notes: "Cancelled due to revised shaft design specifications in collaboration with customer engineering.",
+    items: [
+      { id: 1, item: "CoroDrill 860 Carbide", desc: "Solid Carbide Deep Hole Coolant Drill Ø8.5mm", qty: 10, unit: "Pcs", rate: 12288.1, gst: 18, total: 122881 }
+    ],
+    timeline: [
+      { id: 1, title: "PO Created", detail: "Initial tooling requisition", time: "01 Sep 2026, 10:00 AM", user: "Ganesh Pawar" },
+      { id: 2, title: "PO Cancelled", detail: "Cancelled upon customer change notice ECN-2026-019", time: "02 Sep 2026, 04:00 PM", user: "V. R. Kulkarni" }
+    ]
+  }
+];
+
+export const PROFORMA_INVOICES = [
+  {
+    id: "PI-2026-018",
+    piNumber: "PI-2026-018",
+    customer: "Tata Advanced Systems",
+    customerFullName: "Tata Advanced Systems Ltd",
+    customerContact: "Mr. Tanmay Sharma (DGM - Procurement)",
+    customerEmail: "tanmay@tataadvanced.com",
+    billingAddress: "Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510",
+    shippingAddress: "Tata Advanced Systems Tooling Bay, Chakan MIDC Phase II, Pune - 410501, Maharashtra",
+    gstin: "36AAACT2718E1ZQ",
+    salesOrder: "SO-2026-041",
+    date: "04 Sep 2026",
+    validUntil: "19 Sep 2026",
+    paymentTerms: "50% Advance with Proforma, 50% against Dispatch Inspection",
+    status: "Sent",
+    subtotal: 842000,
+    discount: 0,
+    taxRate: 18,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: 151560,
+    gstAmount: 151560,
+    totalAmount: 993560,
+    formattedTotal: "₹9,93,560",
+    bankDetails: {
+      bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
+      accountName: "GENERAL PRECISION SPINDLES",
+      accountNumber: "349105000701",
+      ifscCode: "ICIC0003491",
+      branch: "Nanded City Destination Centre, Pune - 411041"
+    },
+    notes: "Proforma Invoice generated against confirmed Sales Order SO-2026-041 for advance RTGS remittance. Delivery lead time 6 weeks from receipt of advance.",
+    items: [
+      { id: 1, product: "GPS-HSK-A63-24K", desc: "GPS-HSK-A63-24K Precision Motorized Spindle Unit (15 kW, 24,000 RPM, Ceramic Bearings)", qty: 2, unit: "Units", rate: 421000, discount: 0, gst: 18, total: 842000 }
+    ],
+    timeline: [
+      { id: 1, title: "PI Generated from Sales Order", detail: "Originated directly from confirmed Sales Order SO-2026-041", time: "04 Sep 2026, 09:30 AM", user: "Rahul Patil" },
+      { id: 2, title: "Proforma Invoice Transmitted", detail: "Sent via ERP Outlook integration with official PDF attachment to tanmay@tataadvanced.com", time: "04 Sep 2026, 11:15 AM", user: "Rahul Patil" },
+      { id: 3, title: "Customer Acknowledged", detail: "Proforma received and submitted to TASL Finance for advance wire clearance", time: "04 Sep 2026, 03:40 PM", user: "Tanmay Sharma (TASL)" }
+    ]
+  },
+  {
+    id: "PI-2026-019",
+    piNumber: "PI-2026-019",
+    customer: "Bharat Forge",
+    customerFullName: "Bharat Forge Ltd",
+    customerContact: "Mr. Sunil Kadam (DGM - Maintenance & Tooling)",
+    customerEmail: "procurement@bharatforge.com",
+    billingAddress: "Mundhwa, Pune Cantonment, Pune - 411036, Maharashtra, India",
+    shippingAddress: "Heavy Forging Division Bay 4, Bharat Forge Works, Mundhwa, Pune - 411036",
+    gstin: "27AAACB1829D1Z2",
+    salesOrder: "SO-2026-045",
+    date: "05 Sep 2026",
+    validUntil: "20 Sep 2026",
+    paymentTerms: "100% Against Proforma Invoice prior to final dynamic dispatch run-in",
+    status: "Draft",
+    subtotal: 544322,
+    discount: 20000,
+    taxRate: 18,
+    cgstAmount: 48989,
+    sgstAmount: 48989,
+    igstAmount: 0,
+    gstAmount: 97978,
+    totalAmount: 642300,
+    formattedTotal: "₹6,42,300",
+    bankDetails: {
+      bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
+      accountName: "GENERAL PRECISION SPINDLES",
+      accountNumber: "349105000701",
+      ifscCode: "ICIC0003491",
+      branch: "Nanded City Destination Centre, Pune - 411041"
+    },
+    notes: "Commercial Proforma for heavy milling spindle reconditioning and hybrid ceramic bearing overhaul.",
+    items: [
+      { id: 1, product: "GPS-BT40-15K Rebuild", desc: "GPS-BT40-15K Complete Mechanical Spindle Rebuild, Shaft Sleeving & Dynamic Balancing", qty: 1, unit: "Job", rate: 365000, discount: 20000, gst: 18, total: 345000 },
+      { id: 2, product: "Ceramic Bearing Set", desc: "Matched Triplex High-Speed Ceramic Spindle Bearing Pack FAG-HC7012-EDLR", qty: 2, unit: "Sets", rate: 99661, discount: 0, gst: 18, total: 199322 }
+    ],
+    timeline: [
+      { id: 1, title: "Proforma Invoice Drafted", detail: "Prepared from Sales Order SO-2026-045 with negotiated commercial discount", time: "05 Sep 2026, 10:45 AM", user: "Pooja Deshmukh" }
+    ]
+  },
+  {
+    id: "PI-2026-020",
+    piNumber: "PI-2026-020",
+    customer: "Godrej Aerospace",
+    customerFullName: "Godrej & Boyce Aerospace Division",
+    customerContact: "Ms. Anita Saxena (Lead - Aerospace Tooling)",
+    customerEmail: "maintenance@godrejaerospace.com",
+    billingAddress: "Plant 14, Pirojshanagar, Vikhroli East, Mumbai - 400079, Maharashtra",
+    shippingAddress: "Aerospace Clean Assembly Shop, Vikhroli, Mumbai - 400079",
+    gstin: "27AAACG0821M1Z5",
+    salesOrder: "SO-2026-048",
+    date: "01 Sep 2026",
+    validUntil: "16 Sep 2026",
+    paymentTerms: "50% Advance, 50% on Delivery Verification",
+    status: "Accepted",
+    subtotal: 1250000,
+    discount: 0,
+    taxRate: 18,
+    cgstAmount: 112500,
+    sgstAmount: 112500,
+    igstAmount: 0,
+    gstAmount: 225000,
+    totalAmount: 1475000,
+    formattedTotal: "₹14,75,000",
+    bankDetails: {
+      bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
+      accountName: "GENERAL PRECISION SPINDLES",
+      accountNumber: "349105000701",
+      ifscCode: "ICIC0003491",
+      branch: "Nanded City Destination Centre, Pune - 411041"
+    },
+    notes: "Accepted Proforma for GPS-HF-60K Ultra High-Speed Aerospace Spindle. Advance payment received into ICICI Bank account.",
+    items: [
+      { id: 1, product: "GPS-HF-60K Spindle", desc: "Ultra-Precision 60,000 RPM Motorized Spindle with Micro Oil-Air Mist Lubricator", qty: 1, unit: "Set", rate: 1250000, discount: 0, gst: 18, total: 1250000 }
+    ],
+    timeline: [
+      { id: 1, title: "Proforma Invoice Created", detail: "Generated for Godrej titanium machining workcell", time: "01 Sep 2026, 02:00 PM", user: "Rahul Patil" },
+      { id: 2, title: "PI Accepted by Customer", detail: "Godrej PO #45009812 released against this Proforma", time: "03 Sep 2026, 11:30 AM", user: "Anita Saxena (Godrej)" }
+    ]
+  },
+  {
+    id: "PI-2026-021",
+    piNumber: "PI-2026-021",
+    customer: "Mahindra Heavy Engines",
+    customerFullName: "Mahindra Heavy Engines Ltd",
+    customerContact: "Mr. Praveen Shinde (Plant Maintenance)",
+    customerEmail: "projects@mahindra.com",
+    billingAddress: "Chakan Industrial Area, Phase II, Pune - 410501, Maharashtra",
+    shippingAddress: "Engine Line 3, Mahindra Chakan Plant, Pune - 410501",
+    gstin: "27AAACM8890K1ZV",
+    salesOrder: "SO-2026-052",
+    date: "15 Aug 2026",
+    validUntil: "30 Aug 2026",
+    paymentTerms: "Net 30 Days",
+    status: "Expired",
+    subtotal: 661017,
+    discount: 0,
+    taxRate: 18,
+    cgstAmount: 59491.5,
+    sgstAmount: 59491.5,
+    igstAmount: 0,
+    gstAmount: 118983,
+    totalAmount: 780000,
+    formattedTotal: "₹7,80,000",
+    bankDetails: {
+      bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
+      accountName: "GENERAL PRECISION SPINDLES",
+      accountNumber: "349105000701",
+      ifscCode: "ICIC0003491",
+      branch: "Nanded City Destination Centre, Pune - 411041"
+    },
+    notes: "Validity expired. Needs price re-validation due to bearing import tariff revisions.",
+    items: [
+      { id: 1, product: "Alloy Shaft 18CrNiMo7-6", desc: "Precision Ground Spindle Shaft Replacements", qty: 2, unit: "Sets", rate: 330508.5, discount: 0, gst: 18, total: 661017 }
+    ],
+    timeline: [
+      { id: 1, title: "Proforma Invoice Created", detail: "Initial budgetary proforma issued", time: "15 Aug 2026, 10:00 AM", user: "Rahul Patil" },
+      { id: 2, title: "Expired without Acceptance", detail: "30-day quotation validity lapsed", time: "31 Aug 2026, 12:00 AM", user: "System" }
+    ]
+  },
+  {
+    id: "PI-2026-022",
+    piNumber: "PI-2026-022",
+    customer: "Kirloskar Oil Engines",
+    customerFullName: "Kirloskar Oil Engines Ltd",
+    customerContact: "Mr. Deepak Kulkarni",
+    customerEmail: "procurement@kirloskar.com",
+    billingAddress: "Laxmanrao Kirloskar Road, Khadki, Pune - 411003",
+    shippingAddress: "Khadki Plant, Pune - 411003",
+    gstin: "27AAACK1920J1ZM",
+    salesOrder: "SO-2026-039",
+    date: "10 Aug 2026",
+    validUntil: "25 Aug 2026",
+    paymentTerms: "Net 30 Days",
+    status: "Cancelled",
+    subtotal: 347458,
+    discount: 0,
+    taxRate: 18,
+    cgstAmount: 31271,
+    sgstAmount: 31271,
+    igstAmount: 0,
+    gstAmount: 62542,
+    totalAmount: 410000,
+    formattedTotal: "₹4,10,000",
+    bankDetails: {
+      bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
+      accountName: "GENERAL PRECISION SPINDLES",
+      accountNumber: "349105000701",
+      ifscCode: "ICIC0003491",
+      branch: "Nanded City Destination Centre, Pune - 411041"
+    },
+    notes: "Cancelled upon customer request to merge with annual maintenance contract AMC-2026-04.",
+    items: [
+      { id: 1, product: "Emergency Spindle Rebalance", desc: "On-site Dynamic Balancing & Runout Correction", qty: 1, unit: "Job", rate: 347458, discount: 0, gst: 18, total: 347458 }
+    ],
+    timeline: [
+      { id: 1, title: "Proforma Cancelled", detail: "Consolidated into AMC schedule", time: "12 Aug 2026, 04:30 PM", user: "Rahul Patil" }
+    ]
+  }
+];
+
+export const E_WAY_BILLS = [
+  {
+    id: "EWB-2026-0042",
+    ewbNumber: "EWB-2026-0042",
+    invoice: "INV-2026-019",
+    invoiceDate: "04 Sep 2026",
+    customer: "Tata Advanced Systems",
+    customerFullName: "Tata Advanced Systems Ltd",
+    customerGstin: "36AAACT2718E1ZQ",
+    customerAddress: "Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510",
+    customerState: "36-Telangana",
+    customerPin: "501510",
+    supplierCompany: "General Precision Spindles Pvt. Ltd.",
+    supplierGstin: "27AABCG1492K1Z8",
+    supplierAddress: "Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra",
+    supplierState: "27-Maharashtra",
+    supplierPin: "411041",
+    vehicle: "MH12AB1234",
+    transporter: "ABC Logistics",
+    transporterId: "27AABCA9081T1Z5",
+    mode: "Road",
+    distance: "540 km",
+    transportDocNo: "LR-2026-88192",
+    transportDocDate: "04 Sep 2026",
+    transactionType: "Supply",
+    validFrom: "04 Sep 2026, 06:00 PM",
+    validUntil: "10 Sep 2026, 11:59 PM",
+    status: "Active",
+    taxableValue: 842000,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: 151560,
+    totalInvoiceValue: 993560,
+    formattedTotal: "₹9,93,560",
+    isDemo: true,
+    goods: [
+      { id: 1, product: "GPS-HSK-A63-24K Motorized Spindle Unit", hsn: "84669390", quantity: 2, unit: "Sets", taxableValue: 842000, gstRate: 18, totalValue: 993560 }
+    ],
+    timeline: [
+      { id: 1, title: "E-Way Bill Generated (Simulated)", detail: "Generated against Tax Invoice INV-2026-019 with vehicle MH12AB1234 assigned", time: "04 Sep 2026, 06:00 PM", user: "Ganesh Pawar (Dispatch)" },
+      { id: 2, title: "Consignment Dispatched", detail: "Vehicle exited Nanded City plant gate after security verification", time: "04 Sep 2026, 07:15 PM", user: "Security Post 1" }
+    ]
+  },
+  {
+    id: "EWB-2026-0043",
+    ewbNumber: "EWB-2026-0043",
+    invoice: "INV-2026-021",
+    invoiceDate: "05 Sep 2026",
+    customer: "Bharat Forge",
+    customerFullName: "Bharat Forge Ltd",
+    customerGstin: "27AAACB1829D1Z2",
+    customerAddress: "Mundhwa Industrial Area, Pune Cantonment, Pune - 411036, Maharashtra",
+    customerState: "27-Maharashtra",
+    customerPin: "411036",
+    supplierCompany: "General Precision Spindles Pvt. Ltd.",
+    supplierGstin: "27AABCG1492K1Z8",
+    supplierAddress: "Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra",
+    supplierState: "27-Maharashtra",
+    supplierPin: "411041",
+    vehicle: "MH14CD5678",
+    transporter: "FastTrack Logistics",
+    transporterId: "27AABCF4411Q1ZN",
+    mode: "Road",
+    distance: "35 km",
+    transportDocNo: "LR-2026-90412",
+    transportDocDate: "05 Sep 2026",
+    transactionType: "Supply",
+    validFrom: "05 Sep 2026, 02:00 PM",
+    validUntil: "12 Sep 2026, 11:59 PM",
+    status: "Active",
+    taxableValue: 544322,
+    cgstAmount: 48989,
+    sgstAmount: 48989,
+    igstAmount: 0,
+    totalInvoiceValue: 642300,
+    formattedTotal: "₹6,42,300",
+    isDemo: true,
+    goods: [
+      { id: 1, product: "GPS-BT40-15K Spindle Rebuild & Bearing Overhaul", hsn: "84669390", quantity: 1, unit: "Set", taxableValue: 544322, gstRate: 18, totalValue: 642300 }
+    ],
+    timeline: [
+      { id: 1, title: "E-Way Bill Generated", detail: "Part A & Part B updated with transport vehicle MH14CD5678", time: "05 Sep 2026, 02:00 PM", user: "Ganesh Pawar" }
+    ]
+  },
+  {
+    id: "EWB-2026-0044",
+    ewbNumber: "EWB-2026-0044",
+    invoice: "INV-2026-024",
+    invoiceDate: "01 Sep 2026",
+    customer: "Godrej Aerospace",
+    customerFullName: "Godrej & Boyce Aerospace Division",
+    customerGstin: "27AAACG0821M1Z5",
+    customerAddress: "Plant 14, Pirojshanagar, Vikhroli East, Mumbai - 400079",
+    customerState: "27-Maharashtra",
+    customerPin: "400079",
+    supplierCompany: "General Precision Spindles Pvt. Ltd.",
+    supplierGstin: "27AABCG1492K1Z8",
+    supplierAddress: "Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra",
+    supplierState: "27-Maharashtra",
+    supplierPin: "411041",
+    vehicle: "MH04EF9012",
+    transporter: "V-Trans India Ltd",
+    transporterId: "27AAACV1290K1ZX",
+    mode: "Road",
+    distance: "165 km",
+    transportDocNo: "LR-2026-87100",
+    transportDocDate: "01 Sep 2026",
+    transactionType: "Supply",
+    validFrom: "01 Sep 2026, 09:00 AM",
+    validUntil: "09 Sep 2026, 11:59 PM",
+    status: "Expiring Soon",
+    taxableValue: 1250000,
+    cgstAmount: 112500,
+    sgstAmount: 112500,
+    igstAmount: 0,
+    totalInvoiceValue: 1475000,
+    formattedTotal: "₹14,75,000",
+    isDemo: true,
+    goods: [
+      { id: 1, product: "GPS-HF-60K Ultra High-Speed Aerospace Spindle", hsn: "84669390", quantity: 1, unit: "Set", taxableValue: 1250000, gstRate: 18, totalValue: 1475000 }
+    ],
+    timeline: [
+      { id: 1, title: "Expiring Warning Flagged", detail: "Delivery transit buffer under 12 hours remaining", time: "09 Sep 2026, 08:00 AM", user: "System Watchdog" }
+    ]
+  },
+  {
+    id: "EWB-2026-0041",
+    ewbNumber: "EWB-2026-0041",
+    invoice: "INV-2026-015",
+    invoiceDate: "20 Aug 2026",
+    customer: "Mahindra Heavy Engines",
+    customerFullName: "Mahindra Heavy Engines Ltd",
+    customerGstin: "27AAACM8890K1ZV",
+    customerAddress: "Chakan Industrial Area, Phase II, Pune - 410501",
+    customerState: "27-Maharashtra",
+    customerPin: "410501",
+    supplierCompany: "General Precision Spindles Pvt. Ltd.",
+    supplierGstin: "27AABCG1492K1Z8",
+    supplierAddress: "Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra",
+    supplierState: "27-Maharashtra",
+    supplierPin: "411041",
+    vehicle: "MH12XY9921",
+    transporter: "SafeXpress Logistics",
+    transporterId: "27AAACS8812J1ZK",
+    mode: "Road",
+    distance: "32 km",
+    transportDocNo: "LR-2026-78901",
+    transportDocDate: "20 Aug 2026",
+    transactionType: "Supply",
+    validFrom: "20 Aug 2026, 11:00 AM",
+    validUntil: "27 Aug 2026, 11:59 PM",
+    status: "Expired",
+    taxableValue: 661017,
+    cgstAmount: 59491.5,
+    sgstAmount: 59491.5,
+    igstAmount: 0,
+    totalInvoiceValue: 780000,
+    formattedTotal: "₹7,80,000",
+    isDemo: true,
+    goods: [
+      { id: 1, product: "Alloy Shaft 18CrNiMo7-6 Sets", hsn: "84669390", quantity: 2, unit: "Sets", taxableValue: 661017, gstRate: 18, totalValue: 780000 }
+    ],
+    timeline: [
+      { id: 1, title: "Transit Closed & Inwarded", detail: "Customer plant signed GRN; EWB expired upon delivery completion", time: "25 Aug 2026, 04:00 PM", user: "Mahindra Inward Bay" }
+    ]
+  },
+  {
+    id: "EWB-2026-0040",
+    ewbNumber: "EWB-2026-0040",
+    invoice: "INV-2026-012",
+    invoiceDate: "15 Aug 2026",
+    customer: "Kirloskar Oil Engines",
+    customerFullName: "Kirloskar Oil Engines Ltd",
+    customerGstin: "27AAACK1920J1ZM",
+    customerAddress: "Khadki, Pune - 411003",
+    customerState: "27-Maharashtra",
+    customerPin: "411003",
+    supplierCompany: "General Precision Spindles Pvt. Ltd.",
+    supplierGstin: "27AABCG1492K1Z8",
+    supplierAddress: "Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra",
+    supplierState: "27-Maharashtra",
+    supplierPin: "411041",
+    vehicle: "MH12GH3456",
+    transporter: "Direct Plant Truck",
+    transporterId: "27AABCG1492K1Z8",
+    mode: "Road",
+    distance: "18 km",
+    transportDocNo: "DC-2026-044",
+    transportDocDate: "15 Aug 2026",
+    transactionType: "Supply",
+    validFrom: "15 Aug 2026, 08:00 AM",
+    validUntil: "18 Aug 2026, 11:59 PM",
+    status: "Cancelled",
+    taxableValue: 347458,
+    cgstAmount: 31271,
+    sgstAmount: 31271,
+    igstAmount: 0,
+    totalInvoiceValue: 410000,
+    formattedTotal: "₹4,10,000",
+    isDemo: true,
+    goods: [
+      { id: 1, product: "Emergency Spindle Rebalance Fixture", hsn: "84669390", quantity: 1, unit: "Job", taxableValue: 347458, gstRate: 18, totalValue: 410000 }
+    ],
+    timeline: [
+      { id: 1, title: "E-Way Bill Cancelled", detail: "Cancelled within 24 hours as dispatch was rescheduled", time: "15 Aug 2026, 01:30 PM", user: "Ganesh Pawar" }
+    ]
+  }
+];

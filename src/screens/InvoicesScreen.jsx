@@ -5,14 +5,22 @@ import Modal from '../components/common/Modal';
 import { INVOICES } from '../data/mockData';
 import { 
   Search, FileText, DollarSign, Download, Printer, 
-  CheckCircle, Plus, AlertCircle 
+  CheckCircle, Plus, AlertCircle, Mail, Eye 
 } from 'lucide-react';
+import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 
 export default function InvoicesScreen({ onNotify }) {
   const [invoices, setInvoices] = useState(INVOICES);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [invoiceForEmail, setInvoiceForEmail] = useState(null);
+
+  const handleOpenEmailForInvoice = (inv) => {
+    setInvoiceForEmail(inv);
+    setEmailComposerOpen(true);
+  };
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesStatus = statusFilter === 'all' || inv.status.toLowerCase() === statusFilter.toLowerCase();
@@ -147,14 +155,29 @@ export default function InvoicesScreen({ onNotify }) {
                     {inv.balance}
                   </td>
                   <td><StatusBadge status={inv.status} /></td>
-                  <td>
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setSelectedInvoice(inv)}
-                    >
-                      View Tax Invoice
-                    </button>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', gap: '4px' }}
+                        onClick={() => setSelectedInvoice(inv)}
+                        title="View Tax Invoice"
+                      >
+                        <Eye size={12} />
+                        <span>View</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '4px 8px', gap: '4px' }}
+                        onClick={() => handleOpenEmailForInvoice(inv)}
+                        title="Send invoice via Outlook-style email"
+                      >
+                        <Mail size={12} />
+                        <span>Email Invoice</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -176,6 +199,18 @@ export default function InvoicesScreen({ onNotify }) {
               <button type="button" className="btn btn-secondary" onClick={() => onNotify(`Printing Invoice ${selectedInvoice.id}`)}>
                 <Printer size={13} />
                 <span>Print Invoice</span>
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  const currentInv = selectedInvoice;
+                  setSelectedInvoice(null);
+                  handleOpenEmailForInvoice(currentInv);
+                }}
+              >
+                <Mail size={13} />
+                <span>Email Invoice</span>
               </button>
               {selectedInvoice.balance !== '₹0' && (
                 <button type="button" className="btn btn-primary" onClick={() => handleRecordPayment(selectedInvoice.id)}>
@@ -232,6 +267,17 @@ export default function InvoicesScreen({ onNotify }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Outlook-Style Email Composer for Invoice */}
+      {emailComposerOpen && (
+        <OutlookEmailComposer 
+          isOpen={emailComposerOpen}
+          onClose={() => setEmailComposerOpen(false)}
+          documentData={invoiceForEmail}
+          documentType="invoice"
+          onNotify={onNotify}
+        />
       )}
     </div>
   );

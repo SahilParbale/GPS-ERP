@@ -3,83 +3,27 @@ import {
   LayoutDashboard, ShoppingBag, Cog, Disc, Boxes, 
   ShieldCheck, Wrench, Users, Truck, FileText, 
   BarChart3, Settings, ChevronRight, Activity, 
-  PanelLeftClose, PanelLeftOpen, Building2
+  PanelLeftClose, PanelLeftOpen, Building2, ShoppingCart,
+  Receipt, Mail
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { 
-    id: 'sales', 
-    label: 'Sales & Quotes', 
-    icon: ShoppingBag,
-    subItems: [
-      { id: 'sales-quotes', label: 'Quotations' },
-      { id: 'sales-orders', label: 'Sales Orders' }
-    ]
-  },
-  { 
-    id: 'production', 
-    label: 'Production', 
-    icon: Cog, 
-    badge: '18',
-    subItems: [
-      { id: 'production', label: 'Pipeline & Bays' },
-      { id: 'production-wos', label: 'Work Orders' }
-    ]
-  },
-  { 
-    id: 'workforce', 
-    label: 'Staff & Workforce', 
-    icon: Users, 
-    badge: '31',
-    subItems: [
-      { id: 'workforce', label: 'Live Shop Floor' },
-      { id: 'workforce-directory', label: 'Staff Directory' }
-    ]
-  },
-  { 
-    id: 'spindles', 
-    label: 'Spindles Registry', 
-    icon: Disc,
-    subItems: [
-      { id: 'spindles', label: 'Fleet Registry' },
-      { id: 'spindle-detail', label: 'Digital Twin' }
-    ]
-  },
-  { 
-    id: 'inventory', 
-    label: 'Inventory', 
-    icon: Boxes, 
-    badge: '3',
-    subItems: [
-      { id: 'inventory', label: 'Stock Levels' },
-      { id: 'inventory-tx', label: 'Material Logs' }
-    ]
-  },
-  { 
-    id: 'quality', 
-    label: 'Quality Control', 
-    icon: ShieldCheck, 
-    badge: '4',
-    subItems: [
-      { id: 'quality', label: 'Inspections' },
-      { id: 'quality-reports', label: 'Test Reports' }
-    ]
-  },
-  { 
-    id: 'service', 
-    label: 'Service & Repair', 
-    icon: Wrench, 
-    badge: '7',
-    subItems: [
-      { id: 'service', label: 'Service Dashboard' },
-      { id: 'service-detail', label: 'Repair Lifecycle' }
-    ]
-  },
-  { id: 'customers', label: 'Customers', icon: Building2 },
-  { id: 'suppliers', label: 'Suppliers', icon: Truck },
+  { id: 'sales', label: 'Sales & Quotes', icon: ShoppingBag },
+  { id: 'proforma-invoices', label: 'Proforma Invoices', icon: Receipt, badge: '5' },
   { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
+  { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
+  { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, badge: '5' },
+  { id: 'production', label: 'Production', icon: Cog, badge: '18' },
+  { id: 'workforce', label: 'Staff & Workforce', icon: Users, badge: '31' },
+  { id: 'spindles', label: 'Spindles Registry', icon: Disc },
+  { id: 'inventory', label: 'Inventory', icon: Boxes, badge: '3' },
+  { id: 'quality', label: 'Quality Control', icon: ShieldCheck, badge: '4' },
+  { id: 'service', label: 'Service & Repair', icon: Wrench, badge: '7' },
+  { id: 'customers', label: 'Customers', icon: Building2 },
+  { id: 'contacts', label: 'Contacts & Emails', icon: Mail },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck },
   { id: 'reports', label: 'Reports & BI', icon: BarChart3 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

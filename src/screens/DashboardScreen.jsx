@@ -255,7 +255,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                     <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       {del.serial} • {del.model}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px' }}>
                       Target: {del.date}
                     </div>
                   </div>
@@ -289,7 +289,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{bay.operator}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: '#0284c7' }}>
+                    <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
                       {bay.utilization}
                     </span>
                     <div style={{ fontSize: '10px', color: '#059669', fontWeight: 600 }}>Active</div>

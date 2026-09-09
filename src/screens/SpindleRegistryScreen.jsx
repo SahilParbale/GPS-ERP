@@ -128,14 +128,14 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   <td style={{ fontSize: '12px' }}>{sp.type}</td>
                   <td className="mono" style={{ fontWeight: 500 }}>{sp.rpm}</td>
                   <td className="mono">{sp.power}</td>
-                  <td className="mono" style={{ color: '#0284c7' }}>{sp.runoutTaper}</td>
+                  <td className="mono" style={{ color: 'var(--primary)' }}>{sp.runoutTaper}</td>
                   <td>
                     <StatusBadge status={sp.status} />
                   </td>
                   <td className="mono" style={{ fontSize: '12px' }}>{sp.manufacturingDate}</td>
                   <td style={{ fontSize: '11px' }}>
                     <span style={{ 
-                      color: sp.warranty.includes('Active') ? '#059669' : sp.warranty.includes('Production') ? '#0284c7' : '#d97706',
+                      color: sp.warranty.includes('Active') ? '#059669' : sp.warranty.includes('Production') ? 'var(--primary)' : '#d97706',
                       fontWeight: 600
                     }}>
                       {sp.warranty}

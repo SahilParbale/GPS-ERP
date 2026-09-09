@@ -73,58 +73,58 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Nose Runout</div>
-              <div className="mono" style={{ fontWeight: 700, color: '#0284c7', fontSize: '14px' }}>{sp.runoutTaper}</div>
+              <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '14px' }}>{sp.runoutTaper}</div>
             </div>
           </div>
         </div>
 
         {/* Industrial CAD / Schematic Visualization Box */}
         <div className="spindle-schematic">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={16} color="#38bdf8" />
-              <span style={{ fontWeight: 600, fontSize: '13px', color: '#f8fafc', letterSpacing: '0.04em' }}>
+              <Activity size={16} color="var(--primary)" />
+              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)', letterSpacing: '0.04em' }}>
                 DIGITAL TWIN SCHEMATIC & SUBSYSTEM TELEMETRY
               </span>
             </div>
-            <span className="mono" style={{ fontSize: '11px', color: '#64748b' }}>
+            <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               SPEC-REV-2026.02
             </span>
           </div>
 
           {/* SVG Precision Blueprint of Spindle Assembly */}
           <div style={{ width: '100%', overflowX: 'auto', textAlign: 'center', padding: '10px 0' }}>
-            <svg viewBox="0 0 760 140" style={{ width: '100%', maxWidth: '760px', height: 'auto', background: '#050b18', borderRadius: '6px', border: '1px solid #1e293b' }}>
+            <svg viewBox="0 0 760 140" style={{ width: '100%', maxWidth: '760px', height: 'auto', background: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               {/* Spindle Body */}
-              <rect x="120" y="30" width="500" height="80" rx="4" fill="#0f1f38" stroke="#38bdf8" strokeWidth="1.5"/>
+              <rect x="120" y="30" width="500" height="80" rx="4" fill="#F8FAF9" stroke="#0F766E" strokeWidth="1.5"/>
               
               {/* Nose Taper */}
-              <polygon points="40,45 120,30 120,110 40,95" fill="#1e3a5f" stroke="#38bdf8" strokeWidth="1.5"/>
-              <text x="50" y="75" fill="#93c5fd" fontSize="10" fontFamily="monospace">HSK-A63</text>
+              <polygon points="40,45 120,30 120,110 40,95" fill="#E6F4F1" stroke="#0F766E" strokeWidth="1.5"/>
+              <text x="50" y="75" fill="#0F766E" fontSize="10" fontWeight="bold" fontFamily="monospace">HSK-A63</text>
               
               {/* Front Bearing Pack */}
-              <rect x="140" y="35" width="55" height="70" fill="#1e293b" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="142" y="75" fill="#fbbf24" fontSize="9" fontFamily="monospace">CERAMIC</text>
+              <rect x="140" y="35" width="55" height="70" fill="#FFF6DD" stroke="#B7791F" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <text x="142" y="75" fill="#B7791F" fontSize="9" fontWeight="bold" fontFamily="monospace">CERAMIC</text>
               
               {/* Built-in Stator & Rotor */}
-              <rect x="230" y="35" width="220" height="70" fill="#172554" stroke="#60a5fa" strokeWidth="1.5"/>
-              <text x="270" y="72" fill="#bfdbfe" fontSize="11" fontWeight="bold" fontFamily="monospace">15kW MOTOR CORE</text>
-              <text x="290" y="88" fill="#93c5fd" fontSize="9" fontFamily="monospace">Water Chilled</text>
+              <rect x="230" y="35" width="220" height="70" fill="#EAF4FA" stroke="#3B82A6" strokeWidth="1.5"/>
+              <text x="270" y="72" fill="#1F2933" fontSize="11" fontWeight="bold" fontFamily="monospace">15kW MOTOR CORE</text>
+              <text x="290" y="88" fill="#667085" fontSize="9" fontFamily="monospace">Water Chilled</text>
 
               {/* Rear Bearing Pack */}
-              <rect x="490" y="35" width="45" height="70" fill="#1e293b" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="495" y="75" fill="#fbbf24" fontSize="9" fontFamily="monospace">REAR P4S</text>
+              <rect x="490" y="35" width="45" height="70" fill="#FFF6DD" stroke="#B7791F" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <text x="495" y="75" fill="#B7791F" fontSize="9" fontWeight="bold" fontFamily="monospace">REAR P4S</text>
 
               {/* Rotary Encoder */}
-              <rect x="560" y="40" width="50" height="60" fill="#0c4a6e" stroke="#38bdf8" strokeWidth="1.5"/>
-              <text x="568" y="75" fill="#7dd3fc" fontSize="9" fontFamily="monospace">ENCODER</text>
+              <rect x="560" y="40" width="50" height="60" fill="#E6F4F1" stroke="#0F766E" strokeWidth="1.5"/>
+              <text x="568" y="75" fill="#0F766E" fontSize="9" fontWeight="bold" fontFamily="monospace">ENCODER</text>
 
               {/* Tool Drawbar Centerline */}
-              <line x1="20" y1="70" x2="650" y2="70" stroke="#ef4444" strokeWidth="1" strokeDasharray="6 3"/>
+              <line x1="20" y1="70" x2="650" y2="70" stroke="#C2413B" strokeWidth="1" strokeDasharray="6 3"/>
 
               {/* Coolant Inlets */}
-              <circle cx="280" cy="30" r="5" fill="#0284c7" stroke="#38bdf8"/>
-              <circle cx="380" cy="30" r="5" fill="#0284c7" stroke="#38bdf8"/>
+              <circle cx="280" cy="30" r="5" fill="#0F766E" stroke="#E6F4F1"/>
+              <circle cx="380" cy="30" r="5" fill="#0F766E" stroke="#E6F4F1"/>
             </svg>
           </div>
 
@@ -136,11 +136,11 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
             </div>
             <div className="schematic-callout">
               <div className="callout-label">Nose Dynamic Runout</div>
-              <div className="callout-val" style={{ color: '#38bdf8' }}>{sp.runoutTaper}</div>
+              <div className="callout-val" style={{ color: 'var(--primary)' }}>{sp.runoutTaper}</div>
             </div>
             <div className="schematic-callout">
               <div className="callout-label">Dynamic Balance</div>
-              <div className="callout-val" style={{ color: '#34d399' }}>{sp.balanceGrade}</div>
+              <div className="callout-val" style={{ color: 'var(--status-success-text)' }}>{sp.balanceGrade}</div>
             </div>
             <div className="schematic-callout">
               <div className="callout-label">Clamping Retention Force</div>
@@ -225,8 +225,8 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
                     <td className="mono" style={{ fontSize: '12px' }}>{row.dur}</td>
                     <td className="mono">{row.fTemp}</td>
                     <td className="mono">{row.rTemp}</td>
-                    <td className="mono" style={{ color: '#0284c7' }}>{row.vibX}</td>
-                    <td className="mono" style={{ color: '#0284c7' }}>{row.vibY}</td>
+                    <td className="mono" style={{ color: 'var(--primary)' }}>{row.vibX}</td>
+                    <td className="mono" style={{ color: 'var(--primary)' }}>{row.vibY}</td>
                     <td><StatusBadge status={row.status} size="sm" /></td>
                   </tr>
                 ))}
@@ -334,7 +334,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
                 <rect x="46" y="14" width="6" height="6" fill="#0f172a" />
                 <rect x="56" y="10" width="6" height="6" fill="#0f172a" />
                 <rect x="36" y="24" width="6" height="6" fill="#0f172a" />
-                <rect x="50" y="34" width="10" height="10" fill="#0284c7" />
+                <rect x="50" y="34" width="10" height="10" fill="#0F766E" />
                 <rect x="20" y="44" width="8" height="8" fill="#0f172a" />
                 <rect x="36" y="54" width="14" height="6" fill="#0f172a" />
                 <rect x="64" y="44" width="8" height="12" fill="#0f172a" />

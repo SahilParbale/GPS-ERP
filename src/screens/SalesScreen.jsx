@@ -2,13 +2,17 @@ import React, { useState, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import Tabs from '../components/common/Tabs';
 import { QUOTATIONS } from '../data/mockData';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
-  MapPin, Hash, Maximize2, Minimize2, ChevronRight
+  MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail
 } from 'lucide-react';
+import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
+import EmailActivityTable from '../components/email/EmailActivityTable';
+import { INITIAL_EMAIL_ACTIVITY } from '../services/emailService';
 
 // Indian numbering format numbers to words converter
 export function numberToIndianWords(num) {
@@ -82,13 +86,47 @@ const DEFAULT_LINAMAR_TEMPLATE = {
   ]
 };
 
-export default function SalesScreen({ onNavigate, onNotify }) {
+export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotations' }) {
   const [quotations, setQuotations] = useState(QUOTATIONS);
   const [selectedQuote, setSelectedQuote] = useState(QUOTATIONS[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Email state
+  const [emailActivity, setEmailActivity] = useState(INITIAL_EMAIL_ACTIVITY);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailDoc, setEmailDoc] = useState(null);
+
+  const handleOpenEmailForQuote = (quote) => {
+    setEmailDoc(quote);
+    setIsEmailComposerOpen(true);
+  };
+
+  const handleOpenDraftInComposer = (draftRecord) => {
+    const foundQuote = quotations.find(q => q.id === draftRecord.documentId);
+    setEmailDoc(foundQuote || {
+      id: draftRecord.documentId,
+      customer: draftRecord.customer,
+      amount: 842000,
+      spindleModel: draftRecord.subject.replace(/Quotation.*?—\s*/, '')
+    });
+    setIsEmailComposerOpen(true);
+  };
+
+  const handleEmailSent = (record) => {
+    setEmailActivity(prev => [record, ...prev]);
+  };
+
+  const handleEmailSaveDraft = (draftRecord) => {
+    setEmailActivity(prev => [draftRecord, ...prev]);
+  };
 
   // New Quotation Form State matching the PDF invoice
   const [formState, setFormState] = useState({ ...DEFAULT_LINAMAR_TEMPLATE });
@@ -233,14 +271,25 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         </button>
       </PageHeader>
 
-      {/* Grid Container without Wasted Whitespace */}
-      <div 
-        className="grid-2col-sales" 
-        style={{ 
-          gridTemplateColumns: isDocExpanded ? '1fr' : undefined,
-          gap: '12px'
-        }}
-      >
+      {/* Top Level Tabs: Quotations vs Email Activity */}
+      <Tabs 
+        tabs={[
+          { id: 'quotations', label: 'Commercial Quotations & Proposals', count: filteredQuotes.length },
+          { id: 'activity', label: 'Email Activity & Logs', count: emailActivity.length }
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
+
+      {/* Quotations Master-Detail View */}
+      {activeTab === 'quotations' && (
+        <div 
+          className="grid-2col-sales" 
+          style={{ 
+            gridTemplateColumns: isDocExpanded ? '1fr' : undefined,
+            gap: '12px'
+          }}
+        >
         {/* Left Column: Compact Master Quotations List */}
         {!isDocExpanded && (
           <div className="section-card" style={{ height: 'fit-content', padding: '0', overflow: 'hidden' }}>
@@ -324,6 +373,40 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                           Serial: <strong className="mono">{q.spindleSerial}</strong>
                         </div>
                       )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                          {q.validUntil ? `Valid: ${q.validUntil}` : '30d Validity'}
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary btn-sm"
+                            style={{ height: '22px', padding: '0 6px', fontSize: '10.5px', gap: '3px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedQuote(q);
+                            }}
+                            title="Preview Estimate"
+                          >
+                            <Eye size={10} />
+                            <span>View</span>
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-primary btn-sm"
+                            style={{ height: '22px', padding: '0 6px', fontSize: '10.5px', gap: '3px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEmailForQuote(q);
+                            }}
+                            title="Send quotation via Outlook-style email"
+                          >
+                            <Mail size={10} />
+                            <span>Send Email</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })
@@ -390,6 +473,17 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary btn-sm"
+                  onClick={() => handleOpenEmailForQuote(selectedQuote)}
+                  title="Send quotation via Outlook-style email composer"
+                  style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                >
+                  <Mail size={12} color="var(--primary)" />
+                  <span>Send Email</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm"
                   onClick={() => onNotify(`Quotation ${selectedQuote.id} converted into Production Work Order`)}
                   title="Convert to Shop Floor Work Order"
                   style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
@@ -449,7 +543,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                   </div>
                   <div style={{ padding: '6px 8px' }}>
                     <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>Place of supply</div>
-                    <div style={{ fontWeight: 700, fontSize: '11px', color: '#0284c7' }}>
+                    <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--primary)' }}>
                       {selectedQuote.placeOfSupply || selectedQuote.state || '23-Madhya Pradesh'}
                     </div>
                   </div>
@@ -638,6 +732,16 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           </div>
         )}
       </div>
+      )}
+
+      {/* Email Activity History Tab */}
+      {activeTab === 'activity' && (
+        <EmailActivityTable 
+          emailList={emailActivity}
+          onOpenComposerForDraft={handleOpenDraftInComposer}
+          onNotify={onNotify}
+        />
+      )}
 
       {/* NEW QUOTATION MODAL - COMPACT & MATCHING THE PDF INVOICE FIELDS EXACTLY */}
       <Modal
@@ -682,7 +786,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           {/* SECTION 1: Estimate & Place of Supply */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Hash size={12} color="#0284c7" />
+              <Hash size={12} color="#0F766E" />
               <span>Estimate Number & Supply Jurisdiction</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -730,7 +834,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           {/* SECTION 2: Estimate For (Customer / Buyer Details) */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Building2 size={12} color="#0284c7" />
+              <Building2 size={12} color="#0F766E" />
               <span>Estimate For (Customer / Buyer Details)</span>
             </div>
             
@@ -801,7 +905,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           {/* SECTION 3: Spindle Description & Scope of Work */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <FileCheck size={12} color="#0284c7" />
+              <FileCheck size={12} color="#0F766E" />
               <span>Job Identification & Scope of Work</span>
             </div>
 
@@ -860,7 +964,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <DollarSign size={12} color="#0284c7" />
+                <DollarSign size={12} color="#0F766E" />
                 <span>Line Items (# Item name, HSN/SAC, Quantity, Price/Unit, Amount)</span>
               </div>
               <button 
@@ -997,6 +1101,19 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
         </form>
       </Modal>
+
+      {/* Outlook-Style Email Composer */}
+      {isEmailComposerOpen && (
+        <OutlookEmailComposer 
+          isOpen={isEmailComposerOpen}
+          onClose={() => setIsEmailComposerOpen(false)}
+          documentData={emailDoc || selectedQuote}
+          documentType="quotation"
+          onSent={handleEmailSent}
+          onSaveDraft={handleEmailSaveDraft}
+          onNotify={onNotify}
+        />
+      )}
     </div>
   );
 }

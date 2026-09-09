@@ -49,7 +49,7 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
       <div className="section-card">
         <div className="card-header">
           <div className="card-title">
-            <Wrench size={16} color="#0284c7" />
+            <Wrench size={16} color="#0F766E" />
             <span>9-Stage Spindle Restoration & Recalibration Pipeline</span>
           </div>
           <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

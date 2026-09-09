@@ -30,7 +30,17 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         title="Industrial Customer Accounts" 
         subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
         badge={`${CUSTOMERS.length} Enterprise Clients`}
-      />
+      >
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => onNavigate && onNavigate('contacts')}
+          title="Open systematic contacts and CC email directory"
+        >
+          <Mail size={14} />
+          <span>Email & CC Directory</span>
+        </button>
+      </PageHeader>
 
       <div className="grid-2col-cust">
         {/* Left: Customers List */}
@@ -57,15 +67,15 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                   padding: '14px 18px',
                   borderBottom: '1px solid var(--border-color)',
                   cursor: 'pointer',
-                  background: selectedCustomer.id === cust.id ? '#f0f9ff' : 'transparent',
-                  borderLeft: selectedCustomer.id === cust.id ? '4px solid #0284c7' : '4px solid transparent',
+                  background: selectedCustomer.id === cust.id ? 'var(--primary-light)' : 'transparent',
+                  borderLeft: selectedCustomer.id === cust.id ? '4px solid var(--primary)' : '4px solid transparent',
                   transition: 'background 0.15s'
                 }}
                 onClick={() => setSelectedCustomer(cust)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <strong style={{ fontSize: '14px' }}>{cust.name}</strong>
-                  <span className="nav-badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px' }}>{cust.rating}</span>
+                  <span className="nav-badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '10px' }}>{cust.rating}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   {cust.industry}
@@ -102,7 +112,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             </div>
 
             {/* Primary Contact Info Bar */}
-            <div style={{ display: 'flex', gap: '20px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
                 <Users size={14} color="var(--text-muted)" />
                 <strong>{selectedCustomer.contactName}</strong>
@@ -113,8 +123,17 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
                 <Mail size={14} color="var(--text-muted)" />
-                <span>{selectedCustomer.contactEmail}</span>
+                <span className="mono">{selectedCustomer.contactEmail}</span>
               </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => onNavigate && onNavigate('contacts')}
+                style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px' }}
+                title="View systematic CC email list for this customer"
+              >
+                <span>View Stored CCs →</span>
+              </button>
             </div>
           </div>
 
@@ -206,7 +225,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               ].map((doc, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={18} color="#0284c7" />
+                    <FileText size={18} color="#0F766E" />
                     <span style={{ fontSize: '13px', fontWeight: 500 }}>{doc.name}</span>
                   </div>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNotify(`Downloading ${doc.name}`)}>Download</button>

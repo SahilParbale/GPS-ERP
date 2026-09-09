@@ -47,7 +47,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Building size={16} color="#0284c7" />
+              <Building size={16} color="#0F766E" />
               <span>Enterprise Identity & Legal Registration</span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Users size={16} color="#0284c7" />
+              <Users size={16} color="#0F766E" />
               <span>Plant Operators & Role Access Control</span>
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNotify('New user invite generated')}>
@@ -169,7 +169,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Wrench size={16} color="#0284c7" />
+              <Wrench size={16} color="#0F766E" />
               <span>Machine Tool & Air Gauge Master Calibration Log</span>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function SettingsScreen({ onNotify }) {
                     <td style={{ fontSize: '12px' }}>{cal.station}</td>
                     <td className="mono" style={{ fontSize: '12px' }}>{cal.standard}</td>
                     <td className="mono" style={{ fontSize: '12px' }}>{cal.last}</td>
-                    <td className="mono" style={{ fontSize: '12px', color: '#0284c7' }}>{cal.next}</td>
+                    <td className="mono" style={{ fontSize: '12px', color: 'var(--primary)' }}>{cal.next}</td>
                     <td style={{ fontSize: '12px' }}>{cal.agency}</td>
                     <td>
                       <span style={{ 
@@ -225,7 +225,7 @@ export default function SettingsScreen({ onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">
-              <Bell size={16} color="#0284c7" />
+              <Bell size={16} color="#0F766E" />
               <span>Plant Floor Alert Triggers</span>
             </div>
           </div>

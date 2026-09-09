@@ -5,19 +5,24 @@ export default function StatusBadge({ status, size = 'normal' }) {
 
   const getStatusType = (str) => {
     const s = String(str).toLowerCase();
-    if (s.includes('pass') || s.includes('complete') || s.includes('approv') || s.includes('ready') || s.includes('dispatch') || s.includes('paid') || s.includes('operat') || s === 'working') {
+    // Working / In Progress / Production Operations -> Pale Teal
+    if (s.includes('work') || s.includes('progress') || s.includes('machin') || s.includes('assembl') || s.includes('grind') || s.includes('balanc') || s.includes('test') || s.includes('repair') || s.includes('service') || s.includes('meet')) {
+      return 'badge-teal';
+    }
+    // Completed / Pass / Available / Delivered -> Pale Green
+    if (s.includes('pass') || s.includes('complete') || s.includes('approv') || s.includes('ready') || s.includes('dispatch') || s.includes('paid') || s.includes('operat') || s.includes('avail')) {
       return 'badge-success';
     }
+    // Pending / On Break / QC / Warnings -> Pale Amber
     if (s.includes('break') || s.includes('pend') || s.includes('review') || s.includes('diagnos') || s.includes('inspect') || s.includes('low stock') || s.includes('partial') || s.includes('active')) {
       return 'badge-warning';
     }
-    if (s.includes('overload') || s.includes('critic') || s.includes('reject') || s.includes('overdue') || s.includes('fail') || s.includes('expir') || s.includes('alarm')) {
+    // Overloaded / Critical / Failed / Blocked -> Pale Red
+    if (s.includes('overload') || s.includes('critic') || s.includes('reject') || s.includes('overdue') || s.includes('fail') || s.includes('expir') || s.includes('alarm') || s.includes('blocked')) {
       return 'badge-danger';
     }
-    if (s.includes('meet') || s.includes('progress') || s.includes('machin') || s.includes('assembl') || s.includes('grind') || s.includes('balanc') || s.includes('test') || s.includes('repair') || s.includes('service')) {
-      return 'badge-info';
-    }
-    if (s.includes('avail') || s.includes('idle') || s.includes('offline')) {
+    // Offline / Idle / Neutral -> Pale Gray
+    if (s.includes('offline') || s.includes('idle') || s.includes('draft')) {
       return 'badge-neutral';
     }
     return 'badge-neutral';

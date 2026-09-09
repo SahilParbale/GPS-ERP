@@ -18,10 +18,10 @@ export default function ReportsScreen({ onNotify }) {
   ];
 
   const spindleDistribution = [
-    { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#0284c7' },
-    { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#0ea5e9' },
-    { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#38bdf8' },
-    { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94a3b8' },
+    { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#0F766E' },
+    { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#14B8A6' },
+    { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#2DD4BF' },
+    { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94A3B8' },
   ];
 
   return (
@@ -106,12 +106,12 @@ export default function ReportsScreen({ onNotify }) {
                 const heightPercent = (item.units / 32) * 100;
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
-                    <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: '#0284c7' }}>{item.units}</span>
+                    <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>{item.units}</span>
                     <div 
                       style={{ 
                         width: '32px', 
                         height: `${heightPercent}%`, 
-                        background: 'linear-gradient(180deg, #0284c7, #0369a1)', 
+                        background: 'var(--primary)', 
                         borderRadius: '4px 4px 0 0',
                         transition: 'height 0.3s'
                       }} 
@@ -123,7 +123,7 @@ export default function ReportsScreen({ onNotify }) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', background: '#0284c7', borderRadius: '2px' }} />
+                <span style={{ width: '10px', height: '10px', background: 'var(--primary)', borderRadius: '2px' }} />
                 Units Built (Actual)
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -194,7 +194,7 @@ export default function ReportsScreen({ onNotify }) {
               <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: '13px', fontWeight: 500 }}>{c.cause}</div>
                 <div style={{ textAlign: 'right' }}>
-                  <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: '#0284c7' }}>{c.pct}</span>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>{c.pct}</span>
                   <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.count}</div>
                 </div>
               </div>
