@@ -2,6 +2,9 @@
 -- GPS SPINDLE ERP — DATABASE ARCHITECTURE MIGRATION
 -- Migration: 020_storage_security.sql
 -- Module: Supabase Storage Buckets & Storage Object Row Level Security
+-- Note: In hosted Supabase Cloud, `storage.objects` is owned by `supabase_storage_admin`.
+-- All 4 buckets (spindle-documents, quality-reports, invoices-ewb, avatars) are 
+-- provisioned via the Supabase Storage API. This file documents the storage access rules.
 -- ==============================================================================
 
 -- 1. Create Core Storage Buckets
@@ -16,8 +19,8 @@ ON CONFLICT (id) DO UPDATE SET
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- 2. Enable RLS on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- 2. Note: RLS is already enabled on storage.objects by default in Supabase.
+-- (Running ALTER TABLE storage.objects is omitted to avoid 42501 owner check)
 
 -- 3. Storage Policies
 

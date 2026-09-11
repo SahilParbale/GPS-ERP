@@ -14,6 +14,7 @@ import {
 } from '../../data/mockData';
 import DatabaseStatusIndicator from './DatabaseStatusIndicator';
 import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/database/notificationService';
 import UserProfileModal from '../auth/UserProfileModal';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
 
@@ -29,12 +30,41 @@ export default function Header({
 }) {
   const { profile, employee, role, roleLabel, signOut, switchDemoRole, demoUsers } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [liveNotifications, setLiveNotifications] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchContainerRef = useRef(null);
   const userMenuRef = useRef(null);
+
+  // Load notifications and subscribe to live alert events
+  useEffect(() => {
+    const fetchHeaderAlerts = async () => {
+      try {
+        const notifRes = await notificationService.getNotifications({ limit: 5 });
+        if (notifRes.data) {
+          setLiveNotifications(notifRes.data);
+        }
+        const countRes = await notificationService.getUnreadCount();
+        setUnreadNotifCount(countRes.count || 0);
+      } catch (e) {
+        console.error('Error fetching header notifications:', e);
+      }
+    };
+
+    fetchHeaderAlerts();
+
+    // Subscribe to live Realtime alerts
+    const sub = notificationService.subscribe((payload) => {
+      fetchHeaderAlerts();
+    });
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, []);
 
   // Close user dropdown on outside click
   useEffect(() => {
@@ -65,6 +95,9 @@ export default function Header({
     'customers': 'Customer Accounts',
     'suppliers': 'Precision Vendors',
     'invoices': 'Invoices & GST Billing',
+    'documents': 'Engineering Documents & Vault',
+    'notifications': 'Plant Notifications & Alerts',
+    'email-activity': 'Email Transmission Register',
     'reports': 'Plant Analytics & Reports',
     'settings': 'System Settings'
   };
@@ -361,9 +394,10 @@ export default function Header({
             className="header-icon-btn"
             onClick={() => setShowNotifications(!showNotifications)}
             aria-label="Notifications"
+            title={`${unreadNotifCount} Unread Notifications`}
           >
             <Bell size={17} />
-            <span className="notification-dot" />
+            {unreadNotifCount > 0 && <span className="notification-dot" />}
           </button>
 
           {showNotifications && (
@@ -372,7 +406,7 @@ export default function Header({
                 position: 'absolute',
                 top: '44px',
                 right: '0',
-                width: '300px',
+                width: '320px',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-md)',
@@ -386,16 +420,73 @@ export default function Header({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <strong style={{ fontSize: '13px' }}>Shop Floor Alerts</strong>
-                <span className="nav-badge" style={{ background: '#eff6ff', color: '#1d4ed8' }}>3 New</span>
+                <span className="nav-badge" style={{ background: unreadNotifCount > 0 ? '#eff6ff' : '#f0fdf4', color: unreadNotifCount > 0 ? '#1d4ed8' : '#15803d' }}>
+                  {unreadNotifCount > 0 ? `${unreadNotifCount} New` : 'All clear'}
+                </span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                ⚠️ Ceramic bearings FAG-HC7008 dropped to 8 pairs. Reorder needed.
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                ✅ Spindle GPS-2026-0841 passed Final QC Inspection.
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '6px 0' }}>
-                🔧 New Service Request logged from Kirloskar Oil Engines.
+
+              {liveNotifications.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '12px 0', textAlign: 'center' }}>
+                  All systems operational. Zero pending alerts.
+                </div>
+              ) : (
+                liveNotifications.slice(0, 4).map(notif => (
+                  <div 
+                    key={notif.id}
+                    style={{ 
+                      fontSize: '12px', 
+                      color: 'var(--text-secondary)', 
+                      padding: '6px 0', 
+                      borderBottom: '1px solid #f1f5f9',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      if (!notif.is_read) {
+                        notificationService.markAsRead(notif.id);
+                        setUnreadNotifCount(prev => Math.max(0, prev - 1));
+                      }
+                      if (onNavigate) {
+                        onNavigate('notifications');
+                        setShowNotifications(false);
+                      }
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, color: notif.priority === 'Critical' || notif.priority === 'Urgent' ? '#b91c1c' : 'var(--text-main)' }}>
+                      {notif.priority === 'Critical' || notif.priority === 'Urgent' ? '⚠️ ' : 'ℹ️ '}
+                      {notif.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: '1.3' }}>
+                      {notif.message}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <div style={{ paddingTop: '6px', textAlign: 'center' }}>
+                <button
+                  type="button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#7A1F3D',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    width: '100%',
+                    padding: '4px 0'
+                  }}
+                  onClick={() => {
+                    if (onNavigate) onNavigate('notifications');
+                    setShowNotifications(false);
+                  }}
+                >
+                  <span>View All Alerts & Notifications</span>
+                  <ChevronRight size={12} />
+                </button>
               </div>
             </div>
           )}

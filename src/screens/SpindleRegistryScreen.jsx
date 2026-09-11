@@ -1,20 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { SPINDLES } from '../data/mockData';
+import { spindleModelService } from '../services/database/spindleModelService';
 import { 
   Search, Filter, Plus, Eye, Wrench, Download, 
-  Disc, CheckCircle2, Shield, QrCode 
+  Disc, CheckCircle2, Shield, QrCode, RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onNotify }) {
+  const [spindles, setSpindles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-  const filteredSpindles = SPINDLES.filter((sp) => {
+  const loadSpindles = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await spindleModelService.getSpindles();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+    setSpindles(res.data || []);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadSpindles();
+  }, []);
+
+  const filteredSpindles = spindles.filter((sp) => {
     const matchesType = typeFilter === 'all' || sp.type.toLowerCase().includes(typeFilter.toLowerCase());
     const matchesStatus = statusFilter === 'all' || sp.status.toLowerCase() === statusFilter.toLowerCase();
     const query = searchQuery.toLowerCase();
@@ -26,12 +46,53 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
     return matchesType && matchesStatus && matchesSearch;
   });
 
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Spindle Fleet & Asset Registry" 
+          subtitle="Loading serialized asset registry from live database..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching serialized spindles and engineering model specifications...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Spindle Fleet & Asset Registry" 
+          subtitle="Digital serial registry of precision spindles manufactured and serviced by GPS Spindle"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve live spindle registry records from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadSpindles}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="content-area">
       <PageHeader 
         title="Spindle Fleet & Asset Registry" 
         subtitle="Digital serial registry of precision spindles manufactured and serviced by GPS Spindle"
-        badge={`${SPINDLES.length} Installed Units`}
+        badge={`${spindles.length} Registered Fleet Units`}
       >
         <button 
           type="button" 
@@ -95,7 +156,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Showing <strong>{filteredSpindles.length}</strong> of {SPINDLES.length} recorded assets
+            Showing <strong>{filteredSpindles.length}</strong> of {spindles.length} recorded assets
           </div>
         </div>
 
@@ -112,30 +173,43 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 <th>Power (kW)</th>
                 <th>Runout (Nose)</th>
                 <th>Status</th>
-                <th>Mfg Date</th>
-                <th>Warranty</th>
+                <th>Warranty Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredSpindles.map((sp) => (
-                <tr key={sp.serialNumber}>
-                  <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {sp.serialNumber}
+                <tr key={sp.serialNumber || sp.id}>
+                  <td>
+                    <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                      {sp.serialNumber}
+                    </div>
+                    <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {sp.qrCode}
+                    </div>
                   </td>
-                  <td style={{ fontWeight: 600 }}>{sp.model}</td>
-                  <td>{sp.customer}</td>
-                  <td style={{ fontSize: '12px' }}>{sp.type}</td>
-                  <td className="mono" style={{ fontWeight: 500 }}>{sp.rpm}</td>
-                  <td className="mono">{sp.power}</td>
-                  <td className="mono" style={{ color: 'var(--primary)' }}>{sp.runoutTaper}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{sp.model}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{sp.taper}</div>
+                  </td>
+                  <td style={{ fontSize: '12px' }}>{sp.customer}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sp.type}</td>
+                  <td className="mono" style={{ fontSize: '12px' }}>{sp.rpm}</td>
+                  <td className="mono" style={{ fontSize: '12px' }}>{sp.power}</td>
+                  <td className="mono" style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>
+                    {sp.runout}
+                  </td>
                   <td>
                     <StatusBadge status={sp.status} />
                   </td>
-                  <td className="mono" style={{ fontSize: '12px' }}>{sp.manufacturingDate}</td>
-                  <td style={{ fontSize: '11px' }}>
+                  <td>
                     <span style={{ 
-                      color: sp.warranty.includes('Active') ? '#059669' : sp.warranty.includes('Production') ? 'var(--primary)' : '#d97706',
+                      padding: '3px 8px', 
+                      borderRadius: '4px', 
+                      fontSize: '11px', 
+                      background: sp.warranty?.includes('Active') ? '#ecfdf5' : '#fef2f2',
+                      color: sp.warranty?.includes('Active') ? '#047857' : '#b91c1c',
+                      border: `1px solid ${sp.warranty?.includes('Active') ? '#a7f3d0' : '#fecaca'}`,
                       fontWeight: 600
                     }}>
                       {sp.warranty}
@@ -167,6 +241,13 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   </td>
                 </tr>
               ))}
+              {filteredSpindles.length === 0 && (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                    No spindle fleet units found matching your criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

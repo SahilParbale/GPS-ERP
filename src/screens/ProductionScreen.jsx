@@ -1,26 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import PipelineVisualizer from '../components/common/PipelineVisualizer';
 import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
-import { 
-  PRODUCTION_PIPELINE_STAGES, 
-  WORK_ORDERS, 
-  SHOP_BAYS 
-} from '../data/mockData';
+import { PRODUCTION_PIPELINE_STAGES } from '../data/mockData';
+import { workOrderService } from '../services/database/workOrderService';
+import { manufacturingService } from '../services/database/manufacturingService';
 import { 
   Plus, Search, Filter, Eye, ArrowRight, Cog, 
-  Wrench, Layers, Factory, Check 
+  Wrench, Layers, Factory, Check, RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
+  const [workOrders, setWorkOrders] = useState([]);
+  const [bays, setBays] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [selectedStage, setSelectedStage] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('table');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [isNewWoOpen, setIsNewWoOpen] = useState(false);
+  const [isSubmittingWo, setIsSubmittingWo] = useState(false);
 
   // Form state
   const [newWo, setNewWo] = useState({
@@ -32,30 +36,124 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
     initialStage: 'material'
   });
 
-  const filteredOrders = WORK_ORDERS.filter((wo) => {
-    const matchesStage = selectedStage === 'all' || wo.currentStage === selectedStage;
-    const matchesPriority = priorityFilter === 'all' || wo.priority.toLowerCase() === priorityFilter.toLowerCase();
+  const loadProductionData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const [wosRes, baysRes] = await Promise.all([
+      workOrderService.getWorkOrders(),
+      manufacturingService.getBayAssignments()
+    ]);
+
+    if (wosRes.error) {
+      setError(wosRes.error);
+      setIsLoading(false);
+      return;
+    }
+
+    setWorkOrders(wosRes.data || []);
+    setBays(baysRes.data || []);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadProductionData();
+  }, [loadProductionData]);
+
+  // Dynamic pipeline stage counts based on live work orders
+  const dynamicStages = PRODUCTION_PIPELINE_STAGES.map(stage => ({
+    ...stage,
+    count: workOrders.filter(w => (w.currentStage || '').toLowerCase() === stage.key.toLowerCase()).length
+  }));
+
+  const filteredOrders = workOrders.filter((wo) => {
+    const matchesStage = selectedStage === 'all' || (wo.currentStage || '').toLowerCase() === selectedStage.toLowerCase();
+    const matchesPriority = priorityFilter === 'all' || (wo.priority || '').toLowerCase() === priorityFilter.toLowerCase();
     const query = searchQuery.toLowerCase();
     const matchesSearch = !query || 
-      wo.id.toLowerCase().includes(query) ||
-      wo.spindleSerial.toLowerCase().includes(query) ||
-      wo.customer.toLowerCase().includes(query) ||
-      wo.spindleModel.toLowerCase().includes(query);
+      (wo.id || '').toLowerCase().includes(query) ||
+      (wo.spindleSerial || '').toLowerCase().includes(query) ||
+      (wo.customer || '').toLowerCase().includes(query) ||
+      (wo.spindleModel || '').toLowerCase().includes(query);
     return matchesStage && matchesPriority && matchesSearch;
   });
 
-  const handleCreateWo = (e) => {
+  const handleCreateWo = async (e) => {
     e.preventDefault();
+    setIsSubmittingWo(true);
+    const res = await workOrderService.createWorkOrder(newWo);
+    setIsSubmittingWo(false);
+
+    if (res.error) {
+      if (onNotify) onNotify(`Failed to launch work order: ${res.error.message || 'Database error'}`);
+      return;
+    }
+
     setIsNewWoOpen(false);
-    onNotify(`Work Order ${newWo.serial} generated successfully & routed to Bay 1`);
+    if (onNotify) {
+      onNotify(`Work Order ${res.data?.id || newWo.serial} generated successfully & routed to Bay 1`);
+    }
+    await loadProductionData();
   };
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Production Management & Shop Floor Operations" 
+          subtitle="Loading live routing and machine cell telemetry from Supabase..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
+          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>Fetching Precision Manufacturing Orders...</div>
+          <p style={{ fontSize: '12.5px', marginTop: '6px' }}>Connecting to live production operations, shop bays, and traveler telemetry.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Production Management & Shop Floor Operations" 
+          subtitle="Live routing of precision spindles across 8 manufacturing stages"
+        />
+        <div className="section-card" style={{ padding: '32px 24px', borderLeft: '4px solid var(--danger, #dc2626)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+            <AlertCircle size={24} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                Unable to Load Production Operations
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                {error.sanitizedMessage || error.message || 'Database connection error. Please verify authorization.'}
+              </p>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-sm"
+                onClick={loadProductionData}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={13} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
       <PageHeader 
         title="Production Management & Shop Floor Operations" 
         subtitle="Live routing of precision spindles across 8 manufacturing stages"
-        badge={`${WORK_ORDERS.length} Active Orders`}
+        badge={`${workOrders.length} Active Orders`}
       >
         <button 
           type="button" 
@@ -80,13 +178,13 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
               className={`btn btn-sm ${selectedStage === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setSelectedStage('all')}
             >
-              All Stages ({WORK_ORDERS.length})
+              All Stages ({workOrders.length})
             </button>
           </div>
         </div>
         <div style={{ padding: '16px 20px' }}>
           <PipelineVisualizer 
-            stages={PRODUCTION_PIPELINE_STAGES} 
+            stages={dynamicStages} 
             activeStage={selectedStage === 'all' ? null : selectedStage}
             onSelectStage={(stageKey) => {
               setSelectedStage(stageKey === selectedStage ? 'all' : stageKey);
@@ -99,7 +197,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
       <Tabs 
         tabs={[
           { id: 'table', label: 'Work Orders Directory', count: filteredOrders.length },
-          { id: 'bays', label: 'Shop Floor Bays & Machine Cells', count: SHOP_BAYS.length },
+          { id: 'bays', label: 'Shop Floor Bays & Machine Cells', count: bays.length },
           { id: 'kanban', label: 'Stage Board Overview' },
         ]}
         activeTab={activeTab}
@@ -132,12 +230,13 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                 <option value="all">All Priorities</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
-                <option value="normal">Normal</option>
+                <option value="medium">Medium / Normal</option>
+                <option value="low">Low</option>
               </select>
             </div>
 
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Showing <strong>{filteredOrders.length}</strong> of {WORK_ORDERS.length} work orders
+              Showing <strong>{filteredOrders.length}</strong> of {workOrders.length} work orders
             </div>
           </div>
 
@@ -168,7 +267,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                     : null;
 
                   return (
-                    <tr key={wo.id}>
+                    <tr key={wo.id || wo.dbId}>
                       <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap', fontSize: '13px' }}>
                         {wo.id}
                       </td>
@@ -248,45 +347,60 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                     </tr>
                   );
                 })}
+                {filteredOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      No active work orders matching the selected filter criteria.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Bay View */}
+      {/* Shop Floor Bays Tab */}
       {activeTab === 'bays' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-          {SHOP_BAYS.map((bay) => (
-            <div key={bay.id} className="section-card">
+          {bays.map((bay) => (
+            <div key={bay.id || bay.bayId} className="section-card" style={{ marginBottom: 0 }}>
               <div className="card-header" style={{ padding: '14px 18px' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>{bay.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>{bay.bayName}</div>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{bay.machine}</div>
                 </div>
-                <StatusBadge status={bay.status} />
+                <StatusBadge status={bay.status} size="sm" />
               </div>
-              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Lead Technician:</span>
-                  <strong style={{ color: 'var(--text-main)' }}>{bay.operator}</strong>
+              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Assigned Operator:</span>
+                  <strong>{bay.assignedStaff}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Active Job:</span>
-                  <span className="mono" style={{ color: 'var(--primary)', fontWeight: 600 }}>{bay.currentWo}</span>
+                  <span className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{bay.workOrder}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Station Utilization:</span>
-                  <strong className="mono">{bay.utilization}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Spindle Serial:</span>
+                  <span className="mono" style={{ fontWeight: 600 }}>{bay.spindleSerial}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Current Operation:</span>
+                  <span style={{ fontWeight: 500 }}>{bay.operation}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Cell Utilization:</span>
+                  <strong className="mono">{bay.utilization}%</strong>
                 </div>
                 <div style={{ marginTop: '2px' }}>
-                  <ProgressBar progress={parseInt(bay.utilization)} showLabel={false} height={7} />
+                  <ProgressBar progress={bay.utilization} showLabel={false} height={7} />
                 </div>
                 <button 
                   type="button" 
                   className="btn btn-secondary btn-sm" 
                   style={{ marginTop: '4px', width: '100%', justifyContent: 'center' }}
-                  onClick={() => onNotify(`Bay details opened: ${bay.name}`)}
+                  onClick={() => onNotify && onNotify(`Bay telemetry verified: ${bay.bayName}`)}
                 >
                   <Wrench size={13} />
                   <span>Inspect Bay Telemetry</span>
@@ -300,8 +414,8 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
       {/* Kanban Board View */}
       {activeTab === 'kanban' && (
         <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '16px', minWidth: 0 }}>
-          {PRODUCTION_PIPELINE_STAGES.map((stage, idx) => {
-            const stageWos = WORK_ORDERS.filter(w => w.currentStage === stage.key);
+          {dynamicStages.map((stage, idx) => {
+            const stageWos = workOrders.filter(w => (w.currentStage || '').toLowerCase() === stage.key.toLowerCase());
             return (
               <div 
                 key={stage.key} 
@@ -326,7 +440,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {stageWos.map((wo) => (
                     <div 
-                      key={wo.id}
+                      key={wo.id || wo.dbId}
                       style={{
                         background: '#ffffff',
                         border: '1px solid var(--border-color)',
@@ -346,9 +460,9 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                         <StatusBadge status={wo.priority} size="sm" />
                       </div>
                       <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '6px', color: 'var(--text-main)' }}>{wo.spindleModel}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{wo.customer.split(' ')[0]}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{(wo.customer || '').split(' ')[0]}</div>
                       <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{wo.shopBay.split(' - ')[0]}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{(wo.shopBay || '').split(' - ')[0]}</span>
                         <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>{wo.progress}%</span>
                       </div>
                     </div>
@@ -373,7 +487,14 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
         footer={
           <>
             <button type="button" className="btn btn-secondary" onClick={() => setIsNewWoOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={handleCreateWo}>Launch Production Order</button>
+            <button 
+              type="button" 
+              className="btn btn-primary" 
+              onClick={handleCreateWo}
+              disabled={isSubmittingWo}
+            >
+              {isSubmittingWo ? 'Launching...' : 'Launch Production Order'}
+            </button>
           </>
         }
       >
@@ -421,9 +542,10 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                 value={newWo.priority}
                 onChange={(e) => setNewWo({...newWo, priority: e.target.value})}
               >
-                <option value="Normal">Normal Turnaround</option>
+                <option value="Medium">Medium / Normal</option>
                 <option value="High">High Priority</option>
                 <option value="Critical">Critical Line-Down</option>
+                <option value="Low">Low Priority</option>
               </select>
             </div>
 

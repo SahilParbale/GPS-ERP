@@ -4,7 +4,7 @@ import {
   ShieldCheck, Wrench, Users, Truck, FileText, 
   BarChart3, Settings, ChevronRight, Activity, 
   PanelLeftClose, PanelLeftOpen, Building2, ShoppingCart,
-  Receipt, Mail, Shield
+  Receipt, Mail, Shield, FolderOpen, Bell
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +27,7 @@ export const NAV_SECTIONS = [
       { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
       { id: 'customers', label: 'Customers', icon: Building2 },
       { id: 'contacts', label: 'Contacts & Directory', icon: Mail },
+      { id: 'email-activity', label: 'Email Activity', icon: Mail },
     ]
   },
   {
@@ -53,6 +54,8 @@ export const NAV_SECTIONS = [
     id: 'system',
     category: 'Analytics & System',
     items: [
+      { id: 'documents', label: 'Documents & Vault', icon: FolderOpen },
+      { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
       { id: 'reports', label: 'Reports & BI', icon: BarChart3 },
       { id: 'settings', label: 'Settings', icon: Settings },
     ]

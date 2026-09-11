@@ -8,40 +8,54 @@ export const ROLE_PERMISSIONS = {
     'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
     'sales', 'customers', 'contacts', 'suppliers', 'invoices',
     'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
+    'documents', 'notifications', 'email-activity',
     'reports', 'settings'
   ],
   MANAGEMENT: [
     'dashboard', 'production', 'spindles', 'spindle-detail', 'work-order-detail',
     'sales', 'proforma-invoices', 'invoices', 'e-way-bills', 'customers', 'contacts',
     'purchase-orders', 'suppliers', 'inventory', 'quality', 'service', 'workforce',
+    'documents', 'notifications', 'email-activity',
     'reports', 'settings'
   ],
   PROD_MGR: [
     'dashboard', 'production', 'workforce', 'work-order-detail',
-    'spindles', 'spindle-detail', 'quality', 'inventory', 'reports'
+    'spindles', 'spindle-detail', 'quality', 'inventory',
+    'documents', 'notifications',
+    'reports'
   ],
   QA_MGR: [
     'dashboard', 'quality', 'spindles', 'spindle-detail',
-    'production', 'work-order-detail', 'reports'
+    'production', 'work-order-detail',
+    'documents', 'notifications',
+    'reports'
   ],
   SALES: [
     'dashboard', 'sales', 'proforma-invoices', 'invoices', 'e-way-bills',
-    'customers', 'contacts', 'sales-activity', 'reports'
+    'customers', 'contacts', 'sales-activity',
+    'documents', 'notifications', 'email-activity',
+    'reports'
   ],
   PURCHASE: [
-    'dashboard', 'purchase-orders', 'suppliers', 'inventory', 'reports'
+    'dashboard', 'purchase-orders', 'suppliers', 'inventory',
+    'documents', 'notifications', 'email-activity',
+    'reports'
   ],
   STORES: [
-    'dashboard', 'inventory', 'purchase-orders', 'suppliers', 'reports'
+    'dashboard', 'inventory', 'purchase-orders', 'suppliers',
+    'documents', 'notifications',
+    'reports'
   ],
   SERVICE: [
-    'dashboard', 'service', 'spindles', 'spindle-detail', 'quality', 'reports'
+    'dashboard', 'service', 'spindles', 'spindle-detail', 'quality',
+    'documents', 'notifications',
+    'reports'
   ],
   OPERATOR: [
-    'dashboard', 'workforce'
+    'dashboard', 'workforce', 'documents', 'notifications'
   ],
   EMPLOYEE: [
-    'dashboard', 'workforce'
+    'dashboard', 'workforce', 'documents', 'notifications'
   ]
 };
 

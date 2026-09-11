@@ -1,15 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { E_WAY_BILLS } from '../data/mockData';
+import Tabs from '../components/common/Tabs';
+import { ewayBillService } from '../services/database/ewayBillService';
+import { logisticsService } from '../services/database/logisticsService';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
   User, Phone, MapPin, Mail, Clock, ShoppingCart, 
   CheckCircle2, AlertTriangle, Calendar, DollarSign,
   ChevronRight, ArrowRight, ShieldCheck, Truck, 
-  Share2, FileCheck, Navigation
+  Share2, FileCheck, Navigation, RefreshCw, AlertCircle,
+  Package, Box
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
@@ -78,10 +81,45 @@ const PRESET_INVOICES = [
 ];
 
 export default function EWayBillScreen({ onNavigate, onNotify }) {
-  const [eWayBills, setEWayBills] = useState(E_WAY_BILLS);
+  const [activeMainTab, setActiveMainTab] = useState('ewb');
+  const [eWayBills, setEWayBills] = useState([]);
+  const [dispatches, setDispatches] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dispatchesError, setDispatchesError] = useState(null);
   const [selectedEWB, setSelectedEWB] = useState(null);
+  const [selectedDispatch, setSelectedDispatch] = useState(null);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dispatchSearchQuery, setDispatchSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const loadEWBs = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [ewbRes, dspRes] = await Promise.all([
+        ewayBillService.getEWayBills(),
+        logisticsService.getDispatches()
+      ]);
+      if (ewbRes.error) throw ewbRes.error;
+      setEWayBills(ewbRes.data || []);
+      if (dspRes.error) {
+        setDispatchesError(dspRes.error);
+      } else {
+        setDispatches(dspRes.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load E-Way bills from live database:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEWBs();
+  }, []);
 
   // Modals
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
@@ -147,6 +185,30 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
       return matchesStatus && matchesSearch;
     });
   }, [eWayBills, searchQuery, statusFilter]);
+
+  // Phase 8: Dispatches Metrics & Filtered List
+  const dispatchMetrics = useMemo(() => {
+    const total = dispatches.length;
+    const inTransit = dispatches.filter(d => d.status === 'In Transit').length;
+    const delivered = dispatches.filter(d => d.status === 'Delivered').length;
+    const preparing = dispatches.filter(d => d.status === 'Preparing').length;
+    return { total, inTransit, delivered, preparing };
+  }, [dispatches]);
+
+  const filteredDispatches = useMemo(() => {
+    return dispatches.filter(d => {
+      const q = dispatchSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        (d.dispatchNumber && d.dispatchNumber.toLowerCase().includes(q)) ||
+        (d.customer && d.customer.toLowerCase().includes(q)) ||
+        (d.destination && d.destination.toLowerCase().includes(q)) ||
+        (d.transporter && d.transporter.toLowerCase().includes(q)) ||
+        (d.vehicle && d.vehicle.toLowerCase().includes(q)) ||
+        (d.status && d.status.toLowerCase().includes(q))
+      );
+    });
+  }, [dispatches, dispatchSearchQuery]);
 
   // Handle invoice preset selection
   const handleSelectInvoicePreset = (invNo) => {
@@ -290,103 +352,41 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
   };
 
   // Save or Generate EWB
-  const handleSaveEWB = (targetStatus = 'Active') => {
+  const handleSaveEWB = async (targetStatus = 'Active') => {
     if (!formData.customer.trim() || !formData.vehicle.trim()) {
       onNotify('Customer name and Vehicle number are mandatory', 'danger');
       return;
     }
 
-    if (editingEWBId) {
-      setEWayBills(prev => prev.map(e => {
-        if (e.id === editingEWBId) {
-          return {
-            ...e,
-            invoice: formData.invoice,
-            invoiceDate: formData.invoiceDate,
-            transactionType: formData.transactionType,
-            customer: formData.customer,
-            customerFullName: formData.customerFullName,
-            customerGstin: formData.customerGstin,
-            customerAddress: formData.customerAddress,
-            customerState: formData.customerState,
-            customerPin: formData.customerPin,
-            transporter: formData.transporter,
-            transporterId: formData.transporterId,
-            vehicle: formData.vehicle,
-            mode: formData.mode,
-            distance: formData.distance,
-            transportDocNo: formData.transportDocNo,
-            status: targetStatus,
-            taxableValue: calculations.taxableValue,
-            cgstAmount: calculations.cgst,
-            sgstAmount: calculations.sgst,
-            igstAmount: calculations.igst,
-            totalInvoiceValue: calculations.totalInvoiceValue,
-            formattedTotal: `₹${calculations.totalInvoiceValue.toLocaleString('en-IN')}`,
-            goods: formData.goods
-          };
-        }
-        return e;
-      }));
-
-      onNotify(`E-Way Bill ${editingEWBId} updated successfully.`);
-      if (selectedEWB?.id === editingEWBId) {
-        setSelectedEWB(prev => ({ ...prev, status: targetStatus, vehicle: formData.vehicle }));
+    try {
+      if (editingEWBId) {
+        onNotify(`Updating E-Way Bill ${editingEWBId}...`);
+      } else {
+        const payload = {
+          invoiceNumber: formData.invoice,
+          customerName: formData.customerFullName || formData.customer,
+          customerGstin: formData.customerGstin,
+          customerAddress: formData.customerAddress,
+          vehicleNumber: formData.vehicle,
+          transporterName: formData.transporter,
+          transporterId: formData.transporterId,
+          transportMode: formData.mode,
+          transportDocNo: formData.transportDocNo,
+          distanceKm: parseInt(String(formData.distance).replace(/[^0-9]/g, '')) || 50,
+          totalInvoiceValue: calculations.totalInvoiceValue,
+          status: targetStatus,
+          goods: formData.goods
+        };
+        const res = await ewayBillService.createEWayBill(payload);
+        if (res.error) throw res.error;
+        onNotify(`E-Way Bill generated successfully in PostgreSQL.`);
       }
-    } else {
-      const nextNum = eWayBills.length + 40;
-      const newEwbId = `EWB-2026-00${nextNum}`;
-      const newRecord = {
-        id: newEwbId,
-        ewbNumber: newEwbId,
-        invoice: formData.invoice,
-        invoiceDate: formData.invoiceDate,
-        transactionType: formData.transactionType,
-        customer: formData.customer,
-        customerFullName: formData.customerFullName,
-        customerGstin: formData.customerGstin,
-        customerAddress: formData.customerAddress,
-        customerState: formData.customerState,
-        customerPin: formData.customerPin,
-        supplierCompany: 'General Precision Spindles Pvt. Ltd.',
-        supplierGstin: '27AABCG1492K1Z8',
-        supplierAddress: 'Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra',
-        supplierState: '27-Maharashtra',
-        supplierPin: '411041',
-        transporter: formData.transporter,
-        transporterId: formData.transporterId,
-        vehicle: formData.vehicle,
-        mode: formData.mode,
-        distance: formData.distance,
-        transportDocNo: formData.transportDocNo,
-        transportDocDate: formData.invoiceDate,
-        validFrom: `${formData.invoiceDate}, 09:00 AM`,
-        validUntil: '16 Sep 2026, 11:59 PM',
-        status: targetStatus,
-        taxableValue: calculations.taxableValue,
-        cgstAmount: calculations.cgst,
-        sgstAmount: calculations.sgst,
-        igstAmount: calculations.igst,
-        totalInvoiceValue: calculations.totalInvoiceValue,
-        formattedTotal: `₹${calculations.totalInvoiceValue.toLocaleString('en-IN')}`,
-        isDemo: true,
-        goods: formData.goods,
-        timeline: [
-          {
-            id: 1,
-            title: 'E-Way Bill Generated (Simulated Prototype)',
-            detail: `Generated against ${formData.invoice} for vehicle ${formData.vehicle}`,
-            time: 'Just now',
-            user: 'Ganesh Pawar'
-          }
-        ]
-      };
-
-      setEWayBills(prev => [newRecord, ...prev]);
-      onNotify(`E-Way Bill ${newEwbId} generated successfully.`);
+      await loadEWBs();
+      setIsGenerateModalOpen(false);
+    } catch (err) {
+      console.error('Error saving E-Way Bill:', err);
+      onNotify(err.message || 'Failed to save E-Way Bill', 'danger');
     }
-
-    setIsGenerateModalOpen(false);
   };
 
   const handleOpenDetail = (ewb) => {
@@ -404,13 +404,61 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
     setIsPreviewOpen(true);
   };
 
-  const handleCancelEWB = (ewbId) => {
-    setEWayBills(prev => prev.map(e => e.id === ewbId ? { ...e, status: 'Cancelled' } : e));
-    if (selectedEWB?.id === ewbId) {
-      setSelectedEWB(prev => ({ ...prev, status: 'Cancelled' }));
+  const handleCancelEWB = async (ewbId) => {
+    try {
+      const res = await ewayBillService.cancelEWayBill(ewbId, 'Cancelled by user from ERP interface');
+      if (res.error) throw res.error;
+      onNotify(`E-Way Bill ${ewbId} cancelled successfully.`, 'warning');
+      await loadEWBs();
+      if (selectedEWB?.id === ewbId) {
+        setSelectedEWB(prev => ({ ...prev, status: 'Cancelled' }));
+      }
+    } catch (err) {
+      console.error('Error cancelling E-Way Bill:', err);
+      onNotify(err.message || 'Failed to cancel E-Way Bill', 'danger');
     }
-    onNotify(`E-Way Bill ${ewbId} cancelled in local prototype state.`, 'warning');
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="E-Way Bill System" 
+          subtitle="Loading live E-Way Bills from PostgreSQL..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching consignment transit passes, Part-A/Part-B transporter logistics & dispatch compliance...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="E-Way Bill System" 
+          subtitle="Consignment transit passes, Part-A/Part-B transporter logistics & dispatch compliance"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve E-Way Bills from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadEWBs}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
@@ -437,7 +485,19 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         </button>
       </PageHeader>
 
-      {/* Prototype / Demo Alert Banner */}
+      {/* Top Module Navigation Tabs */}
+      <Tabs
+        tabs={[
+          { id: 'ewb', label: 'E-Way Bills & Part-A/B Passes', count: eWayBills.length },
+          { id: 'dispatches', label: 'Consignment Dispatches & Logistics Tracking', count: dispatches.length }
+        ]}
+        activeTab={activeMainTab}
+        onChange={setActiveMainTab}
+      />
+
+      {activeMainTab === 'ewb' && (
+        <>
+          {/* Prototype / Demo Alert Banner */}
       <div style={{ 
         background: '#FFF6DD', 
         border: '1px solid #FDE68A', 
@@ -636,6 +696,184 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           </table>
         </div>
       </div>
+      </>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PHASE 8: CONSIGNMENT DISPATCHES & LOGISTICS TRACKING                      */}
+      {/* ========================================================================= */}
+      {activeMainTab === 'dispatches' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Dispatches Metric Cards */}
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Total Dispatches</span>
+                <div className="metric-icon-wrap"><Truck size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: 'var(--primary)' }}>{dispatchMetrics.total}</div>
+              <div className="metric-footer" style={{ color: 'var(--text-muted)' }}>Registered consignment passes</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">In Transit</span>
+                <div className="metric-icon-wrap"><Navigation size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#047857' }}>{dispatchMetrics.inTransit}</div>
+              <div className="metric-footer" style={{ color: '#047857' }}>En route to client plants</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Preparing in Bay</span>
+                <div className="metric-icon-wrap"><Package size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#b45309' }}>{dispatchMetrics.preparing}</div>
+              <div className="metric-footer" style={{ color: '#b45309' }}>Crate packaging & inspection</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Delivered</span>
+                <div className="metric-icon-wrap"><CheckCircle2 size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#0284c7' }}>{dispatchMetrics.delivered}</div>
+              <div className="metric-footer" style={{ color: '#0284c7' }}>Verified delivery receipts</div>
+            </div>
+          </div>
+
+          {dispatchesError && (
+            <div className="section-card" style={{ padding: '24px', textAlign: 'center' }}>
+              <AlertCircle size={28} color="#dc2626" style={{ marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>
+                {dispatchesError.message || 'Unable to retrieve live dispatch consignments.'}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  const res = await logisticsService.getDispatches();
+                  if (res.data) setDispatches(res.data);
+                }}
+              >
+                <RefreshCw size={12} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          )}
+
+          {!dispatchesError && (
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Box size={16} color="#7A1F3D" />
+                  <span>Consignment Dispatches & Logistics Movement Register</span>
+                </div>
+                <div style={{ position: 'relative', width: '260px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search dispatch, carrier, vehicle..."
+                    value={dispatchSearchQuery}
+                    onChange={(e) => setDispatchSearchQuery(e.target.value)}
+                    style={{ paddingLeft: '32px', height: '32px', fontSize: '12px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Dispatch #</th>
+                      <th>Customer & Destination</th>
+                      <th>Transporter / Carrier</th>
+                      <th>Vehicle & Driver</th>
+                      <th>Packaging Spec</th>
+                      <th>Dispatch Date</th>
+                      <th>ETA</th>
+                      <th>Crate Items</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDispatches.length === 0 ? (
+                      <tr>
+                        <td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                          No dispatch records found matching your filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDispatches.map((dsp) => (
+                        <tr key={dsp.id}>
+                          <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '11.5px' }}>
+                            {dsp.dispatchNumber}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)' }}>
+                              {dsp.customer}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {dsp.destination}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: '12px' }}>{dsp.transporter}</div>
+                            {dsp.transporterPhone && (
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {dsp.transporterPhone}</div>
+                            )}
+                          </td>
+                          <td>
+                            <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '11.5px' }}>
+                              {dsp.vehicle}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {dsp.driverName}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '11.5px', maxWidth: '180px' }} title={dsp.packagingType}>
+                            {dsp.packagingType}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px' }}>
+                            {dsp.dispatchDate}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                            {dsp.estimatedArrival}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--primary)' }}>
+                            {dsp.itemCount} unit{dsp.itemCount > 1 ? 's' : ''}
+                          </td>
+                          <td>
+                            <StatusBadge status={dsp.status} size="sm" />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '3px 8px', fontSize: '11px' }}
+                              onClick={() => {
+                                setSelectedDispatch(dsp);
+                                setIsDispatchModalOpen(true);
+                              }}
+                              title="View consignment crate items"
+                            >
+                              <Eye size={12} />
+                              <span>View Crate</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MULTI-SECTION GENERATE E-WAY BILL MODAL */}
       <Modal
@@ -1293,6 +1531,90 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+
+      {/* ========================================================================= */}
+      {/* MODAL: DISPATCH CRATE DETAILS & PACKING LIST                              */}
+      {/* ========================================================================= */}
+      {isDispatchModalOpen && selectedDispatch && (
+        <Modal
+          isOpen={isDispatchModalOpen}
+          onClose={() => setIsDispatchModalOpen(false)}
+          title={`Consignment Packing Details: ${selectedDispatch.dispatchNumber}`}
+          maxWidth="680px"
+          footer={
+            <button type="button" className="btn btn-primary" onClick={() => setIsDispatchModalOpen(false)}>
+              Close
+            </button>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '10px',
+              padding: '12px',
+              background: '#f8fafc',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-color)',
+              fontSize: '12px'
+            }}>
+              <div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Customer Consignee</span>
+                <div style={{ fontWeight: 700 }}>{selectedDispatch.customer}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Delivery Destination</span>
+                <div style={{ fontWeight: 600 }}>{selectedDispatch.destination}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Carrier & Vehicle</span>
+                <div style={{ fontWeight: 600 }}>{selectedDispatch.transporter} • <span className="mono">{selectedDispatch.vehicle}</span></div>
+              </div>
+              <div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Associated E-Way Bill</span>
+                <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedDispatch.ewbNumber}</div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+              Packaged Items & Shock-Sensor Export Boxes
+            </div>
+
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Box #</th>
+                    <th>Product Description</th>
+                    <th>Spindle Serial</th>
+                    <th>Qty</th>
+                    <th>Gross Weight</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedDispatch.items || []).length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                        No individual items catalogued for this consignment.
+                      </td>
+                    </tr>
+                  ) : (
+                    selectedDispatch.items.map((item, idx) => (
+                      <tr key={item.id || idx}>
+                        <td className="mono" style={{ fontWeight: 700 }}>{item.package_box_number || `BOX-0${idx+1}`}</td>
+                        <td style={{ fontWeight: 600 }}>{item.product_name || 'Motorized Spindle'}</td>
+                        <td className="mono" style={{ color: 'var(--primary)', fontWeight: 600 }}>{item.spindle_serial || 'SP-1042'}</td>
+                        <td className="mono">{item.quantity || 1} Set</td>
+                        <td className="mono">{item.gross_weight_kg || 48} kg</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

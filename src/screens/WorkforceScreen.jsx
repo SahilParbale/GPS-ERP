@@ -1,28 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import MetricCard from '../components/common/MetricCard';
 import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
-import { WORK_ORDERS, SPINDLES } from '../data/mockData';
+import { workOrderService } from '../services/database/workOrderService';
 import {
   INITIAL_WORKFORCE_KPIS,
   INITIAL_WORKFORCE_STAFF,
-  INITIAL_WORK_LOGS,
   INITIAL_ACTIVITY_FEED,
-  INITIAL_BAY_ALLOCATIONS,
   INITIAL_DEPARTMENTS_WORKLOAD,
   INITIAL_WORKFORCE_ALERTS,
   INITIAL_SHIFT_SUMMARY
 } from '../data/workforceData';
+import { workforceService } from '../services/database/workforceService';
+import { leaveService } from '../services/database/leaveService';
+import { manufacturingService } from '../services/database/manufacturingService';
 import {
   Search, Filter, Plus, Users, Clock, AlertTriangle,
   CheckCircle2, AlertCircle, ArrowRight, Eye, UserCheck,
   Briefcase, Activity, Shield, Cpu, ChevronRight, X,
   Calendar, CheckSquare, Layers, Wrench, RefreshCw,
   Download, Play, Pause, Check, Edit3, MessageSquare,
-  FileText, TrendingUp, BarChart2, Info, ChevronDown, CornerDownRight
+  FileText, TrendingUp, BarChart2, Info, ChevronDown, CornerDownRight, XCircle
 } from 'lucide-react';
 
 export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
@@ -37,10 +38,100 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [selectedBay, setSelectedBay] = useState('All');
 
   // Core Workforce State
-  const [staffList, setStaffList] = useState(INITIAL_WORKFORCE_STAFF);
-  const [workLogs, setWorkLogs] = useState(INITIAL_WORK_LOGS);
+  const [staffList, setStaffList] = useState([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+  const [staffError, setStaffError] = useState(null);
+  const [workLogs, setWorkLogs] = useState([]);
   const [activityFeed, setActivityFeed] = useState(INITIAL_ACTIVITY_FEED);
-  const [bayAllocations, setBayAllocations] = useState(INITIAL_BAY_ALLOCATIONS);
+  const [bayAllocations, setBayAllocations] = useState([]);
+  const [availableWorkOrders, setAvailableWorkOrders] = useState([]);
+
+  // Phase 8: Daily Attendance & Leave Management State
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [attendanceError, setAttendanceError] = useState(null);
+  const [leavesError, setLeavesError] = useState(null);
+
+  // Modals for Attendance & Leave
+  const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
+  const [clockInForm, setClockInForm] = useState({
+    employeeId: '',
+    shiftId: '',
+    remarks: 'Punched in at shop floor station'
+  });
+
+  const [isSubmitLeaveModalOpen, setIsSubmitLeaveModalOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    employeeId: '',
+    leaveType: 'Casual Leave',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    reason: ''
+  });
+
+  const loadWorkforceData = async () => {
+    setIsLoadingStaff(true);
+    setStaffError(null);
+    const [staffRes, logsRes, baysRes, wosRes, attendanceRes, leavesRes] = await Promise.all([
+      workforceService.getStaffList(),
+      workforceService.getWorkLogs(),
+      manufacturingService.getBayAssignments(),
+      workOrderService.getWorkOrders(),
+      workforceService.getAttendance(),
+      leaveService.getLeaveRequests()
+    ]);
+
+    if (staffRes.error) {
+      setStaffError(staffRes.error);
+      setIsLoadingStaff(false);
+      return;
+    }
+
+    const liveData = staffRes.data || [];
+    const mergedStaff = liveData.map((emp, idx) => {
+      const mock = INITIAL_WORKFORCE_STAFF.find(s => s.id === emp.id) || INITIAL_WORKFORCE_STAFF[idx % INITIAL_WORKFORCE_STAFF.length] || {};
+      return {
+        ...mock,
+        ...emp,
+        id: emp.id,
+        name: emp.name,
+        initials: emp.initials,
+        department: emp.department,
+        designation: emp.designation,
+        role: emp.role,
+        shift: emp.shift,
+        status: emp.status,
+        avatarColor: emp.avatarColor,
+        skills: emp.skills,
+        qualifications: emp.qualifications
+      };
+    });
+
+    setStaffList(mergedStaff);
+    if (logsRes.data) setWorkLogs(logsRes.data);
+    if (baysRes.data) setBayAllocations(baysRes.data);
+    if (wosRes.data) setAvailableWorkOrders(wosRes.data);
+
+    if (attendanceRes.error) {
+      setAttendanceError(attendanceRes.error);
+    } else if (attendanceRes.data) {
+      setAttendanceRecords(attendanceRes.data);
+      setAttendanceError(null);
+    }
+
+    if (leavesRes.error) {
+      setLeavesError(leavesRes.error);
+    } else if (leavesRes.data) {
+      setLeaveRequests(leavesRes.data);
+      setLeavesError(null);
+    }
+
+    setIsLoadingStaff(false);
+  };
+
+  useEffect(() => {
+    loadWorkforceData();
+  }, []);
 
   // Profile Drawer State
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -207,7 +298,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   // Helper: Open Work Order
   const handleViewWorkOrder = (woId) => {
     if (!woId || woId === '—') return;
-    const foundWo = WORK_ORDERS.find(w => w.id === woId);
+    const foundWo = availableWorkOrders.find(w => w.id === woId);
     if (foundWo && onSelectWorkOrder && onNavigate) {
       onSelectWorkOrder(foundWo);
       onNavigate('work-order-detail');
@@ -278,8 +369,17 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       remarks: addLogForm.remarks
     };
 
-    // Prepend to workLogs
+    // Prepend to workLogs and persist to Supabase
     setWorkLogs(prev => [newLog, ...prev]);
+    workforceService.startWorkLog({
+      employeeId: emp.id,
+      task: addLogForm.task,
+      workOrder: addLogForm.workOrder,
+      spindle: addLogForm.spindle,
+      machine: addLogForm.machine,
+      bay: addLogForm.bay,
+      remarks: addLogForm.remarks
+    }).catch(err => console.error('Failed to persist work log:', err));
 
     // Update staff record
     setStaffList(prev => prev.map(s => {
@@ -498,6 +598,17 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       ...prev
     ]);
 
+    // Persist active task to live database
+    workforceService.startWorkLog({
+      employeeId: emp.id,
+      task: startTaskForm.task,
+      workOrder: startTaskForm.workOrder,
+      spindle: startTaskForm.spindle,
+      machine: startTaskForm.machine,
+      bay: startTaskForm.bay,
+      remarks: `Started ${startTaskForm.task}`
+    }).catch(err => console.error('Failed to start work log in Supabase:', err));
+
     setIsStartTaskModalOpen(false);
     if (onNotify) {
       onNotify(`Task "${startTaskForm.task}" started for ${emp.name}. Status updated to Working.`);
@@ -564,6 +675,12 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       ...prev
     ]);
 
+    // Persist pause status to Supabase
+    if (pauseTaskTarget.dbId || pauseTaskTarget.id) {
+      workforceService.updateStaffStatus(pauseTaskTarget.dbId || pauseTaskTarget.id, 'Break')
+        .catch(err => console.error('Failed to update staff status:', err));
+    }
+
     setIsPauseTaskModalOpen(false);
     if (onNotify) {
       onNotify(`Task paused for ${pauseTaskTarget.name} (${pauseForm.reason}).`);
@@ -610,6 +727,10 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     };
 
     setWorkLogs(prev => [completedLog, ...prev]);
+
+    // Persist completed task to Supabase
+    workforceService.completeWorkLog(completedLog.id, completedLog.remarks)
+      .catch(err => console.error('Failed to complete work log in Supabase:', err));
 
     // 2. Set employee to Available
     setStaffList(prev => prev.map(s => {
@@ -727,6 +848,171 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       onNotify(`Exported ${workLogs.length} employee work logs to CSV.`);
     }
   };
+
+  // ==========================================
+  // ACTION: ATTENDANCE CLOCK-IN / CLOCK-OUT
+  // ==========================================
+  const handleOpenClockIn = () => {
+    const firstEmp = staffList[0];
+    setClockInForm({
+      employeeId: firstEmp?.dbId || firstEmp?.id || '',
+      shiftId: '',
+      remarks: 'Clock-in recorded from shop floor station.'
+    });
+    setIsClockInModalOpen(true);
+  };
+
+  const handleSaveClockIn = async (e) => {
+    e.preventDefault();
+    if (!clockInForm.employeeId) {
+      if (onNotify) onNotify('Please select an employee.', 'warning');
+      return;
+    }
+    const res = await workforceService.clockIn({
+      employeeId: clockInForm.employeeId,
+      shiftId: clockInForm.shiftId || null,
+      remarks: clockInForm.remarks
+    });
+
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || 'Duplicate clock-in or database error.', 'danger');
+      return;
+    }
+
+    if (onNotify) onNotify('Technician clocked in successfully.');
+    setIsClockInModalOpen(false);
+    const attRes = await workforceService.getAttendance();
+    if (attRes.data) setAttendanceRecords(attRes.data);
+  };
+
+  const handleClockOut = async (record) => {
+    const res = await workforceService.clockOut({
+      employeeId: record.employeeId,
+      remarks: 'Shift completed. Verified by supervisor.'
+    });
+
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || 'Error clocking out.', 'danger');
+      return;
+    }
+
+    if (onNotify) onNotify(`Clock-out recorded for ${record.employeeName}.`);
+    const attRes = await workforceService.getAttendance();
+    if (attRes.data) setAttendanceRecords(attRes.data);
+  };
+
+  // ==========================================
+  // ACTION: LEAVE REQUESTS & APPROVALS
+  // ==========================================
+  const handleOpenSubmitLeave = () => {
+    const firstEmp = staffList[0];
+    const today = new Date().toISOString().split('T')[0];
+    setLeaveForm({
+      employeeId: firstEmp?.dbId || firstEmp?.id || '',
+      leaveType: 'Casual Leave',
+      startDate: today,
+      endDate: today,
+      reason: 'Personal leave request'
+    });
+    setIsSubmitLeaveModalOpen(true);
+  };
+
+  const handleSaveLeaveRequest = async (e) => {
+    e.preventDefault();
+    if (!leaveForm.employeeId || !leaveForm.reason.trim()) {
+      if (onNotify) onNotify('Please provide employee and justification reason.', 'warning');
+      return;
+    }
+
+    const res = await leaveService.createLeaveRequest({
+      employee_id: leaveForm.employeeId,
+      leave_type: leaveForm.leaveType,
+      start_date: leaveForm.startDate,
+      end_date: leaveForm.endDate,
+      reason: leaveForm.reason
+    });
+
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || 'Failed to submit leave request.', 'danger');
+      return;
+    }
+
+    if (onNotify) onNotify('Leave request submitted successfully for approval.');
+    setIsSubmitLeaveModalOpen(false);
+    const lvRes = await leaveService.getLeaveRequests();
+    if (lvRes.data) setLeaveRequests(lvRes.data);
+  };
+
+  const handleApproveLeave = async (leave) => {
+    const approver = staffList.find(s => s.roleCode === 'PLANT_HEAD' || s.roleCode === 'PROD_MGR') || staffList[0];
+    const approverId = approver?.dbId || approver?.id;
+
+    const res = await leaveService.approveLeaveRequest(leave.id, approverId);
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || 'Error approving leave request.', 'danger');
+      return;
+    }
+
+    if (onNotify) onNotify(`Leave request approved and balance deducted successfully.`);
+    const lvRes = await leaveService.getLeaveRequests();
+    if (lvRes.data) setLeaveRequests(lvRes.data);
+  };
+
+  const handleRejectLeave = async (leave) => {
+    const approver = staffList.find(s => s.roleCode === 'PLANT_HEAD' || s.roleCode === 'PROD_MGR') || staffList[0];
+    const approverId = approver?.dbId || approver?.id;
+
+    const res = await leaveService.rejectLeaveRequest(leave.id, approverId, 'Operational demands during spindle delivery rush.');
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || 'Error rejecting leave request.', 'danger');
+      return;
+    }
+
+    if (onNotify) onNotify(`Leave request marked as rejected.`, 'warning');
+    const lvRes = await leaveService.getLeaveRequests();
+    if (lvRes.data) setLeaveRequests(lvRes.data);
+  };
+
+  if (isLoadingStaff) {
+    return (
+      <div className="content-area">
+        <PageHeader
+          title="Staff & Workforce"
+          subtitle="Loading workforce personnel and roster from live database..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching active technicians, shifts, and department allocations...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (staffError) {
+    return (
+      <div className="content-area">
+        <PageHeader
+          title="Staff & Workforce"
+          subtitle="Employee Work Log & Daily Manufacturing Activity Tracking System"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {staffError.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {staffError.message || 'Unable to retrieve live workforce personnel records from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadStaff}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
@@ -851,6 +1137,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       <Tabs
         tabs={[
           { id: 'live', label: "Who's Working Now (Table)", count: staffList.filter(s => s.status === 'Working' || s.status === 'Overtime').length },
+          { id: 'attendance', label: 'Daily Attendance & Time-Clock', count: attendanceRecords.length },
+          { id: 'leaves', label: 'Leave Requests & Balances', count: leaveRequests.length },
           { id: 'bays', label: 'Shop Floor Bays & Machines', count: bayAllocations.length },
           { id: 'workload', label: 'Department Workload', count: INITIAL_DEPARTMENTS_WORKLOAD.length },
           { id: 'logs', label: 'All Work Logs (History)', count: workLogs.length },
@@ -1258,6 +1546,343 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: DAILY ATTENDANCE & TIME-CLOCK                                        */}
+      {/* ========================================================================= */}
+      {activeTab === 'attendance' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {attendanceError && (
+            <div className="section-card" style={{ padding: '24px', textAlign: 'center' }}>
+              <AlertCircle size={28} color="#dc2626" style={{ marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>
+                {attendanceError.message || 'Unable to retrieve live attendance records.'}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  const res = await workforceService.getAttendance();
+                  if (res.data) setAttendanceRecords(res.data);
+                }}
+              >
+                <RefreshCw size={12} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          )}
+
+          {!attendanceError && (
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Clock size={16} color="#7A1F3D" />
+                  <span>Daily Attendance & Plant Time-Clock Station</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {attendanceRecords.length} Attendance Logs Today
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleOpenClockIn}
+                  >
+                    <Plus size={13} />
+                    <span>+ Clock In Technician</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Employee</th>
+                      <th>Employee Code</th>
+                      <th>Department</th>
+                      <th>Shift</th>
+                      <th>Check In</th>
+                      <th>Check Out</th>
+                      <th>Total Hours</th>
+                      <th>Overtime</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendanceRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan="11" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                          No attendance records registered for today. Click "+ Clock In Technician" to record check-in.
+                        </td>
+                      </tr>
+                    ) : (
+                      attendanceRecords.map((att) => (
+                        <tr key={att.id}>
+                          <td className="mono" style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                            {att.date}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                              {att.employeeName}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {att.designation}
+                            </div>
+                          </td>
+                          <td className="mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                            {att.employeeCode}
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: '#f1f5f9',
+                              color: '#334155',
+                              fontWeight: 600
+                            }}>
+                              {att.department}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                            {att.shiftName}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', color: '#047857', fontWeight: 600 }}>
+                            {att.checkInTime}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', color: att.checkOutRaw ? '#1e293b' : 'var(--text-muted)' }}>
+                            {att.checkOutTime}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', fontWeight: 700 }}>
+                            {att.totalHours > 0 ? `${att.totalHours} hrs` : (
+                              <span style={{ color: '#0284c7', fontWeight: 600 }}>Active</span>
+                            )}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', color: att.overtimeHours > 0 ? '#b45309' : 'var(--text-muted)' }}>
+                            {att.overtimeHours > 0 ? `+${att.overtimeHours} hrs` : '—'}
+                          </td>
+                          <td>
+                            <StatusBadge status={att.status} size="sm" />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {!att.checkOutRaw ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '3px 8px', fontSize: '11px', color: '#b45309' }}
+                                onClick={() => handleClockOut(att)}
+                                title="Clock out technician from station"
+                              >
+                                Clock Out
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+                                Completed
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: LEAVE REQUESTS & BALANCES                                            */}
+      {/* ========================================================================= */}
+      {activeTab === 'leaves' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Top Leave Balances KPI Grid */}
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Privilege Leave (PL)</span>
+                <div className="metric-icon-wrap"><Shield size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: 'var(--primary)' }}>18 Days</div>
+              <div className="metric-footer" style={{ color: 'var(--text-muted)' }}>Annual earned balance</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Casual Leave (CL)</span>
+                <div className="metric-icon-wrap"><Calendar size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#047857' }}>12 Days</div>
+              <div className="metric-footer" style={{ color: '#047857' }}>Standard shop-floor allocation</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Medical / Sick Leave (SL)</span>
+                <div className="metric-icon-wrap"><AlertTriangle size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#0284c7' }}>10 Days</div>
+              <div className="metric-footer" style={{ color: '#0284c7' }}>Certified medical contingency</div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Pending Requests</span>
+                <div className="metric-icon-wrap"><Clock size={16} /></div>
+              </div>
+              <div className="metric-value" style={{ color: '#b45309' }}>
+                {leaveRequests.filter(l => l.status === 'Pending').length}
+              </div>
+              <div className="metric-footer" style={{ color: '#b45309' }}>Awaiting supervisor signoff</div>
+            </div>
+          </div>
+
+          {leavesError && (
+            <div className="section-card" style={{ padding: '24px', textAlign: 'center' }}>
+              <AlertCircle size={28} color="#dc2626" style={{ marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>
+                {leavesError.message || 'Unable to retrieve live leave requests.'}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  const res = await leaveService.getLeaveRequests();
+                  if (res.data) setLeaveRequests(res.data);
+                }}
+              >
+                <RefreshCw size={12} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          )}
+
+          {!leavesError && (
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Calendar size={16} color="#7A1F3D" />
+                  <span>Employee Leave Applications & Management Review</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleOpenSubmitLeave}
+                >
+                  <Plus size={13} />
+                  <span>+ Submit Leave Request</span>
+                </button>
+              </div>
+
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Leave ID</th>
+                      <th>Employee</th>
+                      <th>Department</th>
+                      <th>Leave Type</th>
+                      <th>Dates</th>
+                      <th>Days</th>
+                      <th>Reason</th>
+                      <th>Approver</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Management Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                          No leave applications recorded. Click "+ Submit Leave Request" to apply.
+                        </td>
+                      </tr>
+                    ) : (
+                      leaveRequests.map((leave) => (
+                        <tr key={leave.id}>
+                          <td className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>
+                            {leave.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                              {leave.employeeName}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {leave.employeeCode}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: '#f1f5f9',
+                              color: '#334155',
+                              fontWeight: 600
+                            }}>
+                              {leave.department}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '12px', fontWeight: 600 }}>
+                            {leave.leaveType}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11px' }}>
+                            {leave.startDate} → {leave.endDate}
+                          </td>
+                          <td className="mono" style={{ fontSize: '11.5px', fontWeight: 700 }}>
+                            {leave.totalDays} day{leave.totalDays > 1 ? 's' : ''}
+                          </td>
+                          <td style={{ fontSize: '11.5px', maxWidth: '200px' }} title={leave.reason}>
+                            {leave.reason}
+                          </td>
+                          <td style={{ fontSize: '11.5px', color: leave.approvedBy ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                            {leave.approvedBy || 'Pending Review'}
+                          </td>
+                          <td>
+                            <StatusBadge status={leave.status} size="sm" />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {leave.status === 'Pending' ? (
+                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  style={{ padding: '3px 7px', fontSize: '11px' }}
+                                  onClick={() => handleApproveLeave(leave)}
+                                  title="Approve leave and debit balance atomically"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '3px 7px', fontSize: '11px', color: '#dc2626' }}
+                                  onClick={() => handleRejectLeave(leave)}
+                                  title="Reject leave request"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: leave.status === 'Approved' ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                                {leave.status}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2364,7 +2989,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 className="form-control mono"
                 value={addLogForm.workOrder}
                 onChange={(e) => {
-                  const wo = WORK_ORDERS.find(w => w.id === e.target.value);
+                  const wo = availableWorkOrders.find(w => w.id === e.target.value);
                   setAddLogForm(prev => ({
                     ...prev,
                     workOrder: e.target.value,
@@ -2372,7 +2997,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   }));
                 }}
               >
-                {WORK_ORDERS.map((wo) => (
+                {availableWorkOrders.map((wo) => (
                   <option key={wo.id} value={wo.id}>
                     {wo.id} ({wo.customer?.split(' ')[0]} - {wo.spindleModel})
                   </option>
@@ -2624,7 +3249,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   className="form-control mono"
                   value={startTaskForm.workOrder}
                   onChange={(e) => {
-                    const wo = WORK_ORDERS.find(w => w.id === e.target.value);
+                    const wo = availableWorkOrders.find(w => w.id === e.target.value);
                     setStartTaskForm(prev => ({
                       ...prev,
                       workOrder: e.target.value,
@@ -2632,7 +3257,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     }));
                   }}
                 >
-                  {WORK_ORDERS.map((wo) => (
+                  {availableWorkOrders.map((wo) => (
                     <option key={wo.id} value={wo.id}>
                       {wo.id} ({wo.customer?.split(' ')[0]} - {wo.spindleModel})
                     </option>
@@ -2934,6 +3559,156 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 13. MODAL: CLOCK IN TECHNICIAN                                           */}
+      {/* ========================================================================= */}
+      {isClockInModalOpen && (
+        <Modal
+          isOpen={isClockInModalOpen}
+          onClose={() => setIsClockInModalOpen(false)}
+          title="Clock In Technician (Shop Floor Time-Clock)"
+          maxWidth="480px"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsClockInModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveClockIn}>
+                <Check size={14} />
+                <span>Confirm Clock In</span>
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={handleSaveClockIn} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">Select Employee *</label>
+              <select
+                className="form-control"
+                value={clockInForm.employeeId}
+                onChange={(e) => setClockInForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                required
+              >
+                <option value="">-- Choose Employee --</option>
+                {staffList.map((emp) => (
+                  <option key={emp.id} value={emp.dbId || emp.id}>
+                    {emp.name} ({emp.id}) — {emp.department}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Station Remarks / Notes</label>
+              <input
+                type="text"
+                className="form-control"
+                value={clockInForm.remarks}
+                onChange={(e) => setClockInForm(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Station check-in notes..."
+              />
+            </div>
+
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
+              Note: The database enforces <code>UNIQUE (employee_id, date)</code> to strictly prevent duplicate clock-ins on the same calendar day.
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 14. MODAL: SUBMIT LEAVE APPLICATION                                      */}
+      {/* ========================================================================= */}
+      {isSubmitLeaveModalOpen && (
+        <Modal
+          isOpen={isSubmitLeaveModalOpen}
+          onClose={() => setIsSubmitLeaveModalOpen(false)}
+          title="Submit Leave Application"
+          maxWidth="500px"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsSubmitLeaveModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveLeaveRequest}>
+                <Check size={14} />
+                <span>Submit Application</span>
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={handleSaveLeaveRequest} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">Employee *</label>
+              <select
+                className="form-control"
+                value={leaveForm.employeeId}
+                onChange={(e) => setLeaveForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                required
+              >
+                <option value="">-- Select Employee --</option>
+                {staffList.map((emp) => (
+                  <option key={emp.id} value={emp.dbId || emp.id}>
+                    {emp.name} ({emp.id}) — {emp.department}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Leave Type *</label>
+              <select
+                className="form-control"
+                value={leaveForm.leaveType}
+                onChange={(e) => setLeaveForm(prev => ({ ...prev, leaveType: e.target.value }))}
+              >
+                <option value="Casual Leave">Casual Leave (CL)</option>
+                <option value="Sick Leave">Sick Leave (SL)</option>
+                <option value="Privilege Leave">Privilege Leave (PL)</option>
+                <option value="Unpaid Leave">Unpaid Leave</option>
+                <option value="Compensatory Off">Compensatory Off</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Start Date *</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={leaveForm.startDate}
+                  onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">End Date *</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={leaveForm.endDate}
+                  onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Justification / Reason *</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={leaveForm.reason}
+                onChange={(e) => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Reason for leave..."
+                required
+              />
+            </div>
+          </form>
         </Modal>
       )}
     </div>

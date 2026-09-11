@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { PURCHASE_ORDERS } from '../data/mockData';
+import { purchaseOrderService } from '../services/database/purchaseOrderService';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
   User, Phone, MapPin, Mail, Clock, ShoppingCart, 
   CheckCircle2, AlertCircle, Calendar, DollarSign,
-  ChevronRight, ArrowRight, ShieldCheck, Truck
+  ChevronRight, ArrowRight, ShieldCheck, Truck, RefreshCw
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
@@ -57,10 +57,31 @@ const PRESET_SUPPLIERS = [
 ];
 
 export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
-  const [purchaseOrders, setPurchaseOrders] = useState(PURCHASE_ORDERS);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedPO, setSelectedPO] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const loadPurchaseOrders = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await purchaseOrderService.getPurchaseOrders();
+      if (res.error) throw res.error;
+      setPurchaseOrders(res.data || []);
+    } catch (err) {
+      console.error('Failed to load purchase orders from live database:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPurchaseOrders();
+  }, []);
 
   // Modals & Drawers
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -237,103 +258,51 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
   };
 
   // Save or Send PO
-  const handleSavePO = (targetStatus = 'Draft') => {
+  const handleSavePO = async (targetStatus = 'Draft') => {
     if (!formData.supplier.trim()) {
       onNotify('Please specify a supplier name', 'danger');
       return;
     }
 
-    if (editingPOId) {
-      // Update existing
-      setPurchaseOrders(prev => prev.map(p => {
-        if (p.id === editingPOId) {
-          return {
-            ...p,
-            supplier: formData.supplier,
-            supplierContact: formData.supplierContact,
-            supplierEmail: formData.supplierEmail,
-            supplierPhone: formData.supplierPhone,
-            supplierGstin: formData.supplierGstin,
-            supplierAddress: formData.supplierAddress,
-            date: formData.poDate,
-            expectedDelivery: formData.expectedDelivery,
-            paymentTerms: formData.paymentTerms,
-            deliveryAddress: formData.deliveryAddress,
-            notes: formData.notes,
-            status: targetStatus,
-            subtotal: formTotals.subtotal,
-            gstAmount: formTotals.gst,
-            totalAmount: formTotals.grandTotal,
-            formattedTotal: `₹${formTotals.grandTotal.toLocaleString('en-IN')}`,
-            items: formData.items.map((it, idx) => ({
-              id: it.id || idx + 1,
-              item: it.item || `Item ${idx + 1}`,
-              desc: it.desc || it.item,
-              qty: Number(it.qty) || 1,
-              unit: it.unit || 'Pcs',
-              rate: Number(it.rate) || 0,
-              gst: Number(it.gst) || 18,
-              total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
-            }))
-          };
-        }
-        return p;
-      }));
-
-      onNotify(`Purchase Order ${editingPOId} updated successfully.`);
-      if (selectedPO && selectedPO.id === editingPOId) {
-        setSelectedPO(prev => ({ ...prev, status: targetStatus, totalAmount: formTotals.grandTotal }));
+    try {
+      if (editingPOId) {
+        const res = await purchaseOrderService.updatePurchaseOrderStatus(editingPOId, targetStatus);
+        if (res.error) throw res.error;
+        onNotify(`Purchase Order ${editingPOId} updated successfully.`);
+      } else {
+        const payload = {
+          supplierName: formData.supplier,
+          supplierContact: formData.supplierContact,
+          supplierEmail: formData.supplierEmail,
+          supplierPhone: formData.supplierPhone,
+          supplierGstin: formData.supplierGstin,
+          supplierAddress: formData.supplierAddress,
+          expectedDeliveryDate: formData.expectedDelivery,
+          paymentTerms: formData.paymentTerms,
+          subtotal: formTotals.subtotal,
+          totalAmount: formTotals.grandTotal,
+          status: targetStatus,
+          notes: formData.notes,
+          items: formData.items.map(it => ({
+            desc: it.desc || it.item,
+            qty: Number(it.qty) || 1,
+            unit: it.unit || 'Pcs',
+            rate: Number(it.rate) || 0,
+            gst: Number(it.gst) || 18,
+            total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
+          }))
+        };
+        const res = await purchaseOrderService.createPurchaseOrder(payload);
+        if (res.error) throw res.error;
+        onNotify(`Purchase Order created successfully in PostgreSQL.`);
       }
-    } else {
-      // Create new
-      const nextNum = purchaseOrders.length + 1;
-      const newPoId = `PO-2026-00${nextNum}`;
-      const newRecord = {
-        id: newPoId,
-        poNumber: newPoId,
-        supplier: formData.supplier,
-        supplierContact: formData.supplierContact,
-        supplierEmail: formData.supplierEmail,
-        supplierPhone: formData.supplierPhone,
-        supplierGstin: formData.supplierGstin,
-        supplierAddress: formData.supplierAddress,
-        date: formData.poDate,
-        expectedDelivery: formData.expectedDelivery,
-        paymentTerms: formData.paymentTerms,
-        deliveryAddress: formData.deliveryAddress,
-        notes: formData.notes,
-        status: targetStatus,
-        subtotal: formTotals.subtotal,
-        taxRate: 18,
-        gstAmount: formTotals.gst,
-        totalAmount: formTotals.grandTotal,
-        formattedTotal: `₹${formTotals.grandTotal.toLocaleString('en-IN')}`,
-        items: formData.items.map((it, idx) => ({
-          id: idx + 1,
-          item: it.item || `Bearing Stock ${idx + 1}`,
-          desc: it.desc || it.item,
-          qty: Number(it.qty) || 1,
-          unit: it.unit || 'Pcs',
-          rate: Number(it.rate) || 0,
-          gst: Number(it.gst) || 18,
-          total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
-        })),
-        timeline: [
-          {
-            id: 1,
-            title: targetStatus === 'Sent' ? 'Purchase Order Created & Sent' : 'Purchase Order Created (Draft)',
-            detail: targetStatus === 'Sent' ? `Directly emailed to ${formData.supplierEmail}` : 'Saved in draft state for technical approval',
-            time: 'Just now',
-            user: 'Ganesh Pawar'
-          }
-        ]
-      };
 
-      setPurchaseOrders(prev => [newRecord, ...prev]);
-      onNotify(`Purchase Order ${newPoId} created successfully.`);
+      await loadPurchaseOrders();
+      setIsCreateModalOpen(false);
+    } catch (err) {
+      console.error('Error saving Purchase Order:', err);
+      onNotify(err.message || 'Failed to save Purchase Order', 'danger');
     }
-
-    setIsCreateModalOpen(false);
   };
 
   // Row actions
@@ -352,13 +321,61 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
     setIsPreviewOpen(true);
   };
 
-  const handleCancelPO = (poId) => {
-    setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, status: 'Cancelled' } : p));
-    if (selectedPO?.id === poId) {
-      setSelectedPO(prev => ({ ...prev, status: 'Cancelled' }));
+  const handleCancelPO = async (poId) => {
+    try {
+      const res = await purchaseOrderService.updatePurchaseOrderStatus(poId, 'Cancelled');
+      if (res.error) throw res.error;
+      onNotify(`Purchase Order ${poId} marked as Cancelled.`, 'warning');
+      await loadPurchaseOrders();
+      if (selectedPO?.id === poId) {
+        setSelectedPO(prev => ({ ...prev, status: 'Cancelled' }));
+      }
+    } catch (err) {
+      console.error('Error cancelling PO:', err);
+      onNotify(err.message || 'Failed to cancel Purchase Order', 'danger');
     }
-    onNotify(`Purchase Order ${poId} marked as Cancelled.`, 'warning');
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Purchase Order Management" 
+          subtitle="Loading live purchase orders from PostgreSQL..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching purchase orders, vendor contracts, and line items...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Purchase Order Management" 
+          subtitle="Manage precision spindle components, alloy forgings, and vendor orders"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve purchase orders from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadPurchaseOrders}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">

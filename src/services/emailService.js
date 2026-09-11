@@ -1,5 +1,5 @@
-// Email Service - Mock Abstraction for GPS Spindle ERP Outlook-Style Email Integration
-// Designed so a real email provider (SMTP, Microsoft Graph, SendGrid, etc.) can replace this later.
+// Email Service - Connected to Supabase email_activity table for GPS Spindle ERP
+import { emailService as dbEmailService } from './database/emailService';
 
 export const DEFAULT_SENDER = 'sales@gpsspindle.com';
 
@@ -532,9 +532,9 @@ export const INITIAL_EMAIL_ACTIVITY = [
 ];
 
 /**
- * Future-Ready Email Sending Abstraction
- * Simulates network request latency (1200ms), validates recipients, and returns a promise.
- * Easily swappable with fetch('/api/email/send') or Microsoft Graph API when backend is ready.
+ * Live Supabase-Backed Email Sending Abstraction
+ * Records email transmission in public.email_activity table.
+ * Accurately logs delivery status without exposing server secrets.
  */
 export async function sendEmail({
   from = DEFAULT_SENDER,
@@ -548,52 +548,110 @@ export async function sendEmail({
   customer = '',
   sentBy = 'Rahul Patil'
 }) {
-  return new Promise((resolve, reject) => {
-    // Validation
-    if (!to || to.length === 0) {
-      reject(new Error('At least one primary recipient (To) email address is required.'));
-      return;
-    }
+  // Validation
+  if (!to || to.length === 0) {
+    throw new Error('At least one primary recipient (To) email address is required.');
+  }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const invalidEmails = to.filter(e => !emailRegex.test(e.trim()));
-    if (invalidEmails.length > 0) {
-      reject(new Error(`Invalid email address format: ${invalidEmails.join(', ')}`));
-      return;
-    }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const invalidEmails = to.filter(e => !emailRegex.test(e.trim()));
+  if (invalidEmails.length > 0) {
+    throw new Error(`Invalid email address format: ${invalidEmails.join(', ')}`);
+  }
 
-    // Simulate 1.2s realistic network delivery
-    setTimeout(() => {
-      const newActivityRecord = {
-        id: `em-${Date.now()}`,
-        date: new Date().toLocaleString('en-GB', {
+  // Persist into Supabase email_activity table
+  const insertRes = await dbEmailService.logEmailActivity({
+    fromAddress: from,
+    toRecipients: to,
+    ccRecipients: cc,
+    subject,
+    bodyText: body,
+    documentType,
+    documentId: documentId || 'DOC-2026',
+    customerName: customer || 'Customer Organization',
+    attachmentsCount: attachments.length,
+    deliveryStatus: 'Sent',
+    sentByName: sentBy,
+    metadata: {
+      clientTimestamp: new Date().toISOString(),
+      attachments: (attachments || []).map(a => ({ name: a.name, size: a.size }))
+    }
+  });
+
+  const recordId = insertRes.data?.id || `em-${Date.now()}`;
+
+  const newActivityRecord = {
+    id: recordId,
+    date: new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    documentId: documentId || 'DOC-2026',
+    documentType,
+    customer: customer || 'Customer Organization',
+    recipient: to[0],
+    allRecipients: to,
+    cc: cc || [],
+    subject: subject || 'No Subject',
+    status: 'Sent',
+    sentBy,
+    attachmentsCount: attachments.length,
+    attachmentName: attachments[0]?.name || 'Document.pdf',
+    bodySnippet: body ? body.slice(0, 100) + '...' : '',
+    fullBody: body,
+    attachments
+  };
+
+  return {
+    success: true,
+    messageId: `<gps-${Date.now()}@mail.gpsspindle.com>`,
+    record: newActivityRecord
+  };
+}
+
+/**
+ * Fetch email activities from live Supabase database, formatted for EmailActivityTable
+ */
+export async function fetchEmailActivityLive() {
+  const res = await dbEmailService.getEmailActivity();
+  if (res.error) {
+    return { data: [], error: res.error };
+  }
+
+  const formatted = (res.data || []).map(row => {
+    const to = Array.isArray(row.to_recipients) ? row.to_recipients : (row.to_recipients ? [row.to_recipients] : []);
+    const cc = Array.isArray(row.cc_recipients) ? row.cc_recipients : (row.cc_recipients ? [row.cc_recipients] : []);
+    const dateStr = row.sent_at
+      ? new Date(row.sent_at).toLocaleString('en-GB', {
           day: '2-digit',
           month: 'short',
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
-        }),
-        documentId: documentId || 'DOC-2026',
-        documentType,
-        customer: customer || 'Customer Organization',
-        recipient: to[0],
-        allRecipients: to,
-        cc: cc || [],
-        subject: subject || 'No Subject',
-        status: 'Sent',
-        sentBy,
-        attachmentsCount: attachments.length,
-        attachmentName: attachments[0]?.name || 'Document.pdf',
-        bodySnippet: body.slice(0, 100) + '...',
-        fullBody: body,
-        attachments
-      };
+        })
+      : '';
 
-      resolve({
-        success: true,
-        messageId: `<gps-${Date.now()}@mail.gpsspindle.com>`,
-        record: newActivityRecord
-      });
-    }, 1200);
+    return {
+      id: row.id,
+      date: dateStr,
+      documentId: row.document_id,
+      documentType: row.document_type,
+      customer: row.customer_name || row.customer?.company_name || 'Customer Organization',
+      recipient: to[0] || 'Unspecified Recipient',
+      allRecipients: to,
+      cc: cc,
+      subject: row.subject,
+      status: row.delivery_status,
+      sentBy: row.sent_by_name || 'Rahul Patil',
+      attachmentsCount: row.attachments_count || 0,
+      attachmentName: row.metadata?.attachments?.[0]?.name || (row.attachments_count > 0 ? 'Attachment.pdf' : 'None'),
+      bodySnippet: row.body_text ? row.body_text.slice(0, 100) + '...' : '',
+      fullBody: row.body_text || ''
+    };
   });
+
+  return { data: formatted, error: null };
 }

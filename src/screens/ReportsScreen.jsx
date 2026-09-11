@@ -1,28 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import { 
   BarChart3, TrendingUp, Download, Calendar, 
-  CheckCircle2, ShieldCheck, Wrench, DollarSign 
+  CheckCircle2, ShieldCheck, Wrench, DollarSign,
+  RefreshCw, AlertCircle
 } from 'lucide-react';
+import { reportService } from '../services/database/reportService';
 
 export default function ReportsScreen({ onNotify }) {
   const [timeRange, setTimeRange] = useState('q4');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const monthlyProduction = [
-    { month: 'Sep', units: 16, target: 15 },
-    { month: 'Oct', units: 19, target: 18 },
-    { month: 'Nov', units: 21, target: 20 },
-    { month: 'Dec', units: 24, target: 22 },
-    { month: 'Jan', units: 26, target: 24 },
-    { month: 'Feb', units: 28, target: 25 },
-  ];
+  // Live report states
+  const [kpis, setKpis] = useState({
+    spindlesManufactured: 214,
+    firstPassYield: 98.4,
+    avgServiceTatDays: 4.2,
+    annualRevenueCr: 16.8
+  });
 
-  const spindleDistribution = [
-    { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#7A1F3D' },
-    { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#9B3A58' },
-    { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#C06C84' },
-    { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94A3B8' },
-  ];
+  const [monthlyProduction, setMonthlyProduction] = useState([]);
+  const [spindleDistribution, setSpindleDistribution] = useState([]);
+  const [qualityPassRates, setQualityPassRates] = useState([]);
+  const [serviceCauses, setServiceCauses] = useState([]);
+
+  // Load analytics from live Supabase
+  const loadAnalytics = async (selectedRange = timeRange) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [kpiRes, prodRes, modelRes, qualityRes, serviceRes] = await Promise.all([
+        reportService.getExecutiveKpis(selectedRange),
+        reportService.getMonthlyProductionThroughput(),
+        reportService.getSpindleModelDistribution(),
+        reportService.getQualityPassRates(),
+        reportService.getServiceRootCauses()
+      ]);
+
+      if (kpiRes.error && prodRes.error) {
+        setError('Failed to calculate analytics from database.');
+      } else {
+        if (kpiRes.data) setKpis(kpiRes.data);
+        if (prodRes.data) setMonthlyProduction(prodRes.data);
+        if (modelRes.data) setSpindleDistribution(modelRes.data);
+        if (qualityRes.data) setQualityPassRates(qualityRes.data);
+        if (serviceRes.data) setServiceCauses(serviceRes.data);
+      }
+    } catch (err) {
+      setError(err.message || 'Error aggregating plant analytics');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAnalytics(timeRange);
+  }, [timeRange]);
+
+  const handleExport = () => {
+    try {
+      reportService.exportAnalyticsCSV(timeRange, {
+        kpis,
+        throughput: monthlyProduction,
+        models: spindleDistribution,
+        quality: qualityPassRates
+      });
+      if (onNotify) onNotify(`Executive BI Report exported (CSV) for ${timeRange.toUpperCase()}`);
+    } catch (err) {
+      if (onNotify) onNotify('Failed to export analytics report', 'error');
+    }
+  };
 
   return (
     <div className="content-area">
@@ -45,13 +93,50 @@ export default function ReportsScreen({ onNotify }) {
           <button 
             type="button" 
             className="btn btn-secondary"
-            onClick={() => onNotify('Executive BI Report exported (PDF)')}
+            onClick={() => loadAnalytics(timeRange)}
+            disabled={isLoading}
+            title="Refresh analytics data"
+          >
+            <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+            <span>Refresh</span>
+          </button>
+
+          <button 
+            type="button" 
+            className="btn btn-secondary"
+            onClick={handleExport}
           >
             <Download size={14} />
             <span>Export Analytics</span>
           </button>
         </div>
       </PageHeader>
+
+      {/* Error Banner with Retry */}
+      {error && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontSize: '13px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button 
+            type="button" 
+            className="btn btn-secondary btn-sm"
+            onClick={() => loadAnalytics(timeRange)}
+          >
+            <RefreshCw size={12} />
+            <span>Retry</span>
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin" style={{ marginBottom: '8px', color: 'var(--primary)' }} />
+          <div>Aggregating manufacturing & quality metrics from live database...</div>
+        </div>
+      )}
 
       {/* Top BI KPI Cards */}
       <div className="metrics-grid">
@@ -60,7 +145,7 @@ export default function ReportsScreen({ onNotify }) {
             <span className="metric-label">Spindles Manufactured</span>
             <div className="metric-icon-wrap"><TrendingUp size={16} /></div>
           </div>
-          <div className="metric-value">214 Units</div>
+          <div className="metric-value">{kpis.spindlesManufactured} Units</div>
           <div className="metric-footer" style={{ color: '#059669' }}>+18% YoY Growth</div>
         </div>
 
@@ -69,7 +154,7 @@ export default function ReportsScreen({ onNotify }) {
             <span className="metric-label">First-Pass QC Yield</span>
             <div className="metric-icon-wrap" style={{ color: '#059669' }}><ShieldCheck size={16} /></div>
           </div>
-          <div className="metric-value" style={{ color: '#059669' }}>98.4%</div>
+          <div className="metric-value" style={{ color: '#059669' }}>{kpis.firstPassYield}%</div>
           <div className="metric-footer">&lt; 1.6% Shop Rework</div>
         </div>
 
@@ -78,7 +163,7 @@ export default function ReportsScreen({ onNotify }) {
             <span className="metric-label">Average Service TAT</span>
             <div className="metric-icon-wrap"><Wrench size={16} /></div>
           </div>
-          <div className="metric-value">4.2 Days</div>
+          <div className="metric-value">{kpis.avgServiceTatDays} Days</div>
           <div className="metric-footer" style={{ color: '#059669' }}>Target was &lt; 5.0 Days</div>
         </div>
 
@@ -87,7 +172,7 @@ export default function ReportsScreen({ onNotify }) {
             <span className="metric-label">Annual Gross Revenue</span>
             <div className="metric-icon-wrap"><DollarSign size={16} /></div>
           </div>
-          <div className="metric-value">₹16.8 Cr</div>
+          <div className="metric-value">₹{kpis.annualRevenueCr} Cr</div>
           <div className="metric-footer">Across OEM & Service</div>
         </div>
       </div>
@@ -103,7 +188,7 @@ export default function ReportsScreen({ onNotify }) {
           <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', borderBottom: '1px solid var(--border-color)' }}>
               {monthlyProduction.map((item, idx) => {
-                const heightPercent = (item.units / 32) * 100;
+                const heightPercent = Math.min(100, Math.max(10, (item.units / 32) * 100));
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
                     <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>{item.units}</span>
@@ -160,12 +245,7 @@ export default function ReportsScreen({ onNotify }) {
             <div className="card-title">Metrology Quality Audit Pass Rates</div>
           </div>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[
-              { label: "Nose Taper Runout (≤ 1.0 µm)", rate: "99.1%", passed: 212, inspected: 214 },
-              { label: "Dynamic Balance (ISO 1940 G0.4)", rate: "98.6%", passed: 211, inspected: 214 },
-              { label: "Tool Clamping Retention Force", rate: "100.0%", passed: 214, inspected: 214 },
-              { label: "4-Hour Full Load Thermal Rise", rate: "97.6%", passed: 209, inspected: 214 },
-            ].map((q, idx) => (
+            {qualityPassRates.map((q, idx) => (
               <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '13px' }}>{q.label}</div>
@@ -185,12 +265,7 @@ export default function ReportsScreen({ onNotify }) {
             <div className="card-title">Service Overhaul Root Cause Categories</div>
           </div>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[
-              { cause: "Coolant Ingress & Bearing Washout", pct: "44%", count: "16 Cases" },
-              { cause: "Tool Collision & Nose Taper Deformation", pct: "28%", count: "10 Cases" },
-              { cause: "Fatigued Disc Spring Clamping Force Loss", pct: "16%", count: "6 Cases" },
-              { cause: "Stator Winding Heat Breakdown", pct: "12%", count: "4 Cases" },
-            ].map((c, idx) => (
+            {serviceCauses.map((c, idx) => (
               <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: '13px', fontWeight: 500 }}>{c.cause}</div>
                 <div style={{ textAlign: 'right' }}>

@@ -1,22 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
-import { INVENTORY_ITEMS } from '../data/mockData';
+import { inventoryService } from '../services/database/inventoryService';
 import { 
   Search, Filter, Plus, AlertTriangle, Boxes, 
-  ArrowDownLeft, ArrowUpRight, Download, PackageCheck 
+  ArrowDownLeft, ArrowUpRight, Download, PackageCheck, RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export default function InventoryScreen({ onNotify }) {
+  const [items, setItems] = useState([]);
+  const [stockMovements, setStockMovements] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('stock');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
   const [selectedItemForPo, setSelectedItemForPo] = useState(null);
 
-  const filteredItems = INVENTORY_ITEMS.filter((item) => {
+  const loadInventory = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [invRes, movRes] = await Promise.all([
+        inventoryService.getInventoryItems(),
+        inventoryService.getStockMovements()
+      ]);
+      if (invRes.error) {
+        setError(invRes.error);
+        setIsLoading(false);
+        return;
+      }
+      setItems(invRes.data || []);
+      if (movRes?.data) {
+        setStockMovements(movRes.data);
+      }
+    } catch (err) {
+      console.error('Failed to load inventory data:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInventory();
+  }, []);
+
+  const filteredItems = items.filter((item) => {
     const matchesCat = categoryFilter === 'all' || item.category.toLowerCase().includes(categoryFilter.toLowerCase());
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
@@ -27,21 +60,62 @@ export default function InventoryScreen({ onNotify }) {
     return matchesCat && matchesSearch;
   });
 
-  const lowStockItems = INVENTORY_ITEMS.filter(item => 
-    item.status.includes('Low') || item.status.includes('Critical')
+  const lowStockItems = items.filter(item => 
+    item.status.includes('Low') || item.status.includes('Critical') || item.status.includes('Out')
   );
 
   const handleOpenPo = (item) => {
-    setSelectedItemForPo(item);
+    setSelectedItemForPo(item || items[0] || null);
     setIsPoModalOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Materials, Spares & Tooling Inventory" 
+          subtitle="Loading stock inventory from live database..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching live inventory products and warehouse stock balances...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Materials, Spares & Tooling Inventory" 
+          subtitle="Precision alloy steels, ceramic bearings, stators, and encoder stock controls"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve live inventory records from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadInventory}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
       <PageHeader 
         title="Materials, Spares & Tooling Inventory" 
         subtitle="Precision alloy steels, ceramic bearings, stators, and encoder stock controls"
-        badge={`${INVENTORY_ITEMS.length} Catalogued Items`}
+        badge={`${items.length} Catalogued Items`}
       >
         <button 
           type="button" 
@@ -54,7 +128,7 @@ export default function InventoryScreen({ onNotify }) {
         <button 
           type="button" 
           className="btn btn-primary"
-          onClick={() => handleOpenPo(INVENTORY_ITEMS[1])}
+          onClick={() => handleOpenPo(items[0] || null)}
         >
           <Plus size={14} />
           <span>Raise Purchase PO</span>
@@ -223,29 +297,32 @@ export default function InventoryScreen({ onNotify }) {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { time: "Today, 08:30", type: "Store Issue", sku: "BRG-HC7008", name: "FAG Ceramic Hybrid Bearings", qty: "3 Pairs", bay: "Bay 3 (Cleanroom Assembly)", user: "Vikram Shinde", ref: "WO-2026-104" },
-                  { time: "Yesterday, 16:15", type: "Inward GRN", sku: "MAT-18CR-80", name: "18CrNiMo7-6 Round Bar Ø80mm", qty: "12 Meters", bay: "Raw Stores Rack A-04", user: "Stores In-Charge", ref: "PO-2026-085" },
-                  { time: "Yesterday, 11:00", type: "Store Issue", sku: "DRW-OTT-A63", name: "OTT-Jakob HSK Drawbar Collet", qty: "1 Set", bay: "Bay 3 (Assembly)", user: "Suresh Sawant", ref: "WO-2026-103" },
-                  { time: "24-Feb, 14:20", type: "Store Issue", sku: "SEAL-VT-120", name: "Viton Rotary O-Ring Kit Ø120x3", qty: "4 Packs", bay: "Bay 2 (Grinding)", user: "D. Shinde", ref: "WO-2026-106" },
-                ].map((tx, idx) => (
-                  <tr key={idx}>
-                    <td className="mono" style={{ fontSize: '12px' }}>{tx.time}</td>
-                    <td>
-                      <span className={`status-badge ${tx.type.includes('Inward') ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '11px' }}>
-                        {tx.type}
-                      </span>
+                {stockMovements.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No inventory movements recorded in PostgreSQL database.
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{tx.name}</div>
-                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{tx.sku}</div>
-                    </td>
-                    <td className="mono" style={{ fontWeight: 600 }}>{tx.qty}</td>
-                    <td style={{ fontSize: '12px' }}>{tx.bay}</td>
-                    <td style={{ fontSize: '12px' }}>{tx.user}</td>
-                    <td className="mono" style={{ color: 'var(--primary)', fontWeight: 500 }}>{tx.ref}</td>
                   </tr>
-                ))}
+                ) : (
+                  stockMovements.map((tx, idx) => (
+                    <tr key={tx.id || idx}>
+                      <td className="mono" style={{ fontSize: '12px' }}>{tx.time}</td>
+                      <td>
+                        <span className={`status-badge ${tx.type.includes('Inward') ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '11px' }}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{tx.name}</div>
+                        <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{tx.sku}</div>
+                      </td>
+                      <td className="mono" style={{ fontWeight: 600 }}>{tx.qty}</td>
+                      <td style={{ fontSize: '12px' }}>{tx.bay}</td>
+                      <td style={{ fontSize: '12px' }}>{tx.user}</td>
+                      <td className="mono" style={{ color: 'var(--primary)', fontWeight: 500 }}>{tx.ref}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

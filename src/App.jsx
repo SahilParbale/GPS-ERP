@@ -29,6 +29,9 @@ import ProformaInvoiceScreen from './screens/ProformaInvoiceScreen';
 import EWayBillScreen from './screens/EWayBillScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import DocumentsScreen from './screens/DocumentsScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
+import EmailActivityScreen from './screens/EmailActivityScreen';
 
 import { WORK_ORDERS, SPINDLES } from './data/mockData';
 
@@ -302,6 +305,25 @@ function AppContent() {
           <SalesScreen 
             initialTab="activity"
             onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'documents':
+        return (
+          <DocumentsScreen 
+            onNotify={addToast}
+          />
+        );
+      case 'notifications':
+        return (
+          <NotificationsScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'email-activity':
+        return (
+          <EmailActivityScreen 
             onNotify={addToast}
           />
         );

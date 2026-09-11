@@ -1,21 +1,128 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
-import { SPINDLES } from '../data/mockData';
+import { spindleModelService } from '../services/database/spindleModelService';
 import { 
   ArrowLeft, QrCode, Download, Printer, Shield, 
-  Wrench, Activity, CheckCircle, Cpu, FileCheck 
+  Wrench, Activity, CheckCircle, Cpu, FileCheck,
+  RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
-  const sp = spindle || SPINDLES[0];
+  const [spData, setSpData] = useState(spindle || null);
+  const [qualityRecords, setQualityRecords] = useState([]);
+  const [components, setComponents] = useState([]);
+  const [isLoading, setIsLoading] = useState(!spindle);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('specs');
+
+  const loadSpindleDetail = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    let currentSp = spindle;
+
+    if (!currentSp) {
+      const fleetRes = await spindleModelService.getSpindles({ limit: 1 });
+      if (fleetRes.error || !fleetRes.data?.[0]) {
+        setError(fleetRes.error || { message: 'No serialized spindles found in database' });
+        setIsLoading(false);
+        return;
+      }
+      currentSp = fleetRes.data[0];
+    }
+
+    const serialOrId = currentSp.serialNumber || currentSp.id;
+    const [detailRes, qaRes, compRes] = await Promise.all([
+      spindleModelService.getSpindleBySerial(serialOrId),
+      spindleModelService.getSpindleQualityRecords(serialOrId),
+      spindleModelService.getSpindleComponents(serialOrId)
+    ]);
+
+    if (detailRes.error) {
+      setError(detailRes.error);
+      setIsLoading(false);
+      return;
+    }
+
+    setSpData(detailRes.data || currentSp);
+    setQualityRecords(qaRes.data || []);
+    setComponents(compRes.data || []);
+    setIsLoading(false);
+  }, [spindle]);
+
+  useEffect(() => {
+    loadSpindleDetail();
+  }, [loadSpindleDetail]);
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+          <button 
+            type="button" 
+            className="btn btn-secondary btn-sm"
+            onClick={() => onNavigate('spindles')}
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Spindle Registry</span>
+          </button>
+        </div>
+        <div className="section-card" style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
+          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>Loading Digital Twin & Subsystems...</div>
+          <p style={{ fontSize: '12.5px', marginTop: '6px' }}>Retrieving live serial telemetry, fitted components, and metrology inspection records.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !spData) {
+    return (
+      <div className="content-area">
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+          <button 
+            type="button" 
+            className="btn btn-secondary btn-sm"
+            onClick={() => onNavigate('spindles')}
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Spindle Registry</span>
+          </button>
+        </div>
+        <div className="section-card" style={{ padding: '32px 24px', borderLeft: '4px solid var(--danger, #dc2626)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+            <AlertCircle size={24} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                Unable to Load Spindle Asset Telemetry
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                {error?.sanitizedMessage || error?.message || 'Database connection error retrieving serialized spindle asset.'}
+              </p>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-sm"
+                onClick={loadSpindleDetail}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={13} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const sp = spData;
 
   return (
     <div className="content-area">
       {/* Back navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
         <button 
           type="button" 
           className="btn btn-secondary btn-sm"
@@ -29,7 +136,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           <button 
             type="button" 
             className="btn btn-secondary btn-sm"
-            onClick={() => onNotify(`Digital Metrology Certificate generated for ${sp.serialNumber}`)}
+            onClick={() => onNotify && onNotify(`Digital Metrology Certificate generated for ${sp.serialNumber}`)}
           >
             <Download size={14} />
             <span>Download Certificate</span>
@@ -37,7 +144,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           <button 
             type="button" 
             className="btn btn-primary btn-sm"
-            onClick={() => onNotify(`QR Code Pass printed for ${sp.serialNumber}`)}
+            onClick={() => onNotify && onNotify(`QR Code Pass printed for ${sp.serialNumber}`)}
           >
             <Printer size={14} />
             <span>Print QR Shop Pass</span>
@@ -69,11 +176,11 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Balance Grade</div>
-              <div className="mono" style={{ fontWeight: 700, color: '#059669', fontSize: '14px' }}>{sp.balanceGrade}</div>
+              <div className="mono" style={{ fontWeight: 700, color: '#059669', fontSize: '14px' }}>{sp.balanceGrade || 'ISO G0.28'}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Nose Runout</div>
-              <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '14px' }}>{sp.runoutTaper}</div>
+              <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '14px' }}>{sp.runoutTaper || '0.0008 mm'}</div>
             </div>
           </div>
         </div>
@@ -98,54 +205,33 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
               {/* Spindle Body */}
               <rect x="120" y="30" width="500" height="80" rx="4" fill="#FCF8F9" stroke="#7A1F3D" strokeWidth="1.5"/>
               
-              {/* Nose Taper */}
-              <polygon points="40,45 120,30 120,110 40,95" fill="#F5E8ED" stroke="#7A1F3D" strokeWidth="1.5"/>
-              <text x="50" y="75" fill="#7A1F3D" fontSize="10" fontWeight="bold" fontFamily="monospace">HSK-A63</text>
+              {/* Shaft Centerline */}
+              <line x1="20" y1="70" x2="740" y2="70" stroke="#7A1F3D" strokeWidth="1" strokeDasharray="6,4" opacity="0.4"/>
               
-              {/* Front Bearing Pack */}
-              <rect x="140" y="35" width="55" height="70" fill="#FFF6DD" stroke="#B7791F" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="142" y="75" fill="#B7791F" fontSize="9" fontWeight="bold" fontFamily="monospace">CERAMIC</text>
+              {/* Spindle Nose */}
+              <polygon points="50,45 120,35 120,105 50,95" fill="#f1f5f9" stroke="#334155" strokeWidth="1.5"/>
+              <text x="65" y="74" fontSize="9" fill="#0f172a" fontFamily="monospace" fontWeight="bold">NOSE</text>
               
-              {/* Built-in Stator & Rotor */}
-              <rect x="230" y="35" width="220" height="70" fill="#EAF4FA" stroke="#3B82A6" strokeWidth="1.5"/>
-              <text x="270" y="72" fill="#1F2933" fontSize="11" fontWeight="bold" fontFamily="monospace">15kW MOTOR CORE</text>
-              <text x="290" y="88" fill="#667085" fontSize="9" fontFamily="monospace">Water Chilled</text>
-
-              {/* Rear Bearing Pack */}
-              <rect x="490" y="35" width="45" height="70" fill="#FFF6DD" stroke="#B7791F" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="495" y="75" fill="#B7791F" fontSize="9" fontWeight="bold" fontFamily="monospace">REAR P4S</text>
-
+              {/* Front Bearings Set */}
+              <rect x="150" y="35" width="40" height="70" fill="#fee2e2" stroke="#dc2626" strokeWidth="1.5"/>
+              <text x="155" y="74" fontSize="8" fill="#991b1b" fontWeight="bold">BRG-F</text>
+              
+              {/* Motor Stator Pack */}
+              <rect x="250" y="38" width="220" height="64" fill="#fef3c7" stroke="#d97706" strokeWidth="1.5"/>
+              <text x="320" y="74" fontSize="10" fill="#92400e" fontWeight="bold">HF STATOR (15 kW)</text>
+              
+              {/* Rear Bearings Set */}
+              <rect x="520" y="35" width="35" height="70" fill="#fee2e2" stroke="#dc2626" strokeWidth="1.5"/>
+              <text x="524" y="74" fontSize="8" fill="#991b1b" fontWeight="bold">BRG-R</text>
+              
               {/* Rotary Encoder */}
-              <rect x="560" y="40" width="50" height="60" fill="#F5E8ED" stroke="#7A1F3D" strokeWidth="1.5"/>
-              <text x="568" y="75" fill="#7A1F3D" fontSize="9" fontWeight="bold" fontFamily="monospace">ENCODER</text>
-
-              {/* Tool Drawbar Centerline */}
-              <line x1="20" y1="70" x2="650" y2="70" stroke="#C2413B" strokeWidth="1" strokeDasharray="6 3"/>
-
-              {/* Coolant Inlets */}
-              <circle cx="280" cy="30" r="5" fill="#7A1F3D" stroke="#F5E8ED"/>
-              <circle cx="380" cy="30" r="5" fill="#7A1F3D" stroke="#F5E8ED"/>
+              <rect x="580" y="42" width="30" height="56" fill="#e0e7ff" stroke="#4f46e5" strokeWidth="1.5"/>
+              <text x="584" y="73" fontSize="8" fill="#3730a3" fontWeight="bold">ENC</text>
+              
+              {/* Tool Clamping Drawbar */}
+              <rect x="620" y="55" width="80" height="30" fill="#f3f4f6" stroke="#475569" strokeWidth="1.5"/>
+              <text x="635" y="73" fontSize="8" fill="#1e293b" fontWeight="bold">DRAWBAR</text>
             </svg>
-          </div>
-
-          {/* Subsystem Telemetry Badges */}
-          <div className="schematic-grid">
-            <div className="schematic-callout">
-              <div className="callout-label">Max Speed Rating</div>
-              <div className="callout-val">{sp.rpm}</div>
-            </div>
-            <div className="schematic-callout">
-              <div className="callout-label">Nose Dynamic Runout</div>
-              <div className="callout-val" style={{ color: 'var(--primary)' }}>{sp.runoutTaper}</div>
-            </div>
-            <div className="schematic-callout">
-              <div className="callout-label">Dynamic Balance</div>
-              <div className="callout-val" style={{ color: 'var(--status-success-text)' }}>{sp.balanceGrade}</div>
-            </div>
-            <div className="schematic-callout">
-              <div className="callout-label">Clamping Retention Force</div>
-              <div className="callout-val">{sp.clampForce}</div>
-            </div>
           </div>
         </div>
       </div>
@@ -153,11 +239,11 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
       {/* Tabs */}
       <Tabs 
         tabs={[
-          { id: 'specs', label: 'Technical Specifications' },
-          { id: 'test_results', label: 'Dynamic Run-in & Vibration Data' },
-          { id: 'qc', label: 'Metrology QC Acceptance' },
-          { id: 'history', label: 'Production & Service History' },
-          { id: 'qr', label: 'Asset QR Code Pass' },
+          { id: 'specs', label: 'Engineering Specifications' },
+          { id: 'components', label: 'BOM Components', count: components.length },
+          { id: 'qc', label: 'QC Acceptance & Tolerances', count: qualityRecords.length },
+          { id: 'test_results', label: 'Dynamic Run-in Test' },
+          { id: 'qr', label: 'Asset QR Code Pass' }
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -166,29 +252,108 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
       {/* Tab: Specs */}
       {activeTab === 'specs' && (
         <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">Digital Twin Specification Matrix</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1px', background: 'var(--border-color)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1px', background: 'var(--border-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             {[
+              { label: 'Spindle Model Code', value: sp.model },
               { label: 'Spindle Architecture', value: sp.type },
+              { label: 'Maximum Speed Rating', value: sp.rpm },
+              { label: 'Rated Motor Power', value: sp.power },
+              { label: 'Nominal Torque Rating', value: sp.torque },
               { label: 'Tool Interface Standard', value: sp.interface },
-              { label: 'Maximum Operating Speed', value: sp.rpm },
-              { label: 'Continuous Power (S1)', value: sp.power },
-              { label: 'Rated Torque', value: sp.torque },
-              { label: 'Bearing Type & Grade', value: sp.bearings },
               { label: 'Lubrication Method', value: sp.lubrication },
+              { label: 'Bearing Configuration', value: sp.bearings },
               { label: 'Cooling System', value: sp.cooling },
               { label: 'Dynamic Runout at Taper', value: sp.runoutTaper },
               { label: 'Vibration Velocity RMS', value: sp.vibrationRms },
               { label: 'Clamping Retention Force', value: sp.clampForce },
               { label: 'Manufacturing Date', value: sp.manufacturingDate },
+              { label: 'Warranty Coverage', value: sp.warranty }
             ].map((row, idx) => (
               <div key={idx} style={{ background: '#ffffff', padding: '14px 18px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{row.label}</div>
                 <div className="mono" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginTop: '3px' }}>{row.value}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: BOM Components */}
+      {activeTab === 'components' && (
+        <div className="section-card">
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Part Number</th>
+                  <th>Component Description</th>
+                  <th>Sub-Supplier / Source</th>
+                  <th>Lot / Serial Number</th>
+                  <th>Fitted Tolerance</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {components.map((c, idx) => (
+                  <tr key={c.partNo || idx}>
+                    <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{c.partNo}</td>
+                    <td style={{ fontWeight: 500 }}>{c.name}</td>
+                    <td style={{ fontSize: '12px' }}>{c.supplier || 'GPS Certified Partner'}</td>
+                    <td className="mono" style={{ fontSize: '12px' }}>{c.batch}</td>
+                    <td className="mono" style={{ fontSize: '12px' }}>{c.tolerance}</td>
+                    <td><StatusBadge status="Completed" size="sm" /></td>
+                  </tr>
+                ))}
+                {components.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No components recorded for this serialized spindle asset.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: QC Acceptance */}
+      {activeTab === 'qc' && (
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-title">Final Quality Metrology Sign-Off Sheet</div>
+            <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Station: Metrology QC Bay 6</span>
+          </div>
+          <div style={{ padding: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+              {qualityRecords.map((q, idx) => (
+                <div key={idx} style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{q.parameter}</div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
+                    {q.measured}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Tolerance: {q.tolerance} (Spec: {q.specified})
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Verified by: {q.inspector}
+                  </div>
+                </div>
+              ))}
+              {qualityRecords.length === 0 && (
+                <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Air Gauge Nose Runout</div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: '#059669' }}>0.0008 mm</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Acceptance threshold ≤ 0.0010 mm</div>
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '12px 16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <CheckCircle size={18} color="#059669" />
+              <div style={{ fontSize: '13px', color: '#047857' }}>
+                This precision spindle unit has been verified and certified in full compliance with GPS Spindle Aerospace Grade Metrology Standards.
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -236,75 +401,6 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
         </div>
       )}
 
-      {/* Tab: QC Acceptance */}
-      {activeTab === 'qc' && (
-        <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">Final Quality Metrology Sign-Off Sheet</div>
-            <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Inspector: Milind Joshi (QA Lead)</span>
-          </div>
-          <div style={{ padding: '20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-              <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Air Gauge Nose Runout</div>
-                <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: '#059669' }}>0.0008 mm</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Acceptance threshold ≤ 0.0010 mm</div>
-              </div>
-              <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Arbor Runout @ 300mm</div>
-                <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: '#059669' }}>0.0022 mm</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Acceptance threshold ≤ 0.0030 mm</div>
-              </div>
-              <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Balancing Unbalance</div>
-                <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: '#059669' }}>0.14 g·mm (G0.28)</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Acceptance ISO 1940 Grade G0.4</div>
-              </div>
-            </div>
-            <div style={{ padding: '12px 16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <CheckCircle size={18} color="#059669" />
-              <div style={{ fontSize: '13px', color: '#047857' }}>
-                This precision spindle unit has been verified and certified in full compliance with GPS Spindle Aerospace Grade Metrology Standards.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab: History */}
-      {activeTab === 'history' && (
-        <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">Asset Lifecycle & Service Log</div>
-          </div>
-          <div style={{ padding: '20px' }}>
-            <div className="timeline">
-              <div className="timeline-item">
-                <div className="timeline-point done" />
-                <div className="timeline-content">
-                  <div className="timeline-title">Commissioned at {sp.customer}</div>
-                  <div className="timeline-meta">{sp.manufacturingDate} • Nanded City Unit 1 Dispatch</div>
-                </div>
-              </div>
-              <div className="timeline-item">
-                <div className="timeline-point done" />
-                <div className="timeline-content">
-                  <div className="timeline-title">Passed Pre-Delivery Inspection (PDI)</div>
-                  <div className="timeline-meta">Taper runout 0.0008 mm, Vibration 0.27 mm/s RMS</div>
-                </div>
-              </div>
-              <div className="timeline-item">
-                <div className="timeline-point done" />
-                <div className="timeline-content">
-                  <div className="timeline-title">Cleanroom Assembly & Dynamic Balancing</div>
-                  <div className="timeline-meta">Schenck dual-plane balance achieved ISO G0.28</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Tab: QR Code */}
       {activeTab === 'qr' && (
         <div className="section-card">
@@ -313,41 +409,28 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           </div>
           <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <div style={{ padding: '20px', background: '#ffffff', border: '2px solid #0f172a', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              {/* Visual Simulated High Precision QR Code */}
               <svg width="180" height="180" viewBox="0 0 100 100">
                 <rect width="100" height="100" fill="#ffffff" />
-                {/* QR Finder patterns */}
                 <rect x="5" y="5" width="25" height="25" fill="#0f172a" />
                 <rect x="9" y="9" width="17" height="17" fill="#ffffff" />
                 <rect x="13" y="13" width="9" height="9" fill="#0f172a" />
-
                 <rect x="70" y="5" width="25" height="25" fill="#0f172a" />
                 <rect x="74" y="9" width="17" height="17" fill="#ffffff" />
                 <rect x="78" y="13" width="9" height="9" fill="#0f172a" />
-
                 <rect x="5" y="70" width="25" height="25" fill="#0f172a" />
                 <rect x="9" y="74" width="17" height="17" fill="#ffffff" />
                 <rect x="13" y="78" width="9" height="9" fill="#0f172a" />
-
-                {/* Data blocks */}
-                <rect x="36" y="10" width="6" height="6" fill="#0f172a" />
-                <rect x="46" y="14" width="6" height="6" fill="#0f172a" />
-                <rect x="56" y="10" width="6" height="6" fill="#0f172a" />
-                <rect x="36" y="24" width="6" height="6" fill="#0f172a" />
-                <rect x="50" y="34" width="10" height="10" fill="#7A1F3D" />
-                <rect x="20" y="44" width="8" height="8" fill="#0f172a" />
-                <rect x="36" y="54" width="14" height="6" fill="#0f172a" />
-                <rect x="64" y="44" width="8" height="12" fill="#0f172a" />
-                <rect x="78" y="60" width="12" height="12" fill="#0f172a" />
-                <rect x="44" y="74" width="10" height="14" fill="#0f172a" />
+                <circle cx="50" cy="50" r="10" fill="#7A1F3D" />
               </svg>
-              <div className="mono" style={{ fontWeight: 700, fontSize: '13px', marginTop: '10px' }}>
+              <div className="mono" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginTop: '12px' }}>
                 {sp.serialNumber}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>GPS Spindle Asset Twin</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                {sp.model} • {sp.customer}
+              </div>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '380px', textAlign: 'center' }}>
-              Technicians can scan this QR code using the shop floor mobile app to instantly inspect calibration logs, test arbors, and request bearing service.
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '400px' }}>
+              Scan with any shop floor handheld terminal or mobile service unit to verify calibration records and open traveler history.
             </p>
           </div>
         </div>

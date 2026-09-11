@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { PROFORMA_INVOICES } from '../data/mockData';
+import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
   User, Phone, MapPin, Mail, Clock, ShoppingCart, 
   CheckCircle2, AlertCircle, Calendar, DollarSign,
-  ChevronRight, ArrowRight, ShieldCheck, Link2
+  ChevronRight, ArrowRight, ShieldCheck, Link2, RefreshCw
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
@@ -57,10 +57,37 @@ const PRESET_CUSTOMERS = [
 ];
 
 export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
-  const [proformaInvoices, setProformaInvoices] = useState(PROFORMA_INVOICES);
+  const [proformaInvoices, setProformaInvoices] = useState([]);
   const [selectedPI, setSelectedPI] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const loadPIs = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await proformaInvoiceService.getProformaInvoices();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+    const data = res.data || [];
+    setProformaInvoices(data);
+    setSelectedPI(prev => {
+      if (prev) {
+        const match = data.find(p => p.id === prev.id);
+        if (match) return match;
+      }
+      return data[0] || null;
+    });
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadPIs();
+  }, []);
 
   // Modals & Drawers
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -239,118 +266,53 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
     setIsCreateModalOpen(true);
   };
 
-  // Save or Send PI
-  const handleSavePI = (targetStatus = 'Draft') => {
+  // Save or Send PI in live database
+  const handleSavePI = async (targetStatus = 'Draft') => {
     if (!formData.customer.trim()) {
       onNotify('Please enter a customer name', 'danger');
       return;
     }
 
     if (editingPIId) {
-      setProformaInvoices(prev => prev.map(p => {
-        if (p.id === editingPIId) {
-          return {
-            ...p,
-            customer: formData.customer,
-            customerEmail: formData.customerEmail,
-            customerContact: formData.customerContact,
-            billingAddress: formData.billingAddress,
-            shippingAddress: formData.shippingAddress,
-            gstin: formData.gstin,
-            salesOrder: formData.salesOrder,
-            date: formData.piDate,
-            validUntil: formData.validUntil,
-            paymentTerms: formData.paymentTerms,
-            notes: formData.notes,
-            status: targetStatus,
-            subtotal: formCalculations.subtotal,
-            discount: formCalculations.discount,
-            cgstAmount: formCalculations.cgst,
-            sgstAmount: formCalculations.sgst,
-            igstAmount: formCalculations.igst,
-            gstAmount: formCalculations.gstTotal,
-            totalAmount: formCalculations.grandTotal,
-            formattedTotal: `₹${formCalculations.grandTotal.toLocaleString('en-IN')}`,
-            items: formData.items.map((it, idx) => ({
-              id: it.id || idx + 1,
-              product: it.product || `Product ${idx + 1}`,
-              desc: it.desc || it.product,
-              qty: Number(it.qty) || 1,
-              rate: Number(it.rate) || 0,
-              discount: Number(it.discount) || 0,
-              gst: Number(it.gst) || 18,
-              total: Math.max(0, ((Number(it.qty) || 1) * (Number(it.rate) || 0)) - (Number(it.discount) || 0))
-            }))
-          };
-        }
-        return p;
-      }));
-
-      onNotify(`Proforma Invoice ${editingPIId} updated successfully.`);
-      if (selectedPI && selectedPI.id === editingPIId) {
-        setSelectedPI(prev => ({ ...prev, status: targetStatus, totalAmount: formCalculations.grandTotal }));
+      const res = await proformaInvoiceService.updateProformaInvoiceStatus(editingPIId, targetStatus);
+      if (res.error) {
+        onNotify(res.error.message || 'Failed to update Proforma Invoice.', 'error');
+        return;
       }
+      onNotify(`Proforma Invoice ${editingPIId} updated successfully.`);
+      setIsCreateModalOpen(false);
+      await loadPIs();
     } else {
       const nextNum = proformaInvoices.length + 18;
       const newPiId = `PI-2026-0${nextNum}`;
-      const newRecord = {
-        id: newPiId,
+      const res = await proformaInvoiceService.createProformaInvoice({
         piNumber: newPiId,
-        customer: formData.customer,
-        customerFullName: formData.customer,
+        customerName: formData.customer,
         customerEmail: formData.customerEmail,
         customerContact: formData.customerContact,
-        billingAddress: formData.billingAddress,
-        shippingAddress: formData.shippingAddress,
-        gstin: formData.gstin,
-        salesOrder: formData.salesOrder || 'SO-2026-041',
-        date: formData.piDate,
+        customerAddress: formData.billingAddress,
+        customerGstin: formData.gstin,
+        salesOrderNo: formData.salesOrder,
+        issueDate: formData.piDate,
         validUntil: formData.validUntil,
         paymentTerms: formData.paymentTerms,
-        status: targetStatus,
         subtotal: formCalculations.subtotal,
         discount: formCalculations.discount,
-        taxRate: 18,
-        cgstAmount: formCalculations.cgst,
-        sgstAmount: formCalculations.sgst,
-        igstAmount: formCalculations.igst,
-        gstAmount: formCalculations.gstTotal,
         totalAmount: formCalculations.grandTotal,
-        formattedTotal: `₹${formCalculations.grandTotal.toLocaleString('en-IN')}`,
-        bankDetails: {
-          bankName: "ICICI BANK LIMITED, PUNE NANDED CITY",
-          accountName: "GENERAL PRECISION SPINDLES",
-          accountNumber: "349105000701",
-          ifscCode: "ICIC0003491",
-          branch: "Nanded City Destination Centre, Pune - 411041"
-        },
+        status: targetStatus,
         notes: formData.notes,
-        items: formData.items.map((it, idx) => ({
-          id: idx + 1,
-          product: it.product || `Product ${idx + 1}`,
-          desc: it.desc || it.product,
-          qty: Number(it.qty) || 1,
-          rate: Number(it.rate) || 0,
-          discount: Number(it.discount) || 0,
-          gst: Number(it.gst) || 18,
-          total: Math.max(0, ((Number(it.qty) || 1) * (Number(it.rate) || 0)) - (Number(it.discount) || 0))
-        })),
-        timeline: [
-          {
-            id: 1,
-            title: targetStatus === 'Sent' ? 'Proforma Invoice Created & Sent' : 'Proforma Invoice Drafted',
-            detail: targetStatus === 'Sent' ? `Transmitted via Outlook email to ${formData.customerEmail}` : 'Draft created from linked Sales Order',
-            time: 'Just now',
-            user: 'Rahul Patil'
-          }
-        ]
-      };
+        items: formData.items
+      });
 
-      setProformaInvoices(prev => [newRecord, ...prev]);
-      onNotify(`Proforma Invoice ${newPiId} created successfully.`);
+      if (res.error) {
+        onNotify(res.error.message || 'Failed to create Proforma Invoice in database.', 'error');
+        return;
+      }
+
+      setIsCreateModalOpen(false);
+      onNotify(`Proforma Invoice ${newPiId} generated successfully.`);
+      await loadPIs();
     }
-
-    setIsCreateModalOpen(false);
   };
 
   const handleOpenDetail = (pi) => {
@@ -367,6 +329,47 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
     setPreviewDoc(pi);
     setIsPreviewOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Proforma Invoices" 
+          subtitle="Loading live proforma invoices from PostgreSQL..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching commercial proformas, advance payment milestones, and line items...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Proforma Invoices" 
+          subtitle="Commercial proformas, advance payment milestone billing, and Sales Order linkage"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve proforma invoices from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadPIs}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">

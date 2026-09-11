@@ -79,11 +79,11 @@ ON CONFLICT (shift_code) DO NOTHING;
 -- 7. EMPLOYEES SEED
 INSERT INTO public.employees (id, employee_code, first_name, last_name, email, phone, designation, department_id, current_status, avatar_color, skills) VALUES
 ('e0000000-0000-0000-0000-000000000101', 'GPS-EMP-101', 'Rahul', 'Patil', 'rahul.patil@gpspindles.com', '+91 98220 14921', 'Plant Head & Operations', 'd0000000-0000-0000-0000-000000000001', 'Working', '#7A1F3D', ARRAY['CNC Machining', 'Production Scheduling', 'Six Sigma']),
-('e0000000-0000-0000-0000-000000000102', 'Milind', 'Joshi', 'milind.joshi@gpspindles.com', '+91 98220 14922', 'Quality Assurance Lead', 'd0000000-0000-0000-0000-000000000003', 'Working', '#7A1F3D', ARRAY['Air Gauging', 'ISO 1940 Balancing', 'CMM Metrology']),
-('e0000000-0000-0000-0000-000000000103', 'Suresh', 'Sawant', 'suresh.sawant@gpspindles.com', '+91 98220 14923', 'Sr. Precision Grinder', 'd0000000-0000-0000-0000-000000000001', 'Working', '#7A1F3D', ARRAY['Studer S33 Grinding', 'Taper Journal Lapping', 'Sub-micron Runout']),
-('e0000000-0000-0000-0000-000000000104', 'Vikram', 'Shinde', 'vikram.shinde@gpspindles.com', '+91 98220 14924', 'Cleanroom Assembly Lead', 'd0000000-0000-0000-0000-000000000002', 'Working', '#7A1F3D', ARRAY['Ceramic Bearings', 'Preload Clamping', 'Class 1000 Cleanroom']),
-('e0000000-0000-0000-0000-000000000105', 'Dinesh', 'More', 'dinesh.more@gpspindles.com', '+91 98220 14925', 'Inventory & Stores Lead', 'd0000000-0000-0000-0000-000000000006', 'Available', '#7A1F3D', ARRAY['Warehouse ERP', 'Bin Kitting', 'FIFO Control']),
-('e0000000-0000-0000-0000-000000000106', 'Shreyas', 'Nair', 'shreyas.nair@gpspindles.com', '+91 98220 14926', 'Commercial & Sales Desk', 'd0000000-0000-0000-0000-000000000005', 'Available', '#7A1F3D', ARRAY['Quotation Costing', 'GST E-Way Bills', 'Client SLA Management'])
+('e0000000-0000-0000-0000-000000000102', 'GPS-EMP-102', 'Milind', 'Joshi', 'milind.joshi@gpspindles.com', '+91 98220 14922', 'Quality Assurance Lead', 'd0000000-0000-0000-0000-000000000003', 'Working', '#7A1F3D', ARRAY['Air Gauging', 'ISO 1940 Balancing', 'CMM Metrology']),
+('e0000000-0000-0000-0000-000000000103', 'GPS-EMP-103', 'Suresh', 'Sawant', 'suresh.sawant@gpspindles.com', '+91 98220 14923', 'Sr. Precision Grinder', 'd0000000-0000-0000-0000-000000000001', 'Working', '#7A1F3D', ARRAY['Studer S33 Grinding', 'Taper Journal Lapping', 'Sub-micron Runout']),
+('e0000000-0000-0000-0000-000000000104', 'GPS-EMP-104', 'Vikram', 'Shinde', 'vikram.shinde@gpspindles.com', '+91 98220 14924', 'Cleanroom Assembly Lead', 'd0000000-0000-0000-0000-000000000002', 'Working', '#7A1F3D', ARRAY['Ceramic Bearings', 'Preload Clamping', 'Class 1000 Cleanroom']),
+('e0000000-0000-0000-0000-000000000105', 'GPS-EMP-105', 'Dinesh', 'More', 'dinesh.more@gpspindles.com', '+91 98220 14925', 'Inventory & Stores Lead', 'd0000000-0000-0000-0000-000000000006', 'Available', '#7A1F3D', ARRAY['Warehouse ERP', 'Bin Kitting', 'FIFO Control']),
+('e0000000-0000-0000-0000-000000000106', 'GPS-EMP-106', 'Shreyas', 'Nair', 'shreyas.nair@gpspindles.com', '+91 98220 14926', 'Commercial & Sales Desk', 'd0000000-0000-0000-0000-000000000005', 'Available', '#7A1F3D', ARRAY['Quotation Costing', 'GST E-Way Bills', 'Client SLA Management'])
 ON CONFLICT (employee_code) DO NOTHING;
 
 -- 8. PRODUCTION BAYS SEED

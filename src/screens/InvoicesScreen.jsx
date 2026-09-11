@@ -1,21 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { INVOICES } from '../data/mockData';
+import { invoiceService } from '../services/database/invoiceService';
 import { 
   Search, FileText, DollarSign, Download, Printer, 
-  CheckCircle, Plus, AlertCircle, Mail, Eye 
+  CheckCircle, Plus, AlertCircle, Mail, Eye, RefreshCw 
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 
 export default function InvoicesScreen({ onNotify }) {
-  const [invoices, setInvoices] = useState(INVOICES);
+  const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [invoiceForEmail, setInvoiceForEmail] = useState(null);
+
+  const loadInvoices = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await invoiceService.getInvoices();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+    const data = res.data || [];
+    setInvoices(data);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadInvoices();
+  }, []);
 
   const handleOpenEmailForInvoice = (inv) => {
     setInvoiceForEmail(inv);
@@ -32,13 +52,56 @@ export default function InvoicesScreen({ onNotify }) {
     return matchesStatus && matchesSearch;
   });
 
-  const handleRecordPayment = (invId) => {
-    setInvoices(prev => prev.map(inv => inv.id === invId ? { ...inv, status: 'Paid', balance: '₹0', paidAmount: inv.amount } : inv));
-    if (selectedInvoice && selectedInvoice.id === invId) {
-      setSelectedInvoice(prev => ({ ...prev, status: 'Paid', balance: '₹0', paidAmount: prev.amount }));
+  const handleRecordPayment = async (invId) => {
+    const res = await invoiceService.recordInvoicePayment(invId);
+    if (res.error) {
+      onNotify(res.error.message || 'Failed to record payment in database.', 'error');
+      return;
     }
     onNotify(`Payment receipt recorded for ${invId}. Outstanding cleared.`);
+    await loadInvoices();
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Commercial Invoices & Payment Tracking" 
+          subtitle="Loading live tax invoices from PostgreSQL..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching commercial tax invoices, GST billing, and accounts receivables...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Commercial Invoices & Payment Tracking" 
+          subtitle="Tax invoices, GST billing (HSN 8466), and accounts receivables"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve tax invoices from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadInvoices}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">

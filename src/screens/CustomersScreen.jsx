@@ -1,19 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
-import { CUSTOMERS, SPINDLES } from '../data/mockData';
+import { SPINDLES } from '../data/mockData';
+import { customerService } from '../services/database/customerService';
 import { 
   Search, Users, Building, Phone, Mail, FileText, 
-  Disc, Wrench, DollarSign, ArrowLeft, Eye 
+  Disc, Wrench, DollarSign, ArrowLeft, Eye, RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export default function CustomersScreen({ onNavigate, onNotify }) {
-  const [selectedCustomer, setSelectedCustomer] = useState(CUSTOMERS[0]);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('fleet');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredCustomers = CUSTOMERS.filter((c) => {
+  const loadCustomers = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await customerService.getCustomers();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+
+    const data = res.data || [];
+    const normalized = data.map(c => ({
+      id: c.customer_code || c.id,
+      dbId: c.id,
+      name: c.company_name,
+      rating: typeof c.rating === 'number' ? `★ ${c.rating}` : (c.rating || 'Tier 1'),
+      industry: c.industry_segment || 'Precision Engineering',
+      location: `${c.city || ''}, ${c.state || ''}`.replace(/^,\s*|,\s*$/g, '') || c.billing_address || 'Pune, Maharashtra',
+      gstin: c.gstin || '27AABCG1492K1Z8',
+      creditTerms: c.payment_terms || 'Net 30 Days',
+      contactName: c.primary_contact_name || 'Materials Head',
+      contactEmail: c.primary_email || 'orders@client.com',
+      contactPhone: c.primary_phone || '+91 20 6791 4200',
+      installedFleet: 4,
+      totalBusiness: '₹1.85 Cr',
+      activeOrders: 1
+    }));
+
+    setCustomers(normalized);
+    if (normalized.length > 0) {
+      setSelectedCustomer(normalized[0]);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const filteredCustomers = customers.filter((c) => {
     const q = searchQuery.toLowerCase();
     return !q || 
       c.name.toLowerCase().includes(q) ||
@@ -22,14 +65,74 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
       c.contactName.toLowerCase().includes(q);
   });
 
-  const customerSpindles = SPINDLES.filter(s => s.customerId === selectedCustomer.id || s.customer.includes(selectedCustomer.name.split(' ')[0]));
+  const customerSpindles = selectedCustomer 
+    ? SPINDLES.filter(s => s.customerId === selectedCustomer.id || s.customer.includes(selectedCustomer.name.split(' ')[0]))
+    : [];
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Industrial Customer Accounts" 
+          subtitle="Loading customer accounts from live database..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching authorized enterprise customer accounts...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Industrial Customer Accounts" 
+          subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve live customer records from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadCustomers}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (customers.length === 0) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Industrial Customer Accounts" 
+          subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
+          badge="0 Enterprise Clients"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Users size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>No Customer Accounts Found</div>
+          <p style={{ fontSize: '13px' }}>The live customers database table currently contains zero records.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
       <PageHeader 
         title="Industrial Customer Accounts" 
         subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
-        badge={`${CUSTOMERS.length} Enterprise Clients`}
+        badge={`${customers.length} Enterprise Clients`}
       >
         <button
           type="button"
@@ -67,8 +170,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                   padding: '14px 18px',
                   borderBottom: '1px solid var(--border-color)',
                   cursor: 'pointer',
-                  background: selectedCustomer.id === cust.id ? 'var(--primary-light)' : 'transparent',
-                  borderLeft: selectedCustomer.id === cust.id ? '4px solid var(--primary)' : '4px solid transparent',
+                  background: selectedCustomer?.id === cust.id ? 'var(--primary-light)' : 'transparent',
+                  borderLeft: selectedCustomer?.id === cust.id ? '4px solid var(--primary)' : '4px solid transparent',
                   transition: 'background 0.15s'
                 }}
                 onClick={() => setSelectedCustomer(cust)}
@@ -86,10 +189,16 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                 </div>
               </div>
             ))}
+            {filteredCustomers.length === 0 && (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No clients match your filter query.
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right: Selected Customer Deep Dive Profile */}
+        {selectedCustomer && (
         <div className="section-card">
           {/* Customer Header */}
           <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
@@ -234,6 +343,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

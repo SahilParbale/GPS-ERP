@@ -1,25 +1,44 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Modal from '../components/common/Modal';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import {
-  MASTER_CONTACTS,
   INTERNAL_GPS_CCS,
   PRESET_EMAIL_GROUPS
 } from '../data/contactsData';
+import { contactService } from '../services/database/contactService';
 import {
   Search, Users, Mail, Phone, Building2, Copy, Check,
   Plus, Edit3, Trash2, Send, Download, Tag, CheckCircle2,
   FileText, ShieldCheck, Truck, Wrench, X, Filter, ExternalLink,
-  ChevronDown, Info, AtSign, Briefcase
+  ChevronDown, Info, AtSign, Briefcase, RefreshCw, AlertCircle
 } from 'lucide-react';
 
 export default function ContactsScreen({ onNavigate, onNotify }) {
-  const [contacts, setContacts] = useState(MASTER_CONTACTS);
+  const [contacts, setContacts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [deptFilter, setDeptFilter] = useState('All');
   const [copiedKey, setCopiedKey] = useState(null);
+
+  const loadContacts = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await contactService.getUnifiedDirectory();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+    setContacts(res.data || []);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadContacts();
+  }, []);
 
   // Email Composer State
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -304,6 +323,47 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
       onNotify(`Exported ${contacts.length} company email directories to CSV.`);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader
+          title="Contacts & Email Directory"
+          subtitle="Loading centralized contact directory from live database..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching client and supplier contacts from database...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader
+          title="Contacts & Email Directory"
+          subtitle="Centralized client & vendor email directory with systematically pre-stored CC groups"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve live contact records from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadContacts}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">

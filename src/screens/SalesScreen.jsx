@@ -1,18 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
-import { QUOTATIONS } from '../data/mockData';
+import { salesService } from '../services/database/salesService';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
-  MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail
+  MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import EmailActivityTable from '../components/email/EmailActivityTable';
-import { INITIAL_EMAIL_ACTIVITY } from '../services/emailService';
+import { INITIAL_EMAIL_ACTIVITY, fetchEmailActivityLive } from '../services/emailService';
 
 // Indian numbering format numbers to words converter
 export function numberToIndianWords(num) {
@@ -87,20 +87,60 @@ const DEFAULT_LINAMAR_TEMPLATE = {
 };
 
 export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotations' }) {
-  const [quotations, setQuotations] = useState(QUOTATIONS);
-  const [selectedQuote, setSelectedQuote] = useState(QUOTATIONS[0]);
+  const [quotations, setQuotations] = useState([]);
+  const [selectedQuote, setSelectedQuote] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  React.useEffect(() => {
+  const loadQuotations = async () => {
+    setIsLoading(true);
+    setError(null);
+    const res = await salesService.getQuotations();
+    if (res.error) {
+      setError(res.error);
+      setIsLoading(false);
+      return;
+    }
+    const data = res.data || [];
+    setQuotations(data);
+    setSelectedQuote(prev => {
+      if (prev) {
+        const match = data.find(q => q.id === prev.id);
+        if (match) return match;
+      }
+      return data[0] || null;
+    });
+    setIsLoading(false);
+  };
+
+  const [emailActivity, setEmailActivity] = useState([]);
+
+  const loadEmails = async () => {
+    try {
+      const res = await fetchEmailActivityLive();
+      if (res.data) {
+        setEmailActivity(res.data);
+      }
+    } catch (e) {
+      console.error('Failed to load live email activity:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadQuotations();
+    loadEmails();
+  }, []);
+
+  useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
 
   // Email state
-  const [emailActivity, setEmailActivity] = useState(INITIAL_EMAIL_ACTIVITY);
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [emailDoc, setEmailDoc] = useState(null);
 
@@ -121,11 +161,11 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
   };
 
   const handleEmailSent = (record) => {
-    setEmailActivity(prev => [record, ...prev]);
+    loadEmails();
   };
 
   const handleEmailSaveDraft = (draftRecord) => {
-    setEmailActivity(prev => [draftRecord, ...prev]);
+    loadEmails();
   };
 
   // New Quotation Form State matching the PDF invoice
@@ -153,12 +193,14 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     return matchesStatus && matchesSearch;
   });
 
-  const handleApproveQuote = (quoteId) => {
-    setQuotations(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'Approved' } : q));
-    if (selectedQuote.id === quoteId) {
-      setSelectedQuote(prev => ({ ...prev, status: 'Approved' }));
+  const handleApproveQuote = async (quoteId) => {
+    const res = await salesService.updateQuotationStatus(quoteId, 'Approved');
+    if (res.error) {
+      onNotify(res.error.message || 'Failed to approve quotation.', 'error');
+      return;
     }
     onNotify(`Quotation ${quoteId} marked as Approved. Ready for Work Order creation.`);
+    await loadQuotations();
   };
 
   // Add line item in modal
@@ -198,8 +240,8 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     onNotify('Loaded Linamar Kesslar estimate fields from PDF template');
   };
 
-  // Submit and create new quotation
-  const handleCreateQuotation = (e) => {
+  // Submit and create new quotation in live Supabase
+  const handleCreateQuotation = async (e) => {
     e.preventDefault();
 
     if (!formState.customer.trim()) {
@@ -207,52 +249,76 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
       return;
     }
 
-    const newQuote = {
-      id: formState.estimateNo || `QTN/2026-27/${Math.floor(290 + Math.random() * 50)}`,
-      estimateNo: formState.estimateNo,
-      date: formState.date,
-      placeOfSupply: formState.placeOfSupply,
-      customer: formState.customer,
+    const qNo = formState.estimateNo || `QTN/2026-27/${Math.floor(290 + Math.random() * 50)}`;
+    const res = await salesService.createQuotation({
+      quotationNumber: qNo,
+      customerName: formState.customer,
       customerAddress: formState.customerAddress,
-      contactPerson: formState.contactNo ? `Direct (${formState.contactNo})` : 'Authorized Representative',
-      contactNo: formState.contactNo,
-      gstin: formState.gstin,
-      state: formState.state,
+      customerGstin: formState.gstin,
+      placeOfSupply: formState.placeOfSupply,
       spindleSerial: formState.spindleSerial,
-      challanNo: formState.challanNo,
-      inwardDate: formState.inwardDate,
-      scopeOfWork: formState.scopeOfWork.split('\n').filter(Boolean),
-      status: 'Under Review',
+      scopeOfWork: formState.scopeOfWork,
       subtotal: formCalculations.subtotal,
-      taxRate: formState.taxRate,
-      gstAmount: formCalculations.taxAmount,
       totalAmount: formCalculations.totalAmount,
-      amountInWords: formCalculations.amountInWords,
-      validUntil: '30 Days from Issue',
-      items: formState.items.map(it => ({
-        id: it.id,
-        name: it.name,
-        desc: it.name,
-        hsn: it.hsn,
-        qty: Number(it.qty || 1),
-        unitPrice: Number(it.unitPrice || 0),
-        total: Number(it.qty || 1) * Number(it.unitPrice || 0)
-      })),
-      hsnSummary: [
-        { hsn: "84669390", taxable: formCalculations.subtotal, rate: "18%", igst: formCalculations.taxAmount, totalTax: formCalculations.taxAmount }
-      ],
-      terms: formState.terms
-    };
+      status: 'Sent',
+      terms: formState.terms,
+      items: formState.items
+    });
 
-    setQuotations(prev => [newQuote, ...prev]);
-    setSelectedQuote(newQuote);
+    if (res.error) {
+      onNotify(res.error.message || 'Failed to create quotation in database.', 'error');
+      return;
+    }
+
     setIsNewQuoteOpen(false);
-    onNotify(`Estimate ${newQuote.id} created successfully for ${newQuote.customer}`);
+    onNotify(`Estimate ${qNo} created successfully for ${formState.customer}`);
+    await loadQuotations();
   };
 
   const handlePrint = () => {
     window.print();
   };
+
+  if (isLoading) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Sales Enquiries, Quotations & Commercial Orders" 
+          subtitle="Loading live quotations from PostgreSQL..."
+          badge="Live Supabase"
+        />
+        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
+          <div>Fetching registered customer quotations, scope of work, and pricing...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="Sales Enquiries, Quotations & Commercial Orders" 
+          subtitle="Customer precision spindle proposals, GST calculations, and line items"
+          badge="Database Notice"
+        />
+        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+            {error.message || 'Unable to retrieve commercial quotations from PostgreSQL database.'}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={loadQuotations}>
+            <RefreshCw size={14} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-area">
