@@ -12,7 +12,6 @@ import {
   QUOTATIONS, 
   INVOICES 
 } from '../../data/mockData';
-import DatabaseStatusIndicator from './DatabaseStatusIndicator';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/database/notificationService';
 import UserProfileModal from '../auth/UserProfileModal';
@@ -373,9 +372,6 @@ export default function Header({
           <Factory size={13} color="#7A1F3D" />
           <span>Nanded City Unit 1</span>
         </div>
-
-        {/* Supabase Database Connection Indicator */}
-        <DatabaseStatusIndicator />
 
         {/* Quick Action Button */}
         <button 
