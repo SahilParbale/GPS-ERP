@@ -4,6 +4,7 @@ import Header from './components/common/Header';
 import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
 import AccessDenied from './components/common/AccessDenied';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Auth Integration
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -395,7 +396,9 @@ function AppContent() {
         />
 
         {/* Dynamic Screen View */}
-        {renderScreen()}
+        <ErrorBoundary key={currentScreen}>
+          {renderScreen()}
+        </ErrorBoundary>
       </div>
 
       {/* Toast Notification Container */}

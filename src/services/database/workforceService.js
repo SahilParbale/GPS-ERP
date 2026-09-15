@@ -24,11 +24,11 @@ export const workforceService = {
         avatar_color,
         skills,
         qualifications,
-        hire_date,
+        date_of_joining,
         is_active,
-        department:departments(id, code, name),
-        role:roles(id, code, name),
-        shift:shifts(id, shift_code, name, start_time, end_time)
+        department:departments!employees_department_id_fkey(id, code, name),
+        role:roles!employees_role_id_fkey(id, code, name),
+        shift:shifts!employees_current_shift_id_fkey(id, shift_code, name, start_time, end_time)
       `,
       orderBy: options.orderBy || 'employee_code',
       ascending: options.ascending ?? true,
@@ -81,10 +81,10 @@ export const workforceService = {
     const res = await baseService.select('employees', {
       select: `
         id, employee_code, first_name, last_name, email, phone, designation,
-        current_status, avatar_color, skills, qualifications, hire_date, is_active,
-        department:departments(id, code, name),
-        role:roles(id, code, name),
-        shift:shifts(id, shift_code, name)
+        current_status, avatar_color, skills, qualifications, date_of_joining, is_active,
+        department:departments!employees_department_id_fkey(id, code, name),
+        role:roles!employees_role_id_fkey(id, code, name),
+        shift:shifts!employees_current_shift_id_fkey(id, shift_code, name)
       `,
       eq: filter
     });

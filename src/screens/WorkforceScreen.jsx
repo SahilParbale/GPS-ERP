@@ -72,61 +72,66 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   const loadWorkforceData = async () => {
     setIsLoadingStaff(true);
     setStaffError(null);
-    const [staffRes, logsRes, baysRes, wosRes, attendanceRes, leavesRes] = await Promise.all([
-      workforceService.getStaffList(),
-      workforceService.getWorkLogs(),
-      manufacturingService.getBayAssignments(),
-      workOrderService.getWorkOrders(),
-      workforceService.getAttendance(),
-      leaveService.getLeaveRequests()
-    ]);
+    try {
+      const [staffRes, logsRes, baysRes, wosRes, attendanceRes, leavesRes] = await Promise.all([
+        workforceService.getStaffList().catch(err => ({ error: err })),
+        workforceService.getWorkLogs().catch(err => ({ error: err })),
+        manufacturingService.getBayAssignments().catch(err => ({ error: err })),
+        workOrderService.getWorkOrders().catch(err => ({ error: err })),
+        workforceService.getAttendance().catch(err => ({ error: err })),
+        leaveService.getLeaveRequests().catch(err => ({ error: err }))
+      ]);
 
-    if (staffRes.error) {
-      setStaffError(staffRes.error);
+      if (staffRes?.error) {
+        console.warn('[WorkforceScreen] Error fetching staff from Supabase:', staffRes.error);
+        setStaffError(staffRes.error);
+      }
+
+      const liveData = staffRes?.data || [];
+      const sourceData = liveData.length > 0 ? liveData : INITIAL_WORKFORCE_STAFF;
+      const mergedStaff = sourceData.map((emp, idx) => {
+        const mock = INITIAL_WORKFORCE_STAFF.find(s => s.id === emp.id) || INITIAL_WORKFORCE_STAFF[idx % INITIAL_WORKFORCE_STAFF.length] || {};
+        return {
+          ...mock,
+          ...emp,
+          id: emp.id || mock.id,
+          name: emp.name || mock.name || 'Technician',
+          initials: emp.initials || mock.initials || 'GP',
+          department: emp.department || mock.department || 'Production Machining',
+          designation: emp.designation || mock.designation || 'Specialist',
+          role: emp.role || mock.role || 'CNC Operator',
+          shift: emp.shift || mock.shift || 'First Shift',
+          status: emp.status || mock.status || 'Working',
+          avatarColor: emp.avatarColor || mock.avatarColor || '#7A1F3D',
+          skills: emp.skills || mock.skills || ['Machining'],
+          qualifications: emp.qualifications || mock.qualifications || []
+        };
+      });
+
+      setStaffList(mergedStaff);
+      if (logsRes?.data) setWorkLogs(logsRes.data);
+      if (baysRes?.data) setBayAllocations(baysRes.data);
+      if (wosRes?.data) setAvailableWorkOrders(wosRes.data);
+
+      if (attendanceRes?.error) {
+        setAttendanceError(attendanceRes.error);
+      } else if (attendanceRes?.data) {
+        setAttendanceRecords(attendanceRes.data);
+        setAttendanceError(null);
+      }
+
+      if (leavesRes?.error) {
+        setLeavesError(leavesRes.error);
+      } else if (leavesRes?.data) {
+        setLeaveRequests(leavesRes.data);
+        setLeavesError(null);
+      }
+    } catch (err) {
+      console.error('[WorkforceScreen] Critical error loading workforce data:', err);
+      setStaffList(INITIAL_WORKFORCE_STAFF);
+    } finally {
       setIsLoadingStaff(false);
-      return;
     }
-
-    const liveData = staffRes.data || [];
-    const mergedStaff = liveData.map((emp, idx) => {
-      const mock = INITIAL_WORKFORCE_STAFF.find(s => s.id === emp.id) || INITIAL_WORKFORCE_STAFF[idx % INITIAL_WORKFORCE_STAFF.length] || {};
-      return {
-        ...mock,
-        ...emp,
-        id: emp.id,
-        name: emp.name,
-        initials: emp.initials,
-        department: emp.department,
-        designation: emp.designation,
-        role: emp.role,
-        shift: emp.shift,
-        status: emp.status,
-        avatarColor: emp.avatarColor,
-        skills: emp.skills,
-        qualifications: emp.qualifications
-      };
-    });
-
-    setStaffList(mergedStaff);
-    if (logsRes.data) setWorkLogs(logsRes.data);
-    if (baysRes.data) setBayAllocations(baysRes.data);
-    if (wosRes.data) setAvailableWorkOrders(wosRes.data);
-
-    if (attendanceRes.error) {
-      setAttendanceError(attendanceRes.error);
-    } else if (attendanceRes.data) {
-      setAttendanceRecords(attendanceRes.data);
-      setAttendanceError(null);
-    }
-
-    if (leavesRes.error) {
-      setLeavesError(leavesRes.error);
-    } else if (leavesRes.data) {
-      setLeaveRequests(leavesRes.data);
-      setLeavesError(null);
-    }
-
-    setIsLoadingStaff(false);
   };
 
   useEffect(() => {
@@ -220,14 +225,16 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     const totalHoursStr = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
 
     const overdueCount = staffList.filter(s => (s.durationMinutes || 0) > 180 || s.status === 'Overtime').length;
+    const workingPercent = totalStaff > 0 ? Math.round((workingNow / totalStaff) * 100) : 0;
+    const completedPercent = tasksToday > 0 ? Math.round((completedToday / tasksToday) * 100) : 0;
 
     return [
       { id: 'total_employees', label: 'Total Employees', value: totalStaff.toString(), trend: 'Full Roster', isUp: true, icon: 'Users' },
-      { id: 'working_now', label: 'Working Now', value: workingNow.toString(), trend: `${Math.round((workingNow / totalStaff) * 100)}% on bays`, isUp: true, icon: 'Cpu' },
+      { id: 'working_now', label: 'Working Now', value: workingNow.toString(), trend: `${workingPercent}% on bays`, isUp: true, icon: 'Cpu' },
       { id: 'on_break', label: 'On Break', value: onBreak.toString(), trend: 'Shift tea rotation', isUp: true, icon: 'Clock' },
       { id: 'available', label: 'Available', value: available.toString(), trend: 'Ready to deploy', isUp: true, icon: 'CheckCircle2' },
       { id: 'tasks_today', label: 'Tasks Today', value: tasksToday.toString(), trend: '+8 vs target', isUp: true, icon: 'CheckSquare' },
-      { id: 'completed_today', label: 'Completed Today', value: completedToday.toString(), trend: `${Math.round((completedToday / Math.max(1, tasksToday)) * 100)}% completed`, isUp: true, icon: 'CheckCircle2' },
+      { id: 'completed_today', label: 'Completed Today', value: completedToday.toString(), trend: `${completedPercent}% completed`, isUp: true, icon: 'CheckCircle2' },
       { id: 'total_work_hours', label: 'Total Work Hours', value: totalHoursStr, trend: 'Plant shift sum', isUp: true, icon: 'Clock' },
       { id: 'overdue_tasks', label: 'Overdue Tasks', value: overdueCount.toString(), trend: 'Action required', alert: overdueCount > 0, isUp: false, icon: 'AlertTriangle' }
     ];
@@ -236,22 +243,31 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   // Filtered Workforce Staff Table
   const filteredStaff = useMemo(() => {
     return staffList.filter((emp) => {
-      const q = searchQuery.toLowerCase().trim();
+      const q = (searchQuery || '').toLowerCase().trim();
+      const empName = (emp.name || '').toLowerCase();
+      const empId = (emp.id || '').toString().toLowerCase();
+      const legacyId = (emp.legacyId || '').toLowerCase();
+      const workOrder = (emp.workOrder || '').toLowerCase();
+      const spindleSerial = (emp.spindleSerial || '').toLowerCase();
+      const currentTask = (emp.currentTask || '').toLowerCase();
+      const dept = (emp.department || '').toLowerCase();
+      const roleStr = (emp.role || '').toLowerCase();
+
       const matchesSearch = !q || (
-        emp.name.toLowerCase().includes(q) ||
-        emp.id.toLowerCase().includes(q) ||
-        (emp.legacyId && emp.legacyId.toLowerCase().includes(q)) ||
-        (emp.workOrder && emp.workOrder.toLowerCase().includes(q)) ||
-        (emp.spindleSerial && emp.spindleSerial.toLowerCase().includes(q)) ||
-        (emp.currentTask && emp.currentTask.toLowerCase().includes(q)) ||
-        (emp.department && emp.department.toLowerCase().includes(q)) ||
-        (emp.role && emp.role.toLowerCase().includes(q))
+        empName.includes(q) ||
+        empId.includes(q) ||
+        legacyId.includes(q) ||
+        workOrder.includes(q) ||
+        spindleSerial.includes(q) ||
+        currentTask.includes(q) ||
+        dept.includes(q) ||
+        roleStr.includes(q)
       );
 
-      const matchesDept = selectedDept === 'All' || emp.department.toLowerCase() === selectedDept.toLowerCase();
-      const matchesStatus = selectedStatus === 'All' || emp.status.toLowerCase() === selectedStatus.toLowerCase();
-      const matchesShift = selectedShift === 'All' || emp.shift.toLowerCase().includes(selectedShift.toLowerCase());
-      const matchesBay = selectedBay === 'All' || (emp.bay && emp.bay.toLowerCase().includes(selectedBay.toLowerCase()));
+      const matchesDept = selectedDept === 'All' || dept === selectedDept.toLowerCase();
+      const matchesStatus = selectedStatus === 'All' || (emp.status || '').toLowerCase() === selectedStatus.toLowerCase();
+      const matchesShift = selectedShift === 'All' || (emp.shift || '').toLowerCase().includes(selectedShift.toLowerCase());
+      const matchesBay = selectedBay === 'All' || ((emp.bay || '').toLowerCase().includes(selectedBay.toLowerCase()));
 
       return matchesSearch && matchesDept && matchesStatus && matchesShift && matchesBay;
     });
@@ -270,14 +286,15 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       if (logPeriodFilter === 'this_month' && log.period !== 'today' && log.period !== 'this_week' && log.period !== 'this_month') return false;
 
       // Search & Status filters
-      if (logStatusFilter !== 'All' && log.status.toLowerCase() !== logStatusFilter.toLowerCase()) return false;
+      const logStatus = (log.status || '').toLowerCase();
+      if (logStatusFilter !== 'All' && logStatus !== logStatusFilter.toLowerCase()) return false;
       if (logSearchQuery) {
-        const q = logSearchQuery.toLowerCase();
-        const matches = log.task.toLowerCase().includes(q) ||
-          log.workOrder.toLowerCase().includes(q) ||
-          log.spindle.toLowerCase().includes(q) ||
-          log.machine.toLowerCase().includes(q) ||
-          (log.remarks && log.remarks.toLowerCase().includes(q));
+        const q = logSearchQuery.toLowerCase().trim();
+        const matches = (log.task || '').toLowerCase().includes(q) ||
+          (log.workOrder || '').toLowerCase().includes(q) ||
+          (log.spindle || '').toLowerCase().includes(q) ||
+          (log.machine || '').toLowerCase().includes(q) ||
+          ((log.remarks || '').toLowerCase().includes(q));
         if (!matches) return false;
       }
 
@@ -1005,7 +1022,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
             {staffError.message || 'Unable to retrieve live workforce personnel records from PostgreSQL database.'}
           </p>
-          <button type="button" className="btn btn-secondary" onClick={loadStaff}>
+          <button type="button" className="btn btn-secondary" onClick={loadWorkforceData}>
             <RefreshCw size={14} />
             <span>Retry Connection</span>
           </button>
