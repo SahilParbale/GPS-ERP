@@ -116,7 +116,7 @@ function AppContent() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FAF5F6',
+          backgroundColor: '#FFFFFF',
           fontFamily: 'var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)'
         }}
       >

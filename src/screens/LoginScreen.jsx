@@ -130,7 +130,7 @@ export default function LoginScreen() {
         position: 'relative',
         overflowX: 'hidden',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        backgroundColor: '#F4F6FA'
+        backgroundColor: '#FFFFFF'
       }}
     >
       <style>{`
@@ -433,7 +433,7 @@ export default function LoginScreen() {
           position: 'relative',
           padding: 'clamp(12px, 1.5vh, 20px) 20px',
           boxSizing: 'border-box',
-          backgroundColor: '#F4F6FA',
+          backgroundColor: '#FFFFFF',
           overflowY: 'auto',
           minHeight: '100vh'
         }}

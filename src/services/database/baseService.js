@@ -1,4 +1,4 @@
-import { supabase, isConfigured } from '../supabase/supabaseClient';
+import { supabase, isConfigured } from '../supabase/supabaseClient.js';
 
 /**
  * Normalizes database errors and sanitizes PostgreSQL / Row Level Security errors.
