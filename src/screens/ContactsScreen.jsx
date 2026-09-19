@@ -7,6 +7,7 @@ import {
   PRESET_EMAIL_GROUPS
 } from '../data/contactsData';
 import { contactService } from '../services/database/contactService';
+import { useAuth } from '../context/AuthContext';
 import {
   Search, Users, Mail, Phone, Building2, Copy, Check,
   Plus, Edit3, Trash2, Send, Download, Tag, CheckCircle2,
@@ -15,8 +16,15 @@ import {
 } from 'lucide-react';
 
 export default function ContactsScreen({ onNavigate, onNotify }) {
+  const { role, profile } = useAuth();
+  const userRole = (profile?.role?.code || profile?.role || role?.code || role || '').toUpperCase();
+  const canMutateCustomer = ['ADMIN', 'MANAGEMENT', 'SALES'].includes(userRole);
+  const canMutateSupplier = ['ADMIN', 'MANAGEMENT', 'PURCHASE', 'STORES'].includes(userRole);
+  const canAddAny = canMutateCustomer || canMutateSupplier;
+
   const [contacts, setContacts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -177,106 +185,70 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
   };
 
   // Save Contact (Add or Edit)
-  const handleSaveContact = (e) => {
-    e.preventDefault();
+  // Save Contact (Add or Edit) via live contactService
+  const handleSaveContact = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
 
-    // Parse CC emails text
-    const ccEmails = contactForm.ccEmailsText
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && s.includes('@'));
-
-    const parsedCcList = ccEmails.map((email, idx) => {
-      let dept = 'General';
-      let label = 'Official CC';
-      if (email.includes('account') || email.includes('finance') || email.includes('bill')) {
-        dept = 'Accounts';
-        label = 'Accounts & Finance CC';
-      } else if (email.includes('plant') || email.includes('maint') || email.includes('mfg')) {
-        dept = 'Plant';
-        label = 'Plant Operations CC';
-      } else if (email.includes('qc') || email.includes('qual')) {
-        dept = 'Quality';
-        label = 'Quality Assurance CC';
-      } else if (email.includes('store') || email.includes('gate') || email.includes('dispatch')) {
-        dept = 'Stores';
-        label = 'Stores & Inward CC';
-      } else if (email.includes('purchase') || email.includes('sourc') || email.includes('procure')) {
-        dept = 'Procurement';
-        label = 'Purchase Desk CC';
-      } else if (email.includes('gps')) {
-        dept = 'Internal';
-        label = 'GPS Internal CC';
-      }
-
-      return {
-        id: `cc-${Date.now()}-${idx}`,
-        label,
-        email,
-        dept,
-        mandatoryFor: ['quotation', 'invoice']
-      };
-    });
-
-    if (editingContact) {
-      // Update
-      setContacts(prev => prev.map(c => {
-        if (c.id === editingContact.id) {
-          return {
-            ...c,
-            companyName: contactForm.companyName,
-            category: contactForm.category,
-            tier: contactForm.tier,
-            location: contactForm.location,
-            gstin: contactForm.gstin,
-            primaryContact: {
-              ...c.primaryContact,
-              name: contactForm.primaryName,
-              designation: contactForm.primaryRole,
-              department: contactForm.primaryDept,
-              email: contactForm.primaryEmail,
-              phone: contactForm.primaryPhone
-            },
-            ccList: parsedCcList,
-            notes: contactForm.notes
-          };
-        }
-        return c;
-      }));
-      if (onNotify) onNotify(`Updated contact details for ${contactForm.companyName}`);
-    } else {
-      // Add new
-      const newContact = {
-        id: `CNT-${Date.now().toString().slice(-4)}`,
-        companyId: `CUST-${Date.now().toString().slice(-3)}`,
-        companyName: contactForm.companyName,
-        category: contactForm.category,
-        tier: contactForm.tier,
-        location: contactForm.location,
-        gstin: contactForm.gstin,
-        primaryContact: {
-          name: contactForm.primaryName,
-          designation: contactForm.primaryRole,
-          department: contactForm.primaryDept,
-          email: contactForm.primaryEmail,
-          phone: contactForm.primaryPhone,
-          isPrimary: true
-        },
-        ccList: parsedCcList,
-        notes: contactForm.notes
-      };
-      setContacts(prev => [newContact, ...prev]);
-      if (onNotify) onNotify(`Added new contact: ${contactForm.companyName}`);
+    // Enforce role-based permission boundaries
+    if (contactForm.category === 'Customer' && !canMutateCustomer) {
+      if (onNotify) onNotify('Permission Denied: Your role does not have authorization to modify Customer contacts.');
+      return;
+    }
+    if (contactForm.category === 'Supplier' && !canMutateSupplier) {
+      if (onNotify) onNotify('Permission Denied: Your role does not have authorization to modify Supplier contacts.');
+      return;
     }
 
-    setIsContactModalOpen(false);
+    setIsSaving(true);
+    try {
+      const res = await contactService.saveUnifiedContact(contactForm, editingContact);
+      if (res.error) {
+        if (onNotify) onNotify(`Error saving contact: ${res.error}`);
+        setIsSaving(false);
+        return;
+      }
+
+      setIsContactModalOpen(false);
+      setIsSaving(false);
+      if (onNotify) {
+        onNotify(editingContact ? `Updated contact details for ${contactForm.companyName}` : `Added new contact: ${contactForm.companyName}`);
+      }
+      await loadContacts();
+    } catch (err) {
+      setIsSaving(false);
+      if (onNotify) onNotify(`Database operation error: ${err.message || 'Failed to save contact'}`);
+    }
   };
 
-  // Delete Contact
-  const handleDeleteContact = (contactId, companyName) => {
-    if (window.confirm(`Are you sure you want to remove ${companyName} from the email directory?`)) {
-      setContacts(prev => prev.filter(c => c.id !== contactId));
-      if (onNotify) onNotify(`Removed ${companyName} from contact directory.`);
+  // Delete / Deactivate Contact via live contactService
+  const handleDeleteContact = async (contact) => {
+    if (!contact) return;
+
+    if (contact.category === 'Customer' && !canMutateCustomer) {
+      if (onNotify) onNotify('Permission Denied: Your role does not have authorization to delete Customer contacts.');
+      return;
+    }
+    if (contact.category === 'Supplier' && !canMutateSupplier) {
+      if (onNotify) onNotify('Permission Denied: Your role does not have authorization to deactivate Supplier contacts.');
+      return;
+    }
+
+    const confirmMsg = contact.category === 'Supplier'
+      ? `Are you sure you want to deactivate ${contact.companyName} from the vendor directory?`
+      : `Are you sure you want to remove ${contact.companyName} from the contact directory?`;
+
+    if (window.confirm(confirmMsg)) {
+      try {
+        const res = await contactService.deleteUnifiedContact(contact);
+        if (res.error) {
+          if (onNotify) onNotify(`Error: ${res.error}`);
+          return;
+        }
+        if (onNotify) onNotify(`Removed ${contact.companyName} from directory.`);
+        await loadContacts();
+      } catch (err) {
+        if (onNotify) onNotify(`Database error: ${err.message || 'Failed to delete contact'}`);
+      }
     }
   };
 
@@ -393,7 +365,9 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
             type="button"
             className="btn btn-primary"
             onClick={handleOpenAddContact}
-            title="Register a new company with primary contact and CC emails"
+            disabled={!canAddAny}
+            title={!canAddAny ? 'Unauthorized: your role has view-only permissions' : 'Register a new company with primary contact and CC emails'}
+            style={!canAddAny ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
           >
             <Plus size={14} />
             <span>+ Add Contact & CCs</span>
@@ -664,8 +638,16 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                       type="button"
                       className="btn btn-secondary btn-sm btn-icon"
                       onClick={() => handleOpenEditContact(contact)}
-                      title="Edit contact & CC list"
-                      style={{ padding: '4px 8px' }}
+                      disabled={contact.category === 'Customer' ? !canMutateCustomer : !canMutateSupplier}
+                      title={
+                        (contact.category === 'Customer' && !canMutateCustomer) || (contact.category === 'Supplier' && !canMutateSupplier)
+                          ? 'Unauthorized: view-only permissions'
+                          : 'Edit contact & CC list'
+                      }
+                      style={{
+                        padding: '4px 8px',
+                        ...(((contact.category === 'Customer' && !canMutateCustomer) || (contact.category === 'Supplier' && !canMutateSupplier)) ? { opacity: 0.5, cursor: 'not-allowed' } : {})
+                      }}
                     >
                       <Edit3 size={13} />
                     </button>
@@ -673,9 +655,18 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm btn-icon"
-                      onClick={() => handleDeleteContact(contact.id, contact.companyName)}
-                      title="Remove from directory"
-                      style={{ padding: '4px 8px', color: '#dc2626' }}
+                      onClick={() => handleDeleteContact(contact)}
+                      disabled={contact.category === 'Customer' ? !canMutateCustomer : !canMutateSupplier}
+                      title={
+                        (contact.category === 'Customer' && !canMutateCustomer) || (contact.category === 'Supplier' && !canMutateSupplier)
+                          ? 'Unauthorized: view-only permissions'
+                          : 'Remove from directory'
+                      }
+                      style={{
+                        padding: '4px 8px',
+                        color: '#dc2626',
+                        ...(((contact.category === 'Customer' && !canMutateCustomer) || (contact.category === 'Supplier' && !canMutateSupplier)) ? { opacity: 0.5, cursor: 'not-allowed' } : {})
+                      }}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -829,6 +820,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsContactModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
@@ -836,9 +828,10 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
               type="button"
               className="btn btn-primary"
               onClick={handleSaveContact}
+              disabled={isSaving}
             >
-              <Check size={13} />
-              <span>{editingContact ? 'Save Changes' : 'Add to Directory'}</span>
+              {isSaving ? <RefreshCw size={13} className="spin-icon" /> : <Check size={13} />}
+              <span>{isSaving ? 'Saving...' : (editingContact ? 'Save Changes' : 'Add to Directory')}</span>
             </button>
           </>
         }

@@ -3,19 +3,43 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import { spindleModelService } from '../services/database/spindleModelService';
+import { customerService } from '../services/database/customerService';
+import { useAuth } from '../context/AuthContext';
 import { 
   Search, Filter, Plus, Eye, Wrench, Download, 
-  Disc, CheckCircle2, Shield, QrCode, RefreshCw, AlertCircle 
+  Disc, CheckCircle2, Shield, QrCode, RefreshCw, AlertCircle,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onNotify }) {
+  const { role, profile } = useAuth();
+  const userRole = (profile?.role?.code || profile?.role || role?.code || role || '').toUpperCase();
+  const canRegister = ['ADMIN', 'MANAGEMENT', 'PROD_MGR', 'QA_MGR', 'SERVICE'].includes(userRole);
+
   const [spindles, setSpindles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Registration Modal State
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [models, setModels] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [isLoadingMeta, setIsLoadingMeta] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState(null);
+  const [suggestedSerial, setSuggestedSerial] = useState('');
+  const [formData, setFormData] = useState({
+    serialNumber: '',
+    modelId: '',
+    customerId: '',
+    warrantyPeriod: 'Active (24 Months / 4,000h)',
+    status: 'In Production',
+    currentLocation: 'Pune Plant 1',
+    notes: ''
+  });
 
   const loadSpindles = async () => {
     setIsLoading(true);
@@ -33,6 +57,80 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
   useEffect(() => {
     loadSpindles();
   }, []);
+
+  const handleOpenRegister = async () => {
+    setIsRegisterOpen(true);
+    setRegisterError(null);
+    setIsLoadingMeta(true);
+
+    try {
+      const [modelsRes, custRes, nextSerial] = await Promise.all([
+        models.length > 0 ? Promise.resolve({ data: models }) : spindleModelService.getSpindleModels(),
+        customers.length > 0 ? Promise.resolve({ data: customers }) : customerService.getCustomers({ select: 'id, company_name, customer_code' }),
+        spindleModelService.getNextSuggestedSerial()
+      ]);
+
+      const loadedModels = modelsRes.data || [];
+      const loadedCustomers = custRes.data || [];
+      if (models.length === 0 && loadedModels.length > 0) setModels(loadedModels);
+      if (customers.length === 0 && loadedCustomers.length > 0) setCustomers(loadedCustomers);
+
+      setSuggestedSerial(nextSerial);
+      setFormData({
+        serialNumber: nextSerial,
+        modelId: loadedModels[0]?.id || '',
+        customerId: '',
+        warrantyPeriod: 'Active (24 Months / 4,000h)',
+        status: 'In Production',
+        currentLocation: 'Pune Plant 1',
+        notes: ''
+      });
+    } catch (err) {
+      console.warn('[GPS-ERP Spindles] Failed loading metadata for registration:', err);
+    } finally {
+      setIsLoadingMeta(false);
+    }
+  };
+
+  const handleRegisterSpindle = async (e) => {
+    if (e) e.preventDefault();
+    if (!formData.serialNumber.trim()) {
+      setRegisterError('Serial number is required.');
+      return;
+    }
+    if (!formData.modelId) {
+      setRegisterError('Please select a spindle engineering model.');
+      return;
+    }
+
+    setIsRegistering(true);
+    setRegisterError(null);
+
+    const payload = {
+      serial_number: formData.serialNumber.trim(),
+      model_id: formData.modelId,
+      customer_id: formData.customerId || null,
+      warranty_period: formData.warrantyPeriod,
+      status: formData.status,
+      current_location: formData.currentLocation,
+      notes: formData.notes
+    };
+
+    const res = await spindleModelService.registerSpindle(payload);
+
+    if (res.error) {
+      setRegisterError(res.error.message || res.error || 'Failed to register spindle');
+      setIsRegistering(false);
+      return;
+    }
+
+    setIsRegistering(false);
+    setIsRegisterOpen(false);
+    if (onNotify) {
+      onNotify(`Spindle ${res.data.serial_number} registered successfully into digital registry.`);
+    }
+    await loadSpindles();
+  };
 
   const filteredSpindles = spindles.filter((sp) => {
     const matchesType = typeFilter === 'all' || sp.type.toLowerCase().includes(typeFilter.toLowerCase());
@@ -105,7 +203,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
         <button 
           type="button" 
           className="btn btn-primary"
-          onClick={() => setIsRegisterOpen(true)}
+          onClick={handleOpenRegister}
+          title={canRegister ? "Register New Manufactured Spindle" : "Registration restricted to Production, QA, Service, or Admin"}
+          disabled={!canRegister}
         >
           <Plus size={14} />
           <span>Register Serial</span>
@@ -256,40 +356,238 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
       {/* Register Serial Modal */}
       <Modal
         isOpen={isRegisterOpen}
-        onClose={() => setIsRegisterOpen(false)}
+        onClose={() => !isRegistering && setIsRegisterOpen(false)}
         title="Register New Manufactured Spindle Serial"
         footer={
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => setIsRegisterOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={() => {
-              setIsRegisterOpen(false);
-              onNotify('Spindle registered into digital registry.');
-            }}>Save to Registry</button>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setIsRegisterOpen(false)}
+              disabled={isRegistering}
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary" 
+              onClick={handleRegisterSpindle}
+              disabled={isRegistering || !canRegister || !formData.serialNumber.trim() || !formData.modelId}
+            >
+              {isRegistering ? (
+                <>
+                  <RefreshCw size={14} className="spin-icon" />
+                  <span>Registering...</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={14} />
+                  <span>Save to Registry</span>
+                </>
+              )}
+            </button>
           </>
         }
       >
-        <div className="form-grid">
-          <div className="form-group">
-            <label className="form-label">Assigned Serial Number</label>
-            <input type="text" className="form-control mono" defaultValue="GPS-2026-0852" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Spindle Model</label>
-            <input type="text" className="form-control" defaultValue="GPS-HSK-A63-24K" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Commissioned Customer</label>
-            <input type="text" className="form-control" defaultValue="Tata Advanced Systems Ltd" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Warranty Period</label>
-            <select className="form-control">
-              <option>24 Months / 4,000 Hours</option>
-              <option>12 Months / 2,500 Hours</option>
-              <option>18 Months / 3,000 Hours</option>
-            </select>
-          </div>
-        </div>
+        <form onSubmit={handleRegisterSpindle} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {!canRegister && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '6px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#b91c1c',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <ShieldAlert size={16} />
+              <span>Permission Denied: Your current role ({userRole || 'VIEW_ONLY'}) cannot register spindles. Write authorization requires Production Manager (PROD_MGR), QA Manager, Service, or Administrator.</span>
+            </div>
+          )}
+
+          {registerError && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '6px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#b91c1c',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <AlertCircle size={16} />
+              <span>{registerError}</span>
+            </div>
+          )}
+
+          {isLoadingMeta ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <RefreshCw size={20} className="spin-icon" style={{ marginBottom: '8px', color: 'var(--primary)' }} />
+              <div>Loading engineering models and customer directory...</div>
+            </div>
+          ) : (
+            <>
+              <div className="form-grid">
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Assigned Serial Number *</span>
+                    {suggestedSerial && (
+                      <button
+                        type="button"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--primary)',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline'
+                        }}
+                        onClick={() => setFormData(p => ({ ...p, serialNumber: suggestedSerial }))}
+                      >
+                        Reset to Suggested ({suggestedSerial})
+                      </button>
+                    )}
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-control mono" 
+                    value={formData.serialNumber}
+                    onChange={(e) => setFormData(p => ({ ...p, serialNumber: e.target.value.toUpperCase() }))}
+                    placeholder="e.g. GPS-2026-0850"
+                    required
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    PostgreSQL UNIQUE(serial_number) constraint guarantees authoritative duplicate prevention.
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Spindle Engineering Model *</label>
+                  <select 
+                    className="form-control"
+                    value={formData.modelId}
+                    onChange={(e) => setFormData(p => ({ ...p, modelId: e.target.value }))}
+                    required
+                  >
+                    <option value="">-- Select Engineering Model --</option>
+                    {models.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.model_code} — {m.model_name} ({m.max_rpm ? (m.max_rpm / 1000).toFixed(0) : '24'}k RPM, {m.rated_power_kw} kW)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Technical Specifications preview card bound directly from spindle_models */}
+                {(() => {
+                  const selModel = models.find(m => m.id === formData.modelId);
+                  if (!selModel) return null;
+                  return (
+                    <div style={{
+                      gridColumn: 'span 2',
+                      padding: '10px 12px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      lineHeight: '1.5'
+                    }}>
+                      <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '4px' }}>
+                        Live Model Technical Specifications (Auto-bound from Engineering Master):
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '4px 8px', color: 'var(--text-secondary)' }}>
+                        <div><strong>Type:</strong> {selModel.spindle_type}</div>
+                        <div><strong>Max RPM:</strong> {selModel.max_rpm?.toLocaleString()} RPM</div>
+                        <div><strong>Power:</strong> {selModel.rated_power_kw} kW</div>
+                        <div><strong>Torque:</strong> {selModel.nominal_torque_nm} Nm</div>
+                        <div><strong>Taper:</strong> {selModel.taper_standard}</div>
+                        <div><strong>Bearings:</strong> {selModel.bearing_type}</div>
+                        <div><strong>Cooling:</strong> {selModel.cooling_type}</div>
+                        <div><strong>Lubrication:</strong> {selModel.lubrication_type}</div>
+                        <div><strong>Clamping Force:</strong> {selModel.clamping_retention_force_kn} kN</div>
+                        <div><strong>Runout Standard:</strong> {selModel.runout_taper_microns} µm</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Commissioned Customer / Client</label>
+                  <select 
+                    className="form-control"
+                    value={formData.customerId}
+                    onChange={(e) => setFormData(p => ({ ...p, customerId: e.target.value }))}
+                  >
+                    <option value="">-- Internal Stock / Unallocated --</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.company_name} ({c.customer_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Warranty Period</label>
+                  <select 
+                    className="form-control"
+                    value={formData.warrantyPeriod}
+                    onChange={(e) => setFormData(p => ({ ...p, warrantyPeriod: e.target.value }))}
+                  >
+                    <option value="Active (24 Months / 4,000h)">Active (24 Months / 4,000h)</option>
+                    <option value="Active (12 Months / 2,500h)">Active (12 Months / 2,500h)</option>
+                    <option value="Active (18 Months / 3,000h)">Active (18 Months / 3,000h)</option>
+                    <option value="Active (36 Months / 6,000h)">Active (36 Months / 6,000h)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Initial Operational Status</label>
+                  <select 
+                    className="form-control"
+                    value={formData.status}
+                    onChange={(e) => setFormData(p => ({ ...p, status: e.target.value }))}
+                  >
+                    <option value="In Production">In Production</option>
+                    <option value="Testing">Testing</option>
+                    <option value="QC Pending">QC Pending</option>
+                    <option value="QC Passed">QC Passed</option>
+                    <option value="Ready">Ready</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Manufacturing Plant / Facility</label>
+                  <select 
+                    className="form-control"
+                    value={formData.currentLocation}
+                    onChange={(e) => setFormData(p => ({ ...p, currentLocation: e.target.value }))}
+                  >
+                    <option value="Pune Plant 1">Pune Plant 1 (Precision Spindle Works)</option>
+                    <option value="Pune Plant 2">Pune Plant 2 (Heavy Machining)</option>
+                    <option value="Bangalore Service Hub">Bangalore Service Hub</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Production Batch & Engineering Notes</label>
+                  <textarea 
+                    className="form-control" 
+                    rows={2}
+                    value={formData.notes}
+                    onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Optional work order reference, production batch, or client engineering specs..."
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </form>
       </Modal>
     </div>
   );

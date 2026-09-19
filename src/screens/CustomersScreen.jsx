@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
-import { SPINDLES } from '../data/mockData';
 import { customerService } from '../services/database/customerService';
+import { contactService } from '../services/database/contactService';
+import { documentService } from '../services/database/documentService';
 import { 
-  Search, Users, Building, Phone, Mail, FileText, 
-  Disc, Wrench, DollarSign, ArrowLeft, Eye, RefreshCw, AlertCircle 
+  Search, Users, Phone, Mail, FileText, 
+  RefreshCw, AlertCircle, Download, CheckCircle2, Star
 } from 'lucide-react';
 
 export default function CustomersScreen({ onNavigate, onNotify }) {
@@ -17,44 +18,128 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
   const [activeTab, setActiveTab] = useState('fleet');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Live sub-data state for selected customer
+  const [subData, setSubData] = useState({
+    spindles: [],
+    workOrders: [],
+    serviceRequests: [],
+    documents: [],
+    contacts: []
+  });
+  const [isSubLoading, setIsSubLoading] = useState(false);
+  const [subError, setSubError] = useState(null);
+
+  const formatCurrency = (amount) => {
+    if (!amount || isNaN(amount) || amount <= 0) return '₹0.00';
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)} L`;
+    return `₹${Number(amount).toLocaleString('en-IN')}`;
+  };
+
   const loadCustomers = async () => {
     setIsLoading(true);
     setError(null);
-    const res = await customerService.getCustomers();
-    if (res.error) {
-      setError(res.error);
+    try {
+      const [res, metricsRes] = await Promise.all([
+        customerService.getCustomers(),
+        customerService.getAllCustomerMetrics()
+      ]);
+
+      if (res.error) {
+        setError(res.error);
+        setIsLoading(false);
+        return;
+      }
+
+      const metricsMap = metricsRes.data || new Map();
+      const data = res.data || [];
+
+      const normalized = data.map(c => {
+        const m = metricsMap.get(c.id) || {
+          installedFleet: 0,
+          workOrdersCount: 0,
+          activeOrders: 0,
+          totalInvoiced: 0,
+          outstandingBalance: 0
+        };
+
+        return {
+          id: c.customer_code || c.id,
+          dbId: c.id,
+          name: c.company_name,
+          rating: typeof c.rating === 'number' ? `★ ${c.rating}` : (c.rating || 'Tier 1'),
+          industry: c.industry_segment || 'Precision Engineering',
+          location: `${c.city || ''}, ${c.state || ''}`.replace(/^,\s*|,\s*$/g, '') || c.billing_address || 'Pune, Maharashtra',
+          gstin: c.gstin || 'N/A',
+          creditTerms: c.payment_terms || 'Net 30 Days',
+          contactName: c.primary_contact_name || 'Not Assigned',
+          contactEmail: c.primary_email || 'Not Assigned',
+          contactPhone: c.primary_phone || 'Not Assigned',
+          installedFleet: m.installedFleet,
+          workOrdersCount: m.workOrdersCount,
+          activeOrders: m.activeOrders,
+          totalBusinessNum: m.totalInvoiced,
+          totalBusiness: formatCurrency(m.totalInvoiced),
+          outstandingBalanceNum: m.outstandingBalance,
+          outstandingBalance: formatCurrency(m.outstandingBalance)
+        };
+      });
+
+      setCustomers(normalized);
+      if (normalized.length > 0) {
+        setSelectedCustomer(prev => {
+          if (!prev) return normalized[0];
+          return normalized.find(c => c.dbId === prev.dbId) || normalized[0];
+        });
+      }
+    } catch (err) {
+      setError({ message: err.message || 'Failed to load customer records' });
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const data = res.data || [];
-    const normalized = data.map(c => ({
-      id: c.customer_code || c.id,
-      dbId: c.id,
-      name: c.company_name,
-      rating: typeof c.rating === 'number' ? `★ ${c.rating}` : (c.rating || 'Tier 1'),
-      industry: c.industry_segment || 'Precision Engineering',
-      location: `${c.city || ''}, ${c.state || ''}`.replace(/^,\s*|,\s*$/g, '') || c.billing_address || 'Pune, Maharashtra',
-      gstin: c.gstin || '27AABCG1492K1Z8',
-      creditTerms: c.payment_terms || 'Net 30 Days',
-      contactName: c.primary_contact_name || 'Materials Head',
-      contactEmail: c.primary_email || 'orders@client.com',
-      contactPhone: c.primary_phone || '+91 20 6791 4200',
-      installedFleet: 4,
-      totalBusiness: '₹1.85 Cr',
-      activeOrders: 1
-    }));
-
-    setCustomers(normalized);
-    if (normalized.length > 0) {
-      setSelectedCustomer(normalized[0]);
-    }
-    setIsLoading(false);
   };
+
+  const loadCustomerSubData = useCallback(async (customerId) => {
+    if (!customerId) return;
+    setIsSubLoading(true);
+    setSubError(null);
+    try {
+      const [spindlesRes, workOrdersRes, serviceRes, docsRes, contactsRes] = await Promise.all([
+        customerService.getCustomerSpindles(customerId),
+        customerService.getCustomerWorkOrders(customerId),
+        customerService.getCustomerServiceRequests(customerId),
+        customerService.getCustomerDocuments(customerId),
+        contactService.getCustomerContacts(customerId)
+      ]);
+
+      if (spindlesRes.error || workOrdersRes.error || serviceRes.error || docsRes.error || contactsRes.error) {
+        const errMsg = spindlesRes.error || workOrdersRes.error || serviceRes.error || docsRes.error || contactsRes.error;
+        setSubError(errMsg);
+      }
+
+      setSubData({
+        spindles: spindlesRes.data || [],
+        workOrders: workOrdersRes.data || [],
+        serviceRequests: serviceRes.data || [],
+        documents: docsRes.data || [],
+        contacts: contactsRes.data || []
+      });
+    } catch (err) {
+      setSubError(err.message || 'Failed to load customer sub-data');
+    } finally {
+      setIsSubLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadCustomers();
   }, []);
+
+  useEffect(() => {
+    if (selectedCustomer?.dbId) {
+      loadCustomerSubData(selectedCustomer.dbId);
+    }
+  }, [selectedCustomer?.dbId, loadCustomerSubData]);
 
   const filteredCustomers = customers.filter((c) => {
     const q = searchQuery.toLowerCase();
@@ -65,9 +150,43 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
       c.contactName.toLowerCase().includes(q);
   });
 
-  const customerSpindles = selectedCustomer 
-    ? SPINDLES.filter(s => s.customerId === selectedCustomer.id || s.customer.includes(selectedCustomer.name.split(' ')[0]))
-    : [];
+  const handleDownloadDocument = async (doc) => {
+    try {
+      if (onNotify) onNotify(`Generating secure signed download for ${doc.file_name}...`);
+      const { data, error: urlErr } = await documentService.getSignedDocumentUrl(
+        doc.storage_bucket,
+        doc.storage_path,
+        3600
+      );
+
+      if (urlErr || !data?.signedUrl) {
+        if (onNotify) onNotify(`Download failed: ${urlErr?.message || 'Access restricted by RLS'}`, 'error');
+        return;
+      }
+
+      window.open(data.signedUrl, '_blank');
+      if (onNotify) onNotify(`Downloaded: ${doc.file_name}`, 'success');
+    } catch (err) {
+      if (onNotify) onNotify(`Download failed: ${err.message}`, 'error');
+    }
+  };
+
+  const handleSetPrimaryContact = async (contactId) => {
+    if (!selectedCustomer?.dbId || !contactId) return;
+    try {
+      if (onNotify) onNotify('Updating primary contact in database...');
+      const res = await contactService.setPrimaryContact(selectedCustomer.dbId, contactId);
+      if (res.error) {
+        if (onNotify) onNotify(`Failed: ${res.error}`, 'error');
+        return;
+      }
+      if (onNotify) onNotify('Primary contact updated successfully', 'success');
+      loadCustomerSubData(selectedCustomer.dbId);
+      loadCustomers();
+    } catch (err) {
+      if (onNotify) onNotify(`Error: ${err.message}`, 'error');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -165,13 +284,13 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {filteredCustomers.map((cust) => (
               <div 
-                key={cust.id}
+                key={cust.dbId || cust.id}
                 style={{
                   padding: '14px 18px',
                   borderBottom: '1px solid var(--border-color)',
                   cursor: 'pointer',
-                  background: selectedCustomer?.id === cust.id ? 'var(--primary-light)' : 'transparent',
-                  borderLeft: selectedCustomer?.id === cust.id ? '4px solid var(--primary)' : '4px solid transparent',
+                  background: selectedCustomer?.dbId === cust.dbId ? 'var(--primary-light)' : 'transparent',
+                  borderLeft: selectedCustomer?.dbId === cust.dbId ? '4px solid var(--primary)' : '4px solid transparent',
                   transition: 'background 0.15s'
                 }}
                 onClick={() => setSelectedCustomer(cust)}
@@ -214,9 +333,14 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Business Value</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Invoiced Business</div>
                 <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>{selectedCustomer.totalBusiness}</div>
                 <div style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Credit Terms: {selectedCustomer.creditTerms}</div>
+                {selectedCustomer.outstandingBalanceNum > 0 && (
+                  <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 600, marginTop: '2px' }}>
+                    Outstanding: {selectedCustomer.outstandingBalance}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -237,9 +361,9 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => onNavigate && onNavigate('contacts')}
+                onClick={() => setActiveTab('contacts')}
                 style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px' }}
-                title="View systematic CC email list for this customer"
+                title="View contacts and CC recipients for this customer"
               >
                 <span>View Stored CCs →</span>
               </button>
@@ -249,17 +373,39 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           {/* Sub-Tabs */}
           <Tabs 
             tabs={[
-              { id: 'fleet', label: 'Installed Spindle Fleet', count: customerSpindles.length },
-              { id: 'orders', label: 'Active Work Orders', count: selectedCustomer.activeOrders },
-              { id: 'service', label: 'Service Log' },
-              { id: 'documents', label: 'Contracts & GST Docs' },
+              { id: 'fleet', label: 'Installed Spindle Fleet', count: subData.spindles.length },
+              { id: 'orders', label: 'Work Orders', count: subData.workOrders.length },
+              { id: 'service', label: 'Service Log', count: subData.serviceRequests.length },
+              { id: 'documents', label: 'Contracts & GST Docs', count: subData.documents.length },
+              { id: 'contacts', label: 'Key Contacts & CCs', count: subData.contacts.length }
             ]}
             activeTab={activeTab}
             onChange={setActiveTab}
           />
 
+          {/* Sub-Tab Loading State */}
+          {isSubLoading && (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <RefreshCw size={20} className="spin-icon" style={{ marginBottom: '8px', color: 'var(--primary)' }} />
+              <div style={{ fontSize: '13px' }}>Loading customer records from live database...</div>
+            </div>
+          )}
+
+          {/* Sub-Tab Error State */}
+          {!isSubLoading && subError && (
+            <div style={{ padding: '24px', textAlign: 'center' }}>
+              <AlertCircle size={24} color="#dc2626" style={{ marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>Unable to load sub-tab data</div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{subError}</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadCustomerSubData(selectedCustomer.dbId)}>
+                <RefreshCw size={12} />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
           {/* Tab: Fleet */}
-          {activeTab === 'fleet' && (
+          {!isSubLoading && !subError && activeTab === 'fleet' && (
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -272,19 +418,24 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {customerSpindles.map((sp) => (
-                    <tr key={sp.serialNumber}>
-                      <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{sp.serialNumber}</td>
-                      <td>{sp.model}</td>
-                      <td className="mono">{sp.rpm} • {sp.power}</td>
-                      <td><StatusBadge status={sp.status} size="sm" /></td>
-                      <td style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>{sp.warranty}</td>
+                  {subData.spindles.map((sp) => (
+                    <tr key={sp.id || sp.serial_number}>
+                      <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{sp.serial_number}</td>
+                      <td>{sp.model?.model_name || sp.model_code || 'Precision Motorized Spindle'}</td>
+                      <td className="mono">
+                        {sp.max_rpm ? `${Number(sp.max_rpm).toLocaleString('en-IN')} RPM` : 'Standard'} 
+                        {sp.power_kw ? ` • ${sp.power_kw} kW` : ''}
+                      </td>
+                      <td><StatusBadge status={sp.status || 'Active'} size="sm" /></td>
+                      <td style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+                        {sp.warranty_period || '12 Months Standard'}
+                      </td>
                     </tr>
                   ))}
-                  {customerSpindles.length === 0 && (
+                  {subData.spindles.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                        Registered fleet records linked in Master Registry
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No installed spindles currently registered for this customer account in the Master Registry.
                       </td>
                     </tr>
                   )}
@@ -293,53 +444,211 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             </div>
           )}
 
-          {/* Tab: Active Orders */}
-          {activeTab === 'orders' && (
+          {/* Tab: Active Work Orders */}
+          {!isSubLoading && !subError && activeTab === 'orders' && (
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>WO-2026-104</div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>GPS-HSK-A63-24K Precision Motorized Spindle</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Stage: Bay 2 Studer Cylindrical Grinding</div>
+              {subData.workOrders.map((wo) => (
+                <div 
+                  key={wo.id || wo.work_order_no}
+                  style={{ 
+                    padding: '14px', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-md)', 
+                    background: 'var(--bg-surface-subtle)', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <div className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{wo.work_order_no}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>
+                      {wo.model?.model_name || wo.model?.model_code || (wo.spindle?.serial_number ? `Spindle: ${wo.spindle.serial_number}` : 'Precision Spindle Order')}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Stage: {wo.current_stage || 'Assembly'} {wo.bay?.name ? `• ${wo.bay.name}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <StatusBadge status={wo.status || 'In Progress'} />
+                    <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Target: {wo.target_delivery_date || 'Schedule Pending'}
+                    </div>
+                    {typeof wo.progress_percentage === 'number' && (
+                      <div className="mono" style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
+                        Progress: {wo.progress_percentage}%
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <StatusBadge status="In Progress" />
-                  <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Target: 05-Mar-2026</div>
+              ))}
+              {subData.workOrders.length === 0 && (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  No active or historical work orders found for this customer.
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {/* Tab: Service */}
-          {activeTab === 'service' && (
+          {/* Tab: Service Log */}
+          {!isSubLoading && !subError && activeTab === 'service' && (
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ padding: '14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div className="mono" style={{ fontWeight: 600, color: '#dc2626' }}>SR-2026-042</div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>Factory Rebuild & Dynamic Recalibration</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Front ceramic bearing pack replacement & taper grinding</div>
+              {subData.serviceRequests.map((sr) => (
+                <div 
+                  key={sr.id || sr.sr_number}
+                  style={{ 
+                    padding: '14px', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-md)', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <div className="mono" style={{ fontWeight: 600, color: '#dc2626' }}>{sr.sr_number}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>
+                      {sr.spindle_model || 'Spindle Overhaul'} {sr.serial_number ? `(S/N: ${sr.serial_number})` : ''}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {sr.failure_description || sr.reported_symptoms || 'Overhaul, dynamic balancing & runout recalibration'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Inward: {sr.inward_date || 'N/A'} • Priority: {sr.priority || 'Normal'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <StatusBadge status={sr.status || 'In Progress'} />
+                    {sr.jobs && sr.jobs.length > 0 && sr.jobs[0].total_service_cost && (
+                      <div className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>
+                        Cost: ₹{Number(sr.jobs[0].total_service_cost).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <StatusBadge status="In Progress" />
-              </div>
+              ))}
+              {subData.serviceRequests.length === 0 && (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  No service requests or spindle maintenance tickets found for this customer.
+                </div>
+              )}
             </div>
           )}
 
           {/* Tab: Documents */}
-          {activeTab === 'documents' && (
+          {!isSubLoading && !subError && activeTab === 'documents' && (
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { name: "Master Spindle Supply Agreement (FY 2025-27).pdf", size: "3.2 MB" },
-                { name: "Corporate GSTIN Registration Certificate.pdf", size: "820 KB" },
-                { name: "Approved Quality Assurance Plan (QAP).pdf", size: "1.6 MB" },
-              ].map((doc, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)' }}>
+              {subData.documents.map((doc) => (
+                <div 
+                  key={doc.id}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '12px 14px', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-md)', 
+                    background: 'var(--bg-surface-subtle)' 
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={18} color="#7A1F3D" />
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{doc.name}</span>
+                    <FileText size={20} color="#7A1F3D" />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{doc.title}</div>
+                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {doc.file_name} • {doc.file_size_bytes ? `${(doc.file_size_bytes / 1024).toFixed(1)} KB` : 'PDF'} • {doc.document_type || 'Document'}
+                      </div>
+                    </div>
                   </div>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNotify(`Downloading ${doc.name}`)}>Download</button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm" 
+                    onClick={() => handleDownloadDocument(doc)}
+                    title="Download document via secure signed URL"
+                  >
+                    <Download size={13} />
+                    <span>Download</span>
+                  </button>
                 </div>
               ))}
+              {subData.documents.length === 0 && (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  No technical drawings, contracts, or metrology certificates attached for this customer account.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab: Contacts */}
+          {!isSubLoading && !subError && activeTab === 'contacts' && (
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Contact Person</th>
+                    <th>Role / Department</th>
+                    <th>Email Address</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subData.contacts.map((cnt) => (
+                    <tr key={cnt.id}>
+                      <td>
+                        <strong>{cnt.name}</strong>
+                        {cnt.is_primary && (
+                          <span className="nav-badge" style={{ marginLeft: '8px', background: 'var(--primary)', color: '#fff', fontSize: '9px' }}>
+                            Primary
+                          </span>
+                        )}
+                        {cnt.is_default_cc && (
+                          <span className="nav-badge" style={{ marginLeft: '4px', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '9px' }}>
+                            Default CC
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div>{cnt.designation || 'Contact'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cnt.department || 'General'}</div>
+                      </td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{cnt.email}</td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{cnt.phone || '—'}</td>
+                      <td>
+                        {cnt.is_primary ? (
+                          <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Active Primary</span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Person</span>
+                        )}
+                      </td>
+                      <td>
+                        {!cnt.is_primary && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleSetPrimaryContact(cnt.id)}
+                            style={{ fontSize: '11px', padding: '2px 8px' }}
+                            title="Set as primary contact for this customer"
+                          >
+                            <Star size={11} />
+                            <span>Set Primary</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {subData.contacts.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No contact persons currently registered in the database for this customer account.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -348,3 +657,4 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
     </div>
   );
 }
+

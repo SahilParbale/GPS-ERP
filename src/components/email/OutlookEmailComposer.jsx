@@ -26,6 +26,8 @@ export default function OutlookEmailComposer({
   const [isMaximized, setIsMaximized] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  // Persistent inline error banner (cleared on next send attempt)
+  const [sendError, setSendError] = useState(null);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [previewDocModalOpen, setPreviewDocModalOpen] = useState(false);
@@ -68,6 +70,7 @@ export default function OutlookEmailComposer({
       setIsMinimized(false);
       setIsPreviewMode(false);
       setIsSending(false);
+      setSendError(null);  // clear any previous error when re-opening
       setHasUserEdited(false);
     }
   }, [isOpen, documentData, documentType]);
@@ -247,9 +250,11 @@ export default function OutlookEmailComposer({
     }
 
     setIsSending(true);
+    setSendError(null);  // clear previous error on every new attempt
 
     try {
       const docId = documentData?.id || documentData?.estimateNo || 'DOC-2026';
+      const docTypeLabel = documentType === 'invoice' ? 'Tax Invoice' : 'Quotation';
       const result = await sendEmail({
         from: fromAddress,
         to: finalRecipients,
@@ -258,24 +263,46 @@ export default function OutlookEmailComposer({
         body,
         attachments,
         documentId: docId,
-        documentType: documentType === 'invoice' ? 'Tax Invoice' : 'Quotation',
+        documentType: docTypeLabel,
         customer: documentData?.customer || 'Customer Organization',
         sentBy: 'Rahul Patil'
       });
 
       setIsSending(false);
-      
+
+      const successMsg = result.idempotent
+        ? `Email already delivered (idempotent). Document: ${docId}`
+        : `Email sent successfully — ${docId} → ${finalRecipients[0]}`;
+
       if (onNotify) {
-        onNotify(`Email sent successfully: ${docId} was sent to ${finalRecipients[0]}`);
+        onNotify(successMsg);
       }
 
       if (onSent) {
-        onSent(result.record);
+        // Build a lightweight activity record from the Edge Function response.
+        // Callers (SalesScreen, EmailActivityScreen) use this only to trigger
+        // a list refresh — they don't rely on specific record fields.
+        onSent({
+          id:             result.emailActivityId,
+          status:         result.status || 'Sent',
+          messageId:      result.messageId,
+          provider:       result.provider,
+          documentId:     docId,
+          documentType:   docTypeLabel,
+          customer:       documentData?.customer || 'Customer Organization',
+          recipient:      finalRecipients[0],
+          allRecipients:  finalRecipients,
+          cc:             ccRecipients,
+          subject,
+          attachmentsCount: attachments.length,
+        });
       }
 
       onClose();
     } catch (err) {
       setIsSending(false);
+      // Set persistent inline banner (toast may auto-dismiss)
+      setSendError(err.message || 'Failed to send email. Please try again.');
       if (onNotify) {
         onNotify(err.message || 'Failed to send email', 'error');
       }
@@ -908,6 +935,39 @@ export default function OutlookEmailComposer({
             )}
 
           </div>
+
+          {/* Persistent Send Error Banner — stays visible until next attempt */}
+          {sendError && (
+            <div style={{
+              margin: '0 18px 0',
+              padding: '10px 14px',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              flexShrink: 0
+            }}>
+              <AlertCircle size={16} color="#DC2626" style={{ marginTop: '1px', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#991B1B', marginBottom: '2px' }}>
+                  Email delivery failed
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#7F1D1D', lineHeight: 1.5 }}>
+                  {sendError}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSendError(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#991B1B', flexShrink: 0 }}
+                title="Dismiss"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
 
           {/* Bottom Toolbar */}
           <div style={{ 

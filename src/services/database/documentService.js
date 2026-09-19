@@ -1,6 +1,6 @@
-import { baseService } from './baseService';
-import { storageService } from '../storage/storageService';
-import { supabase } from '../supabase/supabaseClient';
+import { baseService } from './baseService.js';
+import { storageService } from '../storage/storageService.js';
+import { supabase } from '../supabase/supabaseClient.js';
 
 /**
  * Document Management Domain Service

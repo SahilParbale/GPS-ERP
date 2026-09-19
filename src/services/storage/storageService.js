@@ -1,4 +1,4 @@
-import { supabase, isConfigured } from '../supabase/supabaseClient';
+import { supabase, isConfigured } from '../supabase/supabaseClient.js';
 
 /**
  * Supabase Storage Service

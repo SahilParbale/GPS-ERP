@@ -1,5 +1,9 @@
 // Email Service - Connected to Supabase email_activity table for GPS Spindle ERP
+// NOTE: sendEmail() dispatches to the Supabase Edge Function 'send-email'.
+// The Edge Function owns all DB writes and SMTP/Resend delivery.
+// No provider credentials ever touch browser code.
 import { emailService as dbEmailService } from './database/emailService';
+import { supabase } from './supabase/supabaseClient';
 
 export const DEFAULT_SENDER = 'sales@gpsspindle.com';
 
@@ -532,83 +536,147 @@ export const INITIAL_EMAIL_ACTIVITY = [
 ];
 
 /**
- * Live Supabase-Backed Email Sending Abstraction
- * Records email transmission in public.email_activity table.
- * Accurately logs delivery status without exposing server secrets.
+ * Production email dispatch via Supabase Edge Function 'send-email'.
+ *
+ * This function NO LONGER writes delivery_status='Sent' directly to the DB.
+ * The Edge Function owns the full lifecycle:
+ *   begin_email_send RPC (advisory lock) → 'Queued'
+ *   → provider attempt → 'Sent' or 'Failed'
+ *
+ * Server-side secrets (SMTP credentials, Resend API key, service-role key)
+ * are accessed only inside the Edge Function via Deno.env and are NEVER
+ * present in browser bundles, VITE_* variables, audit logs, or responses.
+ *
+ * Error codes returned by the Edge Function:
+ *   EMAIL_PROVIDER_NOT_CONFIGURED  — no provider secrets configured
+ *   INVALID_RECIPIENT               — email address format invalid
+ *   VALIDATION_ERROR                — missing required field
+ *   PROVIDER_REJECTION              — provider API / SMTP error
+ *   EMAIL_SEND_FAILED               — send attempt failed
+ *   UNAUTHORIZED                    — auth / role failure
+ *   SERVER_ERROR                    — internal server error
  */
 export async function sendEmail({
   from = DEFAULT_SENDER,
   to = [],
   cc = [],
+  bcc = [],
   subject = '',
   body = '',
   attachments = [],
   documentId = '',
   documentType = 'Quotation',
   customer = '',
+  relatedCustomerId = null,
+  relatedSupplierId = null,
   sentBy = 'Rahul Patil'
 }) {
-  // Validation
+  // ── Client-side pre-validation (fast-fail before network call) ──────────────
   if (!to || to.length === 0) {
     throw new Error('At least one primary recipient (To) email address is required.');
   }
-
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const invalidEmails = to.filter(e => !emailRegex.test(e.trim()));
+  const invalidEmails = to.filter(e => !emailRegex.test(String(e).trim()));
   if (invalidEmails.length > 0) {
     throw new Error(`Invalid email address format: ${invalidEmails.join(', ')}`);
   }
+  if (Array.isArray(cc)) {
+    const invalidCc = cc.filter(e => !emailRegex.test(String(e).trim()));
+    if (invalidCc.length > 0) {
+      throw new Error(`Invalid CC address format: ${invalidCc.join(', ')}`);
+    }
+  }
+  if (!subject || !subject.trim()) {
+    throw new Error('Email subject is required.');
+  }
 
-  // Persist into Supabase email_activity table
-  const insertRes = await dbEmailService.logEmailActivity({
-    fromAddress: from,
-    toRecipients: to,
-    ccRecipients: cc,
-    subject,
-    bodyText: body,
-    documentType,
-    documentId: documentId || 'DOC-2026',
-    customerName: customer || 'Customer Organization',
-    attachmentsCount: attachments.length,
-    deliveryStatus: 'Sent',
-    sentByName: sentBy,
-    metadata: {
-      clientTimestamp: new Date().toISOString(),
-      attachments: (attachments || []).map(a => ({ name: a.name, size: a.size }))
+  // ── Idempotency key — unique per send attempt ───────────────────────────────
+  // crypto.randomUUID() is available in all modern browsers and Vite builds.
+  const idempotencyKey = crypto.randomUUID();
+
+  // ── Invoke Edge Function ────────────────────────────────────────────────────
+  // supabase.functions.invoke() automatically attaches the current user's JWT
+  // as Authorization: Bearer <token> — no manual session handling needed.
+  const { data, error } = await supabase.functions.invoke('send-email', {
+    body: {
+      idempotency_key:      idempotencyKey,
+      from:                 from || DEFAULT_SENDER,
+      to:                   to.map(e => String(e).trim()),
+      cc:                   (cc  || []).map(e => String(e).trim()),
+      bcc:                  (bcc || []).map(e => String(e).trim()),
+      subject:              subject.trim(),
+      body_text:            body || null,
+      document_type:        documentType || 'Quotation',
+      document_id:          documentId   || 'DOC',
+      customer_name:        customer     || null,
+      related_customer_id:  relatedCustomerId || null,
+      related_supplier_id:  relatedSupplierId || null,
+      // Attachment metadata only — binary content requires document_id
+      // resolution inside the Edge Function via authorized Storage access
+      attachments: (attachments || []).map(a => ({
+        name:        a.name,
+        size:        a.size,
+        document_id: a.docRef || a.document_id || null
+      })),
+      sent_by_name: sentBy
     }
   });
 
-  const recordId = insertRes.data?.id || `em-${Date.now()}`;
+  // ── Handle network / Supabase SDK error ─────────────────────────────────────
+  if (error) {
+    // The Supabase SDK wraps non-2xx Edge Function responses as errors.
+    // Attempt to parse the structured error body.
+    let errCode    = 'SERVER_ERROR';
+    let errMessage = 'Email delivery failed. Please try again.';
+    try {
+      const parsed = typeof error.message === 'string' ? JSON.parse(error.message) : error;
+      errCode    = parsed.error   || errCode;
+      errMessage = parsed.message || errMessage;
+    } catch {
+      // Non-JSON error message — use raw text
+      errMessage = String(error.message || errMessage).slice(0, 250);
+    }
+    const friendlyMessages = {
+      EMAIL_PROVIDER_NOT_CONFIGURED:
+        'Email provider not configured. Production delivery pending provider configuration. Contact your system administrator.',
+      INVALID_RECIPIENT:   errMessage,
+      VALIDATION_ERROR:    errMessage,
+      PROVIDER_REJECTION:  'Email delivery failed. Please retry.',
+      EMAIL_SEND_FAILED:   'Email delivery failed. Please retry.',
+      UNAUTHORIZED:        'You are not authorised to send emails from this system.',
+      SERVER_ERROR:        'A server error occurred. Please try again or contact support.'
+    };
+    const friendly = friendlyMessages[errCode] || errMessage;
+    const err = new Error(friendly);
+    err.code             = errCode;
+    err.emailActivityId  = data?.email_activity_id || null;
+    err.status           = data?.status || 'Failed';
+    throw err;
+  }
 
-  const newActivityRecord = {
-    id: recordId,
-    date: new Date().toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }),
-    documentId: documentId || 'DOC-2026',
-    documentType,
-    customer: customer || 'Customer Organization',
-    recipient: to[0],
-    allRecipients: to,
-    cc: cc || [],
-    subject: subject || 'No Subject',
-    status: 'Sent',
-    sentBy,
-    attachmentsCount: attachments.length,
-    attachmentName: attachments[0]?.name || 'Document.pdf',
-    bodySnippet: body ? body.slice(0, 100) + '...' : '',
-    fullBody: body,
-    attachments
-  };
+  // ── Handle application-level failure in a 200 response ──────────────────────
+  if (data && !data.success) {
+    const errCode   = data.error   || 'EMAIL_SEND_FAILED';
+    const errMsg    = data.message || 'Email delivery failed.';
+    const err = new Error(
+      errCode === 'EMAIL_PROVIDER_NOT_CONFIGURED'
+        ? 'Email provider not configured. Production delivery pending provider configuration.'
+        : errMsg
+    );
+    err.code            = errCode;
+    err.emailActivityId = data.email_activity_id || null;
+    err.status          = data.status || 'Failed';
+    throw err;
+  }
 
+  // ── Success ──────────────────────────────────────────────────────────────────
   return {
-    success: true,
-    messageId: `<gps-${Date.now()}@mail.gpsspindle.com>`,
-    record: newActivityRecord
+    success:        true,
+    idempotent:     data?.idempotent || false,
+    emailActivityId: data?.email_activity_id || null,
+    messageId:      data?.message_id || null,
+    status:         data?.status || 'Sent',
+    provider:       data?.provider || 'unknown'
   };
 }
 

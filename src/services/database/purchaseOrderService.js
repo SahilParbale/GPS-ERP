@@ -302,5 +302,313 @@ export const purchaseOrderService = {
     await baseService.update('purchase_requisitions', { id: requisitionId }, { status: 'PO Created' });
 
     return poRes;
+  },
+
+  /**
+   * Fetch active suppliers from live public.suppliers
+   */
+  async getActiveSuppliers() {
+    return await baseService.select('suppliers', {
+      select: 'id, supplier_code, name, contact_person, email, phone, gstin, address, is_active',
+      eq: { is_active: true },
+      orderBy: 'name',
+      ascending: true
+    });
+  },
+
+  /**
+   * Check for open Purchase Orders associated with a product to prevent accidental duplicates
+   */
+  async getOpenPOForProduct(productId) {
+    if (!productId) return { data: [], error: null };
+    try {
+      const { data, error } = await supabase
+        .from('purchase_order_items')
+        .select(`
+          id,
+          quantity,
+          product_id,
+          purchase_order:purchase_orders (
+            id,
+            po_number,
+            status,
+            order_date,
+            expected_delivery_date,
+            supplier_name
+          )
+        `)
+        .eq('product_id', productId);
+
+      if (error) return { data: [], error };
+      const openPOs = (data || [])
+        .filter(item => item.purchase_order && ['Draft', 'Sent', 'Approved', 'Partially Received'].includes(item.purchase_order.status))
+        .map(item => item.purchase_order);
+      return { data: openPOs, error: null };
+    } catch (err) {
+      return { data: [], error: err };
+    }
+  },
+
+  /**
+   * Generate sequential number for PO or PR
+   */
+  async getNextSequentialNumber(prefix, table = 'purchase_orders', column = 'po_number') {
+    try {
+      const currentYear = new Date().getFullYear();
+      const fullPrefix = `${prefix}-${currentYear}-`;
+      const { data, error } = await supabase
+        .from(table)
+        .select(column)
+        .like(column, `${fullPrefix}%`);
+
+      let maxNum = 100;
+      if (!error && data) {
+        for (const row of data) {
+          const val = row[column];
+          const match = val?.match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        }
+      }
+      return `${fullPrefix}${String(maxNum + 1).padStart(4, '0')}`;
+    } catch {
+      return `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+  },
+
+  /**
+   * Atomically raise a Purchase Order from Inventory demand
+   * Complete workflow: Inventory -> PR -> PR Item -> PO -> PO Item -> Audit Log
+   * Enforces stock invariance: public.stock is NEVER mutated.
+   */
+  async raisePurchaseOrderFromInventory(params) {
+    const {
+      productId,
+      supplierId,
+      quantity,
+      expectedDeliveryDate,
+      notes,
+      status = 'Approved',
+      priority = 'High',
+      paymentTerms = 'Net 30 Days from GRN inspection'
+    } = params;
+
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      return { data: null, error: { message: 'Order quantity must be greater than zero.' } };
+    }
+    if (!productId) {
+      return { data: null, error: { message: 'Product ID is required.' } };
+    }
+    if (!supplierId) {
+      return { data: null, error: { message: 'Supplier selection is required.' } };
+    }
+
+    // 1. Fetch live product
+    const { data: product, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .single();
+
+    if (prodErr || !product) {
+      return { data: null, error: { message: `Product not found: ${prodErr?.message || productId}` } };
+    }
+
+    // 2. Fetch live supplier
+    const { data: supplier, error: suppErr } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('id', supplierId)
+      .single();
+
+    if (suppErr || !supplier) {
+      return { data: null, error: { message: `Supplier not found: ${suppErr?.message || supplierId}` } };
+    }
+    if (supplier.is_active === false) {
+      return { data: null, error: { message: `Supplier ${supplier.name} is inactive.` } };
+    }
+
+    // 3. Dynamic GST and Financial Calculations based on live product schema
+    const unitCost = Number(product.unit_cost_inr || 0);
+    const gstRate = typeof product.gst_rate_percent === 'number' ? product.gst_rate_percent : 18.0;
+    const subtotal = Math.round(qty * unitCost);
+    const gstAmount = Math.round(subtotal * (gstRate / 100.0));
+    const totalAmount = subtotal + gstAmount;
+    const hsnCode = product.hsn_sac_code || '84669390';
+    const deliveryDate = expectedDeliveryDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
+
+    // Try atomic RPC first if available
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('raise_purchase_order_from_inventory', {
+        p_product_id: productId,
+        p_supplier_id: supplierId,
+        p_quantity: qty,
+        p_expected_delivery_date: deliveryDate,
+        p_notes: notes || null,
+        p_status: status,
+        p_priority: priority,
+        p_payment_terms: paymentTerms
+      });
+
+      if (!rpcErr && rpcData?.success) {
+        return { data: rpcData, error: null };
+      }
+    } catch {
+      // Fall through to transactional execution
+    }
+
+    // Transaction-safe execution with compensating rollback
+    let createdPr = null;
+    let createdPo = null;
+
+    try {
+      const prNumber = await this.getNextSequentialNumber('PR', 'purchase_requisitions', 'requisition_no');
+      const poNumber = await this.getNextSequentialNumber('PO', 'purchase_orders', 'po_number');
+
+      // Step A: Insert Purchase Requisition (Status: 'PO Created')
+      const prPayload = {
+        requisition_no: prNumber,
+        required_by_date: deliveryDate,
+        priority: priority,
+        status: 'PO Created',
+        notes: notes || `Requisition raised from Inventory for ${product.name}`
+      };
+
+      const { data: prRes, error: prErr } = await supabase
+        .from('purchase_requisitions')
+        .insert(prPayload)
+        .select()
+        .single();
+
+      if (prErr) throw prErr;
+      createdPr = prRes;
+
+      // Step B: Insert PR Item
+      const prItemPayload = {
+        requisition_id: createdPr.id,
+        product_id: product.id,
+        item_description: product.name,
+        quantity: qty,
+        estimated_rate: unitCost
+      };
+
+      const { error: prItemErr } = await supabase
+        .from('purchase_requisition_items')
+        .insert(prItemPayload);
+
+      if (prItemErr) throw prItemErr;
+
+      // Step C: Insert Purchase Order (linked to PR)
+      const poPayload = {
+        po_number: poNumber,
+        requisition_id: createdPr.id,
+        supplier_id: supplier.id,
+        supplier_name: supplier.name,
+        supplier_email: supplier.email || null,
+        supplier_contact: supplier.contact_person || null,
+        supplier_phone: supplier.phone || null,
+        supplier_gstin: supplier.gstin || null,
+        supplier_address: supplier.address || null,
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: deliveryDate,
+        payment_terms: paymentTerms,
+        billing_address: 'Plot B-12 Nanded City Industrial Complex, Pune - 411041',
+        shipping_address: 'Plot B-12 Nanded City Industrial Complex, Pune - 411041',
+        currency: 'INR',
+        subtotal: subtotal,
+        taxable_amount: subtotal,
+        cgst_amount: Math.round(gstAmount / 2),
+        sgst_amount: Math.round(gstAmount / 2),
+        igst_amount: 0,
+        total_amount: totalAmount,
+        status: status,
+        notes: notes || null
+      };
+
+      const { data: poRes, error: poErr } = await supabase
+        .from('purchase_orders')
+        .insert(poPayload)
+        .select()
+        .single();
+
+      if (poErr) throw poErr;
+      createdPo = poRes;
+
+      // Step D: Insert PO Item
+      const poItemPayload = {
+        purchase_order_id: createdPo.id,
+        product_id: product.id,
+        item_description: product.name,
+        hsn_code: hsnCode,
+        quantity: qty,
+        unit_price: unitCost,
+        discount: 0,
+        gst_percent: gstRate,
+        total_price: subtotal,
+        received_quantity: 0
+      };
+
+      const { data: poItemRes, error: poItemErr } = await supabase
+        .from('purchase_order_items')
+        .insert(poItemPayload)
+        .select()
+        .single();
+
+      if (poItemErr) throw poItemErr;
+
+      // Step E: Non-blocking Audit Logging
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('audit_logs').insert({
+          user_id: user?.id || null,
+          user_name: user?.user_metadata?.full_name || 'Procurement Lead',
+          user_email: user?.email || 'purchase.controller@gpspindles.com',
+          action: 'CREATE',
+          module: 'Procurement',
+          table_name: 'purchase_orders',
+          record_id: createdPo.id,
+          summary_message: `Raised Purchase Order ${createdPo.po_number} from Inventory for ${product.name}`,
+          new_values: {
+            po_id: createdPo.id,
+            po_number: createdPo.po_number,
+            pr_id: createdPr.id,
+            pr_number: createdPr.requisition_no,
+            product_id: product.id,
+            quantity: qty,
+            total_amount: totalAmount,
+            supplier_name: supplier.name
+          }
+        });
+      } catch {
+        // Non-blocking audit
+      }
+
+      return {
+        data: {
+          ...createdPo,
+          requisition: createdPr,
+          items: [poItemRes]
+        },
+        error: null
+      };
+    } catch (err) {
+      // Compensating Rollback: Clean up any created records if a subsequent step fails
+      if (createdPo?.id) {
+        await supabase.from('purchase_orders').delete().eq('id', createdPo.id);
+      }
+      if (createdPr?.id) {
+        await supabase.from('purchase_requisitions').delete().eq('id', createdPr.id);
+      }
+      return {
+        data: null,
+        error: {
+          code: err.code || 'PROCUREMENT_ERROR',
+          message: err.message || 'Failed to raise Purchase Order from inventory.'
+        }
+      };
+    }
   }
 };

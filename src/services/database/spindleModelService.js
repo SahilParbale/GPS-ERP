@@ -1,5 +1,5 @@
-import { baseService } from './baseService';
-import { supabase } from '../supabase/supabaseClient';
+import { baseService } from './baseService.js';
+import { supabase } from '../supabase/supabaseClient.js';
 
 /**
  * Spindle Model & Fleet Domain Service
@@ -254,6 +254,232 @@ export const spindleModelService = {
    */
   async updateSpindleStatus(id, status) {
     return await baseService.update('spindles', id, { status });
+  },
+
+  /**
+   * Log an event to public.audit_logs (Non-blocking)
+   */
+  async logSpindleAudit(event = {}) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const auditRecord = {
+        user_id: user.id,
+        user_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Manufacturing User',
+        user_email: user.email,
+        action: event.action || 'CREATE',
+        module: 'Manufacturing',
+        table_name: event.table_name || 'spindles',
+        record_id: String(event.record_id || ''),
+        summary_message: event.summary_message || 'Spindle registration event',
+        previous_values: event.previous_values || null,
+        new_values: event.new_values || null
+      };
+
+      await supabase.from('audit_logs').insert(auditRecord);
+    } catch (err) {
+      console.warn('[GPS-ERP Spindles] Audit logging non-blocking notice:', err.message);
+    }
+  },
+
+  /**
+   * Suggest next sequential serial number (Convenience helper only).
+   * PostgreSQL UNIQUE(serial_number) remains the authoritative duplicate protection.
+   */
+  async getNextSuggestedSerial() {
+    try {
+      const currentYear = new Date().getFullYear();
+      const prefix = `GPS-${currentYear}-`;
+      const { data, error } = await supabase
+        .from('spindles')
+        .select('serial_number')
+        .like('serial_number', `${prefix}%`);
+
+      if (error || !data || data.length === 0) {
+        return `${prefix}0850`;
+      }
+
+      let maxSeq = 840;
+      for (const row of data) {
+        const numPart = row.serial_number?.replace(prefix, '');
+        const num = parseInt(numPart, 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+
+      return `${prefix}${String(maxSeq + 1).padStart(4, '0')}`;
+    } catch {
+      return `GPS-${new Date().getFullYear()}-0850`;
+    }
+  },
+
+  /**
+   * Register a new manufactured spindle into public.spindles
+   * Uses live schema columns:
+   * - serial_number (UNIQUE NOT NULL)
+   * - model_id (FK to spindle_models)
+   * - customer_id (FK to customers)
+   * - technical specs mapped from spindle_models:
+   *   spindle_type, max_rpm, power_kw, torque_nm, taper_interface,
+   *   lubrication, bearings_spec, cooling_spec, clamping_force_measured_kn,
+   *   max_runout_measured_microns
+   */
+  async registerSpindle(spindleData) {
+    if (!spindleData.serial_number?.trim()) {
+      return { data: null, error: { message: 'Serial number is required' } };
+    }
+    if (!spindleData.model_id) {
+      return { data: null, error: { message: 'Spindle model selection is required' } };
+    }
+
+    const trimmedSerial = spindleData.serial_number.trim();
+
+    try {
+      // 1. Check duplicate serial number pre-validation
+      const { data: existing } = await supabase
+        .from('spindles')
+        .select('id, serial_number')
+        .eq('serial_number', trimmedSerial)
+        .maybeSingle();
+
+      if (existing) {
+        return {
+          data: null,
+          error: {
+            code: '23505',
+            message: `Spindle with serial number '${trimmedSerial}' is already registered.`
+          }
+        };
+      }
+
+      // 2. Fetch engineering model specifications from public.spindle_models
+      const { data: model, error: modelErr } = await supabase
+        .from('spindle_models')
+        .select('*')
+        .eq('id', spindleData.model_id)
+        .single();
+
+      if (modelErr || !model) {
+        return { data: null, error: { message: `Invalid spindle model ID: ${spindleData.model_id}` } };
+      }
+
+      // 3. Resolve customer details if customer_id provided
+      let customerName = spindleData.customer_name || null;
+      if (spindleData.customer_id) {
+        const { data: cust } = await supabase
+          .from('customers')
+          .select('id, company_name')
+          .eq('id', spindleData.customer_id)
+          .single();
+        if (cust?.company_name) {
+          customerName = cust.company_name;
+        }
+      }
+
+      // Valid statuses according to CHECK constraint on public.spindles
+      const VALID_STATUSES = [
+        'In Production', 'Testing', 'QC Passed', 'QC Pending',
+        'Ready', 'Dispatched', 'In Service', 'Under Maintenance', 'Decommissioned'
+      ];
+      const validStatus = VALID_STATUSES.includes(spindleData.status)
+        ? spindleData.status
+        : 'In Production';
+
+      // 4. Construct authoritative insert payload matching live schema
+      const insertPayload = {
+        serial_number: trimmedSerial,
+        model_id: model.id,
+        model_code: model.model_code,
+        customer_id: spindleData.customer_id || null,
+        customer_name: customerName,
+        spindle_type: model.spindle_type,
+        max_rpm: model.max_rpm,
+        power_kw: model.rated_power_kw,
+        torque_nm: model.nominal_torque_nm,
+        taper_interface: model.taper_standard,
+        lubrication: model.lubrication_type,
+        bearings_spec: model.bearing_type,
+        cooling_spec: model.cooling_type,
+        clamping_force_measured_kn: model.clamping_retention_force_kn,
+        max_runout_measured_microns: model.runout_taper_microns,
+        manufacturing_date: spindleData.manufacturing_date || new Date().toISOString().split('T')[0],
+        warranty_period: spindleData.warranty_period || 'Active (24 Months / 4,000h)',
+        status: validStatus,
+        current_stage: spindleData.current_stage || 'Machining',
+        current_location: spindleData.current_location || 'Pune Plant 1',
+        qr_code: `${trimmedSerial}-${model.model_code}`,
+        notes: spindleData.notes?.trim() || null
+      };
+
+      // 5. Insert into public.spindles
+      const { data, error } = await supabase
+        .from('spindles')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          return {
+            data: null,
+            error: {
+              code: '23505',
+              message: `Spindle with serial number '${trimmedSerial}' is already registered (PostgreSQL unique constraint violation).`
+            }
+          };
+        }
+        return { data: null, error };
+      }
+
+      // 6. Log audit event
+      await this.logSpindleAudit({
+        action: 'CREATE',
+        table_name: 'spindles',
+        record_id: data.id,
+        summary_message: `Registered new spindle ${trimmedSerial} (${model.model_code})`,
+        new_values: insertPayload
+      });
+
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Failed to register spindle' } };
+    }
+  },
+
+  /**
+   * Delete a spindle (Used for test cleanup / rollback)
+   */
+  async deleteSpindle(id) {
+    if (!id) return { data: null, error: 'Spindle ID is required' };
+
+    try {
+      const { data: current } = await supabase
+        .from('spindles')
+        .select('id, serial_number')
+        .eq('id', id)
+        .single();
+
+      const { error } = await supabase
+        .from('spindles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await this.logSpindleAudit({
+        action: 'DELETE',
+        table_name: 'spindles',
+        record_id: id,
+        summary_message: `Deleted spindle ${current?.serial_number || id}`,
+        previous_values: current
+      });
+
+      return { data: { success: true }, error: null };
+    } catch (err) {
+      return { data: null, error: err.message || 'Failed to delete spindle' };
+    }
   }
 };
 

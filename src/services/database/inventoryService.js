@@ -22,6 +22,8 @@ export const inventoryService = {
         min_reorder_level,
         safety_stock,
         unit_cost_inr,
+        gst_rate_percent,
+        preferred_supplier_id,
         is_active,
         category:product_categories(id, code, name),
         supplier:suppliers(id, supplier_code, name),
@@ -65,10 +67,12 @@ export const inventoryService = {
         unit: p.unit_of_measure || 'PCS',
         unitCost: unitCostFormatted,
         unitCostNum: Number(p.unit_cost_inr || 0),
+        gstRate: Number(p.gst_rate_percent || 18),
         location: stockRec.bin_location || 'General Stores',
         status: status,
         supplier: p.supplier?.name || 'Approved Vendor',
-        supplierId: p.supplier?.id,
+        supplierId: p.preferred_supplier_id || p.supplier?.id,
+        preferredSupplierId: p.preferred_supplier_id || p.supplier?.id,
         isActive: p.is_active
       };
     });
@@ -467,6 +471,175 @@ export const inventoryService = {
     }
 
     return { data: { movementNumber: movNumber, transactionNumber: txnNumber, newQuantity: targetQty, delta }, error: null };
+  },
+
+  /**
+   * Fetch complete Inventory Valuation with product and warehouse aggregations
+   * Authoritative Business Model:
+   * - Valuation Quantity: public.stock.quantity_on_hand
+   * - Authoritative Unit Cost: public.products.unit_cost_inr
+   * - Line Valuation: quantity_on_hand * unit_cost_inr
+   * - Warehouse Valuation: SUM(quantity_on_hand * unit_cost_inr)
+   * - Global Valuation: SUM(all stock line valuations)
+   * - Total Valued Products: COUNT(DISTINCT product_id)
+   * Read-only: causes ZERO mutations on stock, transactions, or movements.
+   */
+  async getInventoryValuation(_options = {}) {
+    try {
+      const { data, error } = await supabase
+        .from('stock')
+        .select(`
+          id,
+          product_id,
+          warehouse_id,
+          bin_location,
+          quantity_on_hand,
+          quantity_reserved,
+          quantity_available,
+          last_counted_date,
+          updated_at,
+          product:products (
+            id,
+            part_number,
+            sku,
+            name,
+            unit_of_measure,
+            unit_cost_inr,
+            gst_rate_percent,
+            category:product_categories (
+              id,
+              code,
+              name
+            )
+          ),
+          warehouse:warehouses (
+            id,
+            code,
+            name,
+            warehouse_type
+          )
+        `)
+        .order('quantity_on_hand', { ascending: false });
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      const rawRows = data || [];
+      let totalGlobalValue = 0;
+      let totalUnits = 0;
+      let totalReserved = 0;
+      let totalAvailable = 0;
+
+      const distinctProductIds = new Set();
+      const warehouseMap = new Map();
+
+      const valuationItems = rawRows.map(row => {
+        const prod = row.product || {};
+        const wh = row.warehouse || {};
+
+        const onHand = Number(row.quantity_on_hand || 0);
+        const reserved = Number(row.quantity_reserved || 0);
+        const available = Number(row.quantity_available ?? (onHand - reserved));
+        const unitCost = Number(prod.unit_cost_inr || 0);
+        const lineValuation = Math.round(onHand * unitCost * 100) / 100;
+
+        totalGlobalValue += lineValuation;
+        totalUnits += onHand;
+        totalReserved += reserved;
+        totalAvailable += available;
+
+        if (row.product_id) {
+          distinctProductIds.add(row.product_id);
+        }
+
+        // Aggregate by warehouse
+        const whId = row.warehouse_id || 'unknown';
+        if (!warehouseMap.has(whId)) {
+          warehouseMap.set(whId, {
+            warehouseId: whId,
+            name: wh.name || 'General Stores',
+            code: wh.code || 'WH',
+            warehouseType: wh.warehouse_type || 'General Stores',
+            totalUnits: 0,
+            totalValue: 0,
+            lineCount: 0,
+            distinctProducts: new Set()
+          });
+        }
+        const whAgg = warehouseMap.get(whId);
+        whAgg.totalUnits += onHand;
+        whAgg.totalValue += lineValuation;
+        whAgg.lineCount += 1;
+        if (row.product_id) {
+          whAgg.distinctProducts.add(row.product_id);
+        }
+
+        return {
+          id: row.id,
+          productId: row.product_id,
+          partNumber: prod.part_number || '',
+          sku: prod.sku || prod.part_number || 'MAT-GEN',
+          name: prod.name || 'Component',
+          category: prod.category?.name || 'General Inventory',
+          categoryId: prod.category?.id,
+          unitOfMeasure: prod.unit_of_measure || 'PCS',
+          warehouseId: row.warehouse_id,
+          warehouseName: wh.name || 'General Stores',
+          warehouseCode: wh.code || 'WH',
+          warehouseType: wh.warehouse_type || 'General Stores',
+          binLocation: row.bin_location || 'Stores',
+          quantityOnHand: onHand,
+          quantityReserved: reserved,
+          quantityAvailable: available,
+          unitCost: unitCost,
+          unitCostFormatted: `₹${unitCost.toLocaleString('en-IN')}`,
+          lineValuation: lineValuation,
+          lineValuationFormatted: `₹${lineValuation.toLocaleString('en-IN')}`,
+          lastCountedDate: row.last_counted_date || (row.updated_at ? row.updated_at.split('T')[0] : '2026-09-01'),
+          updatedAt: row.updated_at
+        };
+      });
+
+      // Round global total to 2 decimals
+      totalGlobalValue = Math.round(totalGlobalValue * 100) / 100;
+
+      // Transform warehouse summaries
+      const warehouseBreakdown = Array.from(warehouseMap.values()).map(w => ({
+        warehouseId: w.warehouseId,
+        name: w.name,
+        code: w.code,
+        warehouseType: w.warehouseType,
+        totalUnits: w.totalUnits,
+        totalValue: Math.round(w.totalValue * 100) / 100,
+        totalValueFormatted: `₹${Math.round(w.totalValue * 100 / 100).toLocaleString('en-IN')}`,
+        lineCount: w.lineCount,
+        productCount: w.distinctProducts.size
+      })).sort((a, b) => b.totalValue - a.totalValue);
+
+      const summary = {
+        totalInventoryValue: totalGlobalValue,
+        totalInventoryValueFormatted: `₹${totalGlobalValue.toLocaleString('en-IN')}`,
+        totalUnits: totalUnits,
+        totalReservedUnits: totalReserved,
+        totalAvailableUnits: totalAvailable,
+        totalStockLines: valuationItems.length,
+        totalValuedProducts: distinctProductIds.size,
+        totalWarehouses: warehouseBreakdown.length
+      };
+
+      return {
+        data: {
+          items: valuationItems,
+          warehouses: warehouseBreakdown,
+          summary: summary
+        },
+        error: null
+      };
+    } catch (err) {
+      console.error('[inventoryService] getInventoryValuation exception:', err);
+      return { data: null, error: err };
+    }
   },
 
   /**
