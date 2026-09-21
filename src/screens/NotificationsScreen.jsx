@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
+import CustomSelect from '../components/common/CustomSelect';
 import { 
   Bell, Check, CheckCheck, Trash2, Filter, AlertTriangle, 
   CheckCircle2, Info, AlertOctagon, RefreshCw, ExternalLink,
@@ -223,44 +224,44 @@ export default function NotificationsScreen({ onNavigate, onNotify }) {
       <div className="section-card">
         <div className="filter-bar" style={{ padding: '12px 20px' }}>
           <div className="filter-group" style={{ gap: '12px', flexWrap: 'wrap' }}>
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               style={{ minWidth: '160px' }}
-            >
-              <option value="ALL">All Alerts ({notifications.length})</option>
-              <option value="UNREAD">Unread Only ({unreadCount})</option>
-            </select>
+              options={[
+                { value: 'ALL', label: `All Alerts (${notifications.length})` },
+                { value: 'UNREAD', label: `Unread Only (${unreadCount})` }
+              ]}
+            />
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
               style={{ minWidth: '160px' }}
-            >
-              <option value="ALL">All Priorities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="URGENT">Urgent</option>
-              <option value="NORMAL">Normal</option>
-              <option value="LOW">Low</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Priorities' },
+                { value: 'CRITICAL', label: 'Critical' },
+                { value: 'URGENT', label: 'Urgent' },
+                { value: 'NORMAL', label: 'Normal' },
+                { value: 'LOW', label: 'Low' }
+              ]}
+            />
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={filterModule}
               onChange={(e) => setFilterModule(e.target.value)}
               style={{ minWidth: '180px' }}
-            >
-              <option value="ALL">All Modules</option>
-              <option value="Manufacturing">Manufacturing</option>
-              <option value="Commercial">Commercial</option>
-              <option value="Procurement">Procurement</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Quality">Quality</option>
-              <option value="Service">Service</option>
-              <option value="Workforce">Workforce</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Modules' },
+                { value: 'Manufacturing', label: 'Manufacturing' },
+                { value: 'Commercial', label: 'Commercial' },
+                { value: 'Procurement', label: 'Procurement' },
+                { value: 'Inventory', label: 'Inventory' },
+                { value: 'Quality', label: 'Quality' },
+                { value: 'Service', label: 'Service' },
+                { value: 'Workforce', label: 'Workforce' }
+              ]}
+            />
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

@@ -3,6 +3,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
+import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
@@ -378,17 +379,17 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                 />
               </div>
 
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                size="sm"
+                style={{ width: '150px' }}
               >
                 <option value="all">All Statuses ({quotations.length})</option>
                 <option value="under review">Under Review</option>
                 <option value="approved">Approved</option>
                 <option value="draft">Draft</option>
-              </select>
+              </CustomSelect>
             </div>
 
             {/* Scrollable Master List */}

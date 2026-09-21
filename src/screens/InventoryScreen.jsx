@@ -3,6 +3,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { inventoryService } from '../services/database/inventoryService';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
 import { useAuth } from '../context/AuthContext';
@@ -399,10 +400,10 @@ export default function InventoryScreen({ onNotify }) {
                 />
               </div>
 
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
+                style={{ width: '200px' }}
               >
                 <option value="all">All Material Categories</option>
                 <option value="alloy">Raw Alloy Steel</option>
@@ -411,7 +412,7 @@ export default function InventoryScreen({ onNotify }) {
                 <option value="motor">Motor Components</option>
                 <option value="electronics">Electronics & Sensors</option>
                 <option value="seals">Seals & Gaskets</option>
-              </select>
+              </CustomSelect>
             </div>
 
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -587,10 +588,10 @@ export default function InventoryScreen({ onNotify }) {
                     />
                   </div>
 
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
+                    style={{ width: '200px' }}
                   >
                     <option value="all">All Material Categories</option>
                     <option value="alloy">Raw Alloy Steel</option>
@@ -599,7 +600,7 @@ export default function InventoryScreen({ onNotify }) {
                     <option value="motor">Motor Components</option>
                     <option value="electronics">Electronics & Sensors</option>
                     <option value="seals">Seals & Gaskets</option>
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -822,22 +823,17 @@ export default function InventoryScreen({ onNotify }) {
 
               <div className="form-group">
                 <label className="form-label">Supplier Partner <span style={{ color: '#dc2626' }}>*</span></label>
-                <select 
-                  className="form-control" 
+                <CustomSelect 
                   value={poFormData.supplierId} 
                   onChange={e => setPoFormData(prev => ({ ...prev, supplierId: e.target.value }))}
                   disabled={isSubmitting || !canRaisePO}
-                >
-                  {suppliers.length === 0 ? (
-                    <option value="">Loading active suppliers...</option>
-                  ) : (
-                    suppliers.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.supplier_code || 'VENDOR'})
-                      </option>
-                    ))
-                  )}
-                </select>
+                  placeholder={suppliers.length === 0 ? "Loading active suppliers..." : "-- Select Supplier Partner --"}
+                  searchable={true}
+                  options={suppliers.map(s => ({
+                    value: s.id,
+                    label: `${s.name} (${s.supplier_code || 'VENDOR'})`
+                  }))}
+                />
               </div>
 
               <div className="form-group">

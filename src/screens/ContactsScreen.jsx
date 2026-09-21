@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import {
   INTERNAL_GPS_CCS,
@@ -501,11 +502,10 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
           {/* Department Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Dept / Function:</span>
-            <select
-              className="form-control"
+            <CustomSelect
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              style={{ height: '34px', fontSize: '12px', minWidth: '130px' }}
+              style={{ width: '210px' }}
             >
               <option value="All">All Departments</option>
               <option value="Procurement">Procurement & Sourcing</option>
@@ -513,7 +513,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
               <option value="Plant">Plant & Maintenance</option>
               <option value="Quality">Quality & Metrology</option>
               <option value="Stores">Stores & Inward Logistics</option>
-            </select>
+            </CustomSelect>
           </div>
 
           {(searchQuery || categoryFilter !== 'All' || deptFilter !== 'All') && (
@@ -854,15 +854,15 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
             {/* Category & Tier */}
             <div className="form-group">
               <label className="form-label">Category</label>
-              <select
-                className="form-control"
+              <CustomSelect
                 value={contactForm.category}
                 onChange={(e) => setContactForm(prev => ({ ...prev, category: e.target.value }))}
-              >
-                <option value="Customer">Customer / Client</option>
-                <option value="Supplier">Supplier / Vendor</option>
-                <option value="Partner">Technical Partner</option>
-              </select>
+                options={[
+                  { value: 'Customer', label: 'Customer / Client' },
+                  { value: 'Supplier', label: 'Supplier / Vendor' },
+                  { value: 'Partner', label: 'Technical Partner' }
+                ]}
+              />
             </div>
 
             <div className="form-group">

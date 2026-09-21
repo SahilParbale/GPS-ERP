@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { 
   FileText, Upload, Download, Search, Trash2, Eye, 
   RefreshCw, Filter, ShieldCheck, AlertCircle, CheckCircle2,
@@ -249,18 +250,18 @@ export default function DocumentsScreen({ onNotify }) {
               />
             </div>
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              style={{ minWidth: '190px' }}
-            >
-              <option value="ALL">All Categories ({documents.length})</option>
-              <option value="DRAWINGS">Engineering Drawings</option>
-              <option value="QUALITY">Metrology & QC Certificates</option>
-              <option value="INVOICES">Invoices & Commercial PDFs</option>
-              <option value="SERVICE">Service & Restoration Reports</option>
-            </select>
+              style={{ minWidth: '200px' }}
+              options={[
+                { value: 'ALL', label: `All Categories (${documents.length})` },
+                { value: 'DRAWINGS', label: 'Engineering Drawings' },
+                { value: 'QUALITY', label: 'Metrology & QC Certificates' },
+                { value: 'INVOICES', label: 'Invoices & Commercial PDFs' },
+                { value: 'SERVICE', label: 'Service & Restoration Reports' }
+              ]}
+            />
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -492,35 +493,35 @@ export default function DocumentsScreen({ onNotify }) {
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
                 Document Category *
               </label>
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={uploadCategory}
                 onChange={(e) => setUploadCategory(e.target.value)}
-              >
-                <option value="Engineering Drawing">Engineering Drawing (CAD / PDF)</option>
-                <option value="Metrology Cert">Metrology Cert (Quality)</option>
-                <option value="Invoice PDF">Invoice PDF (Commercial)</option>
-                <option value="PO Attachment">Purchase Order Attachment</option>
-                <option value="CAD STEP">CAD STEP 3D Model</option>
-                <option value="Service Report">Service Overhaul Report</option>
-              </select>
+                options={[
+                  { value: 'Engineering Drawing', label: 'Engineering Drawing (CAD / PDF)' },
+                  { value: 'Metrology Cert', label: 'Metrology Cert (Quality)' },
+                  { value: 'Invoice PDF', label: 'Invoice PDF (Commercial)' },
+                  { value: 'PO Attachment', label: 'Purchase Order Attachment' },
+                  { value: 'CAD STEP', label: 'CAD STEP 3D Model' },
+                  { value: 'Service Report', label: 'Service Overhaul Report' }
+                ]}
+              />
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
                 Reference Type
               </label>
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={referenceType}
                 onChange={(e) => setReferenceType(e.target.value)}
-              >
-                <option value="SPINDLE">Spindle Serial #</option>
-                <option value="WORK_ORDER">Work Order #</option>
-                <option value="INVOICE">Tax Invoice #</option>
-                <option value="PURCHASE_ORDER">Purchase Order #</option>
-                <option value="SERVICE_REQUEST">Service Request #</option>
-              </select>
+                options={[
+                  { value: 'SPINDLE', label: 'Spindle Serial #' },
+                  { value: 'WORK_ORDER', label: 'Work Order #' },
+                  { value: 'INVOICE', label: 'Tax Invoice #' },
+                  { value: 'PURCHASE_ORDER', label: 'Purchase Order #' },
+                  { value: 'SERVICE_REQUEST', label: 'Service Request #' }
+                ]}
+              />
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
@@ -456,18 +457,19 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               />
             </div>
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses ({purchaseOrders.length})</option>
-              <option value="draft">Draft</option>
-              <option value="approved">Approved</option>
-              <option value="sent">Sent</option>
-              <option value="received">Received</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+              style={{ minWidth: '170px' }}
+              options={[
+                { value: 'all', label: `All Statuses (${purchaseOrders.length})` },
+                { value: 'draft', label: 'Draft' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'sent', label: 'Sent' },
+                { value: 'received', label: 'Received' },
+                { value: 'cancelled', label: 'Cancelled' }
+              ]}
+            />
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { workOrderService } from '../services/database/workOrderService';
 import {
   INITIAL_WORKFORCE_KPIS,
@@ -1182,76 +1183,76 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         {/* Department Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Dept:</span>
-          <select
-            className="form-control"
+          <CustomSelect
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            style={{ height: '32px', fontSize: '12px', padding: '0 8px', minWidth: '110px' }}
-          >
-            <option value="All">All Departments</option>
-            <option value="Production">Production</option>
-            <option value="Assembly">Assembly</option>
-            <option value="Quality">Quality</option>
-            <option value="Balancing">Balancing</option>
-            <option value="Testing">Testing</option>
-            <option value="Service">Service</option>
-            <option value="Stores">Stores</option>
-          </select>
+            style={{ minWidth: '130px' }}
+            options={[
+              { value: 'All', label: 'All Departments' },
+              { value: 'Production', label: 'Production' },
+              { value: 'Assembly', label: 'Assembly' },
+              { value: 'Quality', label: 'Quality' },
+              { value: 'Balancing', label: 'Balancing' },
+              { value: 'Testing', label: 'Testing' },
+              { value: 'Service', label: 'Service' },
+              { value: 'Stores', label: 'Stores' }
+            ]}
+          />
         </div>
 
         {/* Status Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Status:</span>
-          <select
-            className="form-control"
+          <CustomSelect
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            style={{ height: '32px', fontSize: '12px', padding: '0 8px', minWidth: '100px' }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Working">Working</option>
-            <option value="Available">Available</option>
-            <option value="Break">Break</option>
-            <option value="Completed">Completed</option>
-            <option value="Idle">Idle</option>
-            <option value="Overtime">Overtime</option>
-          </select>
+            style={{ minWidth: '120px' }}
+            options={[
+              { value: 'All', label: 'All Statuses' },
+              { value: 'Working', label: 'Working' },
+              { value: 'Available', label: 'Available' },
+              { value: 'Break', label: 'Break' },
+              { value: 'Completed', label: 'Completed' },
+              { value: 'Idle', label: 'Idle' },
+              { value: 'Overtime', label: 'Overtime' }
+            ]}
+          />
         </div>
 
         {/* Shift Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Shift:</span>
-          <select
-            className="form-control"
+          <CustomSelect
             value={selectedShift}
             onChange={(e) => setSelectedShift(e.target.value)}
-            style={{ height: '32px', fontSize: '12px', padding: '0 8px', minWidth: '95px' }}
-          >
-            <option value="All">All Shifts</option>
-            <option value="First Shift">First Shift</option>
-            <option value="Second Shift">Second Shift</option>
-          </select>
+            style={{ minWidth: '115px' }}
+            options={[
+              { value: 'All', label: 'All Shifts' },
+              { value: 'First Shift', label: 'First Shift' },
+              { value: 'Second Shift', label: 'Second Shift' }
+            ]}
+          />
         </div>
 
         {/* Bay Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Bay:</span>
-          <select
-            className="form-control"
+          <CustomSelect
             value={selectedBay}
             onChange={(e) => setSelectedBay(e.target.value)}
-            style={{ height: '32px', fontSize: '12px', padding: '0 8px', minWidth: '95px' }}
-          >
-            <option value="All">All Bays</option>
-            <option value="Bay 1">Bay 1 (Machining)</option>
-            <option value="Bay 2">Bay 2 (Grinding)</option>
-            <option value="Bay 3">Bay 3 (Cleanroom)</option>
-            <option value="Bay 4">Bay 4 (Balancing)</option>
-            <option value="Bay 5">Bay 5 (Testing)</option>
-            <option value="Bay 6">Bay 6 (Metrology)</option>
-            <option value="Bay 7">Bay 7 (Packaging)</option>
-            <option value="Service Bay">Service Bay</option>
-          </select>
+            style={{ minWidth: '130px' }}
+            options={[
+              { value: 'All', label: 'All Bays' },
+              { value: 'Bay 1', label: 'Bay 1 (Machining)' },
+              { value: 'Bay 2', label: 'Bay 2 (Grinding)' },
+              { value: 'Bay 3', label: 'Bay 3 (Cleanroom)' },
+              { value: 'Bay 4', label: 'Bay 4 (Balancing)' },
+              { value: 'Bay 5', label: 'Bay 5 (Testing)' },
+              { value: 'Bay 6', label: 'Bay 6 (Metrology)' },
+              { value: 'Bay 7', label: 'Bay 7 (Packaging)' },
+              { value: 'Service Bay', label: 'Service Bay' }
+            ]}
+          />
         </div>
 
         {hasActiveFilters && (
@@ -2661,17 +2662,17 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     />
                   </div>
 
-                  <select
-                    className="form-control"
+                  <CustomSelect
                     value={logStatusFilter}
                     onChange={(e) => setLogStatusFilter(e.target.value)}
-                    style={{ height: '28px', fontSize: '11.5px', width: '120px' }}
-                  >
-                    <option value="All">All Status</option>
-                    <option value="Completed">Completed</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Paused">Paused</option>
-                  </select>
+                    style={{ width: '130px' }}
+                    options={[
+                      { value: 'All', label: 'All Status' },
+                      { value: 'Completed', label: 'Completed' },
+                      { value: 'In Progress', label: 'In Progress' },
+                      { value: 'Paused', label: 'Paused' }
+                    ]}
+                  />
                 </div>
 
                 {/* Work Log Table */}

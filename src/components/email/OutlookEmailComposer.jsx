@@ -11,6 +11,7 @@ import {
   sendEmail 
 } from '../../services/emailService';
 import DocumentPreviewModal from './DocumentPreviewModal';
+import CustomSelect from '../common/CustomSelect';
 
 export default function OutlookEmailComposer({
   isOpen,
@@ -985,16 +986,13 @@ export default function OutlookEmailComposer({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Template:</span>
-                <select 
-                  className="form-control" 
+                <CustomSelect 
+                  size="sm"
                   value={selectedTemplate}
                   onChange={(e) => handleTemplateSelect(e.target.value)}
-                  style={{ height: '28px', fontSize: '11.5px', padding: '0 8px' }}
-                >
-                  {EMAIL_TEMPLATES.map(tmpl => (
-                    <option key={tmpl.id} value={tmpl.id}>{tmpl.label}</option>
-                  ))}
-                </select>
+                  style={{ minWidth: '170px' }}
+                  options={EMAIL_TEMPLATES.map(tmpl => ({ value: tmpl.id, label: tmpl.label }))}
+                />
               </div>
 
               <button 

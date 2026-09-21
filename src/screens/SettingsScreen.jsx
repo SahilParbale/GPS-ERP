@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Tabs from '../components/common/Tabs';
+import CustomSelect from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
 import { settingsService } from '../services/settings/settingsService';
 import { 
@@ -397,16 +398,16 @@ export default function SettingsScreen({ onNotify }) {
 
               <div className="form-group">
                 <label className="form-label">Current Operating Shift Mode</label>
-                <select 
-                  className="form-control"
+                <CustomSelect 
                   value={formData.shiftMode}
                   onChange={(e) => handleInputChange('shiftMode', e.target.value)}
                   disabled={!isManagement || isSaving}
-                >
-                  <option value="Continuous 3-Shift 24x7 Operation">Continuous 3-Shift 24x7 Operation</option>
-                  <option value="Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)">Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)</option>
-                  <option value="Single General Shift">Single General Shift</option>
-                </select>
+                  options={[
+                    { value: 'Continuous 3-Shift 24x7 Operation', label: 'Continuous 3-Shift 24x7 Operation' },
+                    { value: 'Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)', label: 'Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)' },
+                    { value: 'Single General Shift', label: 'Single General Shift' }
+                  ]}
+                />
               </div>
 
               <div className="form-group">

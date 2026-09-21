@@ -3,6 +3,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { qualityService } from '../services/database';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -320,26 +321,19 @@ export default function QualityScreen({ onNotify }) {
           <label htmlFor="inspection-select" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
             Inspection:
           </label>
-          <select 
+          <CustomSelect 
             id="inspection-select"
-            className="form-control"
             value={selectedInspectionId || ''}
             onChange={(e) => handleSelectInspection(e.target.value)}
             disabled={isMutating || isDetailLoading}
-            style={{ 
-              padding: '6px 12px', 
-              fontSize: '13px', 
-              fontWeight: 600, 
-              minWidth: '220px',
-              cursor: 'pointer'
-            }}
-          >
-            {inspections.map((insp) => (
-              <option key={insp.id} value={insp.id}>
-                {insp.inspection_number} — {insp.spindle?.serial_number || 'Spindle'} ({insp.approval_status})
-              </option>
-            ))}
-          </select>
+            searchable={true}
+            style={{ minWidth: '280px' }}
+            options={inspections.map((insp) => ({
+              value: insp.id,
+              label: `${insp.inspection_number} — ${insp.spindle?.serial_number || 'Spindle'} (${insp.approval_status})`,
+              badge: insp.approval_status
+            }))}
+          />
         </div>
 
         <button 
@@ -697,17 +691,16 @@ export default function QualityScreen({ onNotify }) {
                 <label htmlFor="result-status" style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
                   Result Status *
                 </label>
-                <select 
+                <CustomSelect 
                   id="result-status"
-                  className="form-control" 
-                  style={{ fontWeight: 600 }}
                   value={editForm.result_status}
                   onChange={(e) => setEditForm(prev => ({ ...prev, result_status: e.target.value }))}
-                >
-                  <option value="Pass">Pass</option>
-                  <option value="Warning">Warning</option>
-                  <option value="Fail">Fail</option>
-                </select>
+                  options={[
+                    { value: 'Pass', label: 'Pass', badge: 'ACCEPT' },
+                    { value: 'Warning', label: 'Warning', badge: 'WARN' },
+                    { value: 'Fail', label: 'Fail', badge: 'REJECT' }
+                  ]}
+                />
               </div>
             </div>
 

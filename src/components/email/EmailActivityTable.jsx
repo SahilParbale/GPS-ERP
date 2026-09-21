@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StatusBadge from '../common/StatusBadge';
+import CustomSelect from '../common/CustomSelect';
 import { Search, Mail, Eye, RefreshCw, Paperclip, FileText, Send, X, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function EmailActivityTable({
@@ -54,17 +55,17 @@ export default function EmailActivityTable({
             />
           </div>
 
-          <select 
-            className="form-control"
+          <CustomSelect 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ minWidth: '150px' }}
-          >
-            <option value="all">All Statuses ({emailList.length})</option>
-            <option value="sent">Sent ({emailList.filter(e => e.status === 'Sent').length})</option>
-            <option value="draft">Drafts ({emailList.filter(e => e.status === 'Draft').length})</option>
-            <option value="failed">Failed Delivery ({emailList.filter(e => e.status === 'Failed').length})</option>
-          </select>
+            style={{ minWidth: '160px' }}
+            options={[
+              { value: 'all', label: `All Statuses (${emailList.length})` },
+              { value: 'sent', label: `Sent (${emailList.filter(e => e.status === 'Sent').length})` },
+              { value: 'draft', label: `Drafts (${emailList.filter(e => e.status === 'Draft').length})` },
+              { value: 'failed', label: `Failed Delivery (${emailList.filter(e => e.status === 'Failed').length})` }
+            ]}
+          />
         </div>
 
         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

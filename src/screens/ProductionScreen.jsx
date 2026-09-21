@@ -5,6 +5,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
+import CustomSelect from '../components/common/CustomSelect';
 import { PRODUCTION_PIPELINE_STAGES } from '../data/mockData';
 import { workOrderService } from '../services/database/workOrderService';
 import { manufacturingService } from '../services/database/manufacturingService';
@@ -221,18 +222,18 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                 />
               </div>
 
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                style={{ minWidth: '140px' }}
-              >
-                <option value="all">All Priorities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium / Normal</option>
-                <option value="low">Low</option>
-              </select>
+                style={{ minWidth: '150px' }}
+                options={[
+                  { value: 'all', label: 'All Priorities' },
+                  { value: 'critical', label: 'Critical' },
+                  { value: 'high', label: 'High' },
+                  { value: 'medium', label: 'Medium / Normal' },
+                  { value: 'low', label: 'Low' }
+                ]}
+              />
             </div>
 
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -502,17 +503,17 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
           <div className="form-grid">
             <div className="form-group">
               <label className="form-label">Spindle Model Family</label>
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={newWo.spindleModel}
                 onChange={(e) => setNewWo({...newWo, spindleModel: e.target.value})}
-              >
-                <option value="GPS-HSK-A63-24K">GPS-HSK-A63-24K (Motorized 24k)</option>
-                <option value="GPS-BT40-15K">GPS-BT40-15K (Belt Milling 15k)</option>
-                <option value="GPS-HF-60K">GPS-HF-60K (High Frequency 60k)</option>
-                <option value="GPS-BT50-10K">GPS-BT50-10K (Heavy Geared 10k)</option>
-                <option value="GPS-HSK-E25-42K">GPS-HSK-E25-42K (Micro High Speed)</option>
-              </select>
+                options={[
+                  { value: 'GPS-HSK-A63-24K', label: 'GPS-HSK-A63-24K (Motorized 24k)' },
+                  { value: 'GPS-BT40-15K', label: 'GPS-BT40-15K (Belt Milling 15k)' },
+                  { value: 'GPS-HF-60K', label: 'GPS-HF-60K (High Frequency 60k)' },
+                  { value: 'GPS-BT50-10K', label: 'GPS-BT50-10K (Heavy Geared 10k)' },
+                  { value: 'GPS-HSK-E25-42K', label: 'GPS-HSK-E25-42K (Micro High Speed)' }
+                ]}
+              />
             </div>
 
             <div className="form-group">
@@ -537,16 +538,16 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
 
             <div className="form-group">
               <label className="form-label">Manufacturing Priority</label>
-              <select 
-                className="form-control"
+              <CustomSelect 
                 value={newWo.priority}
                 onChange={(e) => setNewWo({...newWo, priority: e.target.value})}
-              >
-                <option value="Medium">Medium / Normal</option>
-                <option value="High">High Priority</option>
-                <option value="Critical">Critical Line-Down</option>
-                <option value="Low">Low Priority</option>
-              </select>
+                options={[
+                  { value: 'Medium', label: 'Medium / Normal' },
+                  { value: 'High', label: 'High Priority' },
+                  { value: 'Critical', label: 'Critical Line-Down' },
+                  { value: 'Low', label: 'Low Priority' }
+                ]}
+              />
             </div>
 
             <div className="form-group">

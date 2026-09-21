@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
@@ -450,18 +451,19 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               />
             </div>
 
-            <select 
-              className="form-control" 
+            <CustomSelect 
               value={statusFilter} 
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses ({proformaInvoices.length})</option>
-              <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="accepted">Accepted</option>
-              <option value="expired">Expired</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+              style={{ minWidth: '170px' }}
+              options={[
+                { value: 'all', label: `All Statuses (${proformaInvoices.length})` },
+                { value: 'draft', label: 'Draft' },
+                { value: 'sent', label: 'Sent' },
+                { value: 'accepted', label: 'Accepted' },
+                { value: 'expired', label: 'Expired' },
+                { value: 'cancelled', label: 'Cancelled' }
+              ]}
+            />
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { invoiceService } from '../services/database/invoiceService';
 import { 
   Search, FileText, DollarSign, Download, Printer, 
@@ -174,17 +175,17 @@ export default function InvoicesScreen({ onNotify }) {
               />
             </div>
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ width: '190px' }}
             >
               <option value="all">All Payment Statuses</option>
               <option value="paid">Fully Paid</option>
               <option value="partial">Partially Paid</option>
               <option value="pending">Payment Pending</option>
               <option value="overdue">Overdue</option>
-            </select>
+            </CustomSelect>
           </div>
         </div>
 

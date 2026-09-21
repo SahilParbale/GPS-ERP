@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { spindleModelService } from '../services/database/spindleModelService';
 import { customerService } from '../services/database/customerService';
 import { useAuth } from '../context/AuthContext';
@@ -228,31 +229,33 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
               />
             </div>
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="all">All Spindle Types</option>
-              <option value="motorized">Motorized Electro-Spindle</option>
-              <option value="belt">Belt Driven</option>
-              <option value="high frequency">High Frequency Direct</option>
-              <option value="geared">High Torque Geared</option>
-              <option value="grinding">Internal Grinding</option>
-            </select>
+              style={{ minWidth: '170px' }}
+              options={[
+                { value: 'all', label: 'All Spindle Types' },
+                { value: 'motorized', label: 'Motorized Electro-Spindle' },
+                { value: 'belt', label: 'Belt Driven' },
+                { value: 'high frequency', label: 'High Frequency Direct' },
+                { value: 'geared', label: 'High Torque Geared' },
+                { value: 'grinding', label: 'Internal Grinding' }
+              ]}
+            />
 
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Operational Statuses</option>
-              <option value="in production">In Production</option>
-              <option value="qc pending">QC Pending</option>
-              <option value="ready">Ready</option>
-              <option value="dispatched">Dispatched / Field Active</option>
-              <option value="under service">Under Service</option>
-            </select>
+              style={{ minWidth: '175px' }}
+              options={[
+                { value: 'all', label: 'All Operational Statuses' },
+                { value: 'in production', label: 'In Production' },
+                { value: 'qc pending', label: 'QC Pending' },
+                { value: 'ready', label: 'Ready' },
+                { value: 'dispatched', label: 'Dispatched / Field Active' },
+                { value: 'under service', label: 'Under Service' }
+              ]}
+            />
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -468,19 +471,17 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Spindle Engineering Model *</label>
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={formData.modelId}
                     onChange={(e) => setFormData(p => ({ ...p, modelId: e.target.value }))}
-                    required
-                  >
-                    <option value="">-- Select Engineering Model --</option>
-                    {models.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.model_code} — {m.model_name} ({m.max_rpm ? (m.max_rpm / 1000).toFixed(0) : '24'}k RPM, {m.rated_power_kw} kW)
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Select Engineering Model --"
+                    searchable={true}
+                    required={true}
+                    options={models.map(m => ({
+                      value: m.id,
+                      label: `${m.model_code} — ${m.model_name} (${m.max_rpm ? (m.max_rpm / 1000).toFixed(0) : '24'}k RPM, ${m.rated_power_kw} kW)`
+                    }))}
+                  />
                 </div>
 
                 {/* Technical Specifications preview card bound directly from spindle_models */}
@@ -518,60 +519,61 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Commissioned Customer / Client</label>
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={formData.customerId}
                     onChange={(e) => setFormData(p => ({ ...p, customerId: e.target.value }))}
-                  >
-                    <option value="">-- Internal Stock / Unallocated --</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.company_name} ({c.customer_code})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Internal Stock / Unallocated --"
+                    searchable={true}
+                    options={[
+                      { value: '', label: '-- Internal Stock / Unallocated --' },
+                      ...customers.map(c => ({
+                        value: c.id,
+                        label: `${c.company_name} (${c.customer_code})`
+                      }))
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Warranty Period</label>
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={formData.warrantyPeriod}
                     onChange={(e) => setFormData(p => ({ ...p, warrantyPeriod: e.target.value }))}
-                  >
-                    <option value="Active (24 Months / 4,000h)">Active (24 Months / 4,000h)</option>
-                    <option value="Active (12 Months / 2,500h)">Active (12 Months / 2,500h)</option>
-                    <option value="Active (18 Months / 3,000h)">Active (18 Months / 3,000h)</option>
-                    <option value="Active (36 Months / 6,000h)">Active (36 Months / 6,000h)</option>
-                  </select>
+                    options={[
+                      { value: 'Active (24 Months / 4,000h)', label: 'Active (24 Months / 4,000h)' },
+                      { value: 'Active (12 Months / 2,500h)', label: 'Active (12 Months / 2,500h)' },
+                      { value: 'Active (18 Months / 3,000h)', label: 'Active (18 Months / 3,000h)' },
+                      { value: 'Active (36 Months / 6,000h)', label: 'Active (36 Months / 6,000h)' }
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Initial Operational Status</label>
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={formData.status}
                     onChange={(e) => setFormData(p => ({ ...p, status: e.target.value }))}
-                  >
-                    <option value="In Production">In Production</option>
-                    <option value="Testing">Testing</option>
-                    <option value="QC Pending">QC Pending</option>
-                    <option value="QC Passed">QC Passed</option>
-                    <option value="Ready">Ready</option>
-                  </select>
+                    options={[
+                      { value: 'In Production', label: 'In Production' },
+                      { value: 'Testing', label: 'Testing' },
+                      { value: 'QC Pending', label: 'QC Pending' },
+                      { value: 'QC Passed', label: 'QC Passed' },
+                      { value: 'Ready', label: 'Ready' }
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Manufacturing Plant / Facility</label>
-                  <select 
-                    className="form-control"
+                  <CustomSelect 
                     value={formData.currentLocation}
                     onChange={(e) => setFormData(p => ({ ...p, currentLocation: e.target.value }))}
-                  >
-                    <option value="Pune Plant 1">Pune Plant 1 (Precision Spindle Works)</option>
-                    <option value="Pune Plant 2">Pune Plant 2 (Heavy Machining)</option>
-                    <option value="Bangalore Service Hub">Bangalore Service Hub</option>
-                  </select>
+                    options={[
+                      { value: 'Pune Plant 1', label: 'Pune Plant 1 (Precision Spindle Works)' },
+                      { value: 'Pune Plant 2', label: 'Pune Plant 2 (Heavy Machining)' },
+                      { value: 'Bangalore Service Hub', label: 'Bangalore Service Hub' }
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>

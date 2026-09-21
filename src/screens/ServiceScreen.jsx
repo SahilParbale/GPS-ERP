@@ -4,6 +4,7 @@ import PipelineVisualizer from '../components/common/PipelineVisualizer';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { 
   serviceService, 
   assetService, 
@@ -562,28 +563,28 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
           </div>
           <div className="form-group">
             <label className="form-label">Urgency Priority</label>
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={newRequest.priority}
               onChange={(e) => setNewRequest({ ...newRequest, priority: e.target.value })}
-            >
-              <option value="Critical">Critical (Machine Line Down)</option>
-              <option value="High">High Priority</option>
-              <option value="Medium">Scheduled Maintenance</option>
-              <option value="Low">Low</option>
-            </select>
+              options={[
+                { value: 'Critical', label: 'Critical (Machine Line Down)' },
+                { value: 'High', label: 'High Priority' },
+                { value: 'Medium', label: 'Scheduled Maintenance' },
+                { value: 'Low', label: 'Low' }
+              ]}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Assigned Rebuild Tech</label>
-            <select 
-              className="form-control"
+            <CustomSelect 
               value={newRequest.technicianName}
               onChange={(e) => setNewRequest({ ...newRequest, technicianName: e.target.value })}
-            >
-              <option value="Vikram Shinde">Vikram Shinde (Sr. Spindle Specialist)</option>
-              <option value="Suresh Sawant">Suresh Sawant (Master Grinder)</option>
-              <option value="Ramesh Deshmukh">Ramesh Deshmukh</option>
-            </select>
+              options={[
+                { value: 'Vikram Shinde', label: 'Vikram Shinde (Sr. Spindle Specialist)' },
+                { value: 'Suresh Sawant', label: 'Suresh Sawant (Master Grinder)' },
+                { value: 'Ramesh Deshmukh', label: 'Ramesh Deshmukh' }
+              ]}
+            />
           </div>
         </div>
       </Modal>

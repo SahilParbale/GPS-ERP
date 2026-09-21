@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
+import CustomSelect from '../components/common/CustomSelect';
 import { 
   BarChart3, TrendingUp, Download, Calendar, 
   CheckCircle2, ShieldCheck, Wrench, DollarSign,
@@ -79,16 +80,17 @@ export default function ReportsScreen({ onNotify }) {
         subtitle="Spindle throughput, metrology first-pass yields, and factory operational KPIs"
         badge="Plant 1 & 2 Aggregated"
       >
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <select 
-            className="form-control"
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <CustomSelect 
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-          >
-            <option value="monthly">Current Month (Feb 2026)</option>
-            <option value="q4">Q4 FY 2025-26</option>
-            <option value="annual">Full Fiscal Year 2025-26</option>
-          </select>
+            style={{ minWidth: '220px' }}
+            options={[
+              { value: 'monthly', label: 'Current Month (Feb 2026)' },
+              { value: 'q4', label: 'Q4 FY 2025-26' },
+              { value: 'annual', label: 'Full Fiscal Year 2025-26' }
+            ]}
+          />
 
           <button 
             type="button" 
