@@ -192,39 +192,12 @@ export const authService = {
           };
         }
 
-        // If Supabase returns an error (e.g. user not yet confirmed or not in Auth), but matches demo user:
-        if (demoMatch) {
-          console.info(`[Auth] Using development demo credentials for role: ${demoMatch.role}`);
-          return {
-            data: {
-              user: { id: demoMatch.id, email: demoMatch.email },
-              session: { access_token: 'dev-token', expires_at: Date.now() + 3600000 },
-              profile: demoMatch,
-              employee: demoMatch,
-              role: demoMatch.role
-            },
-            error: null
-          };
-        }
-
-        // Return user-friendly error
+        // Return user-friendly error if Supabase authentication fails
         return {
           data: null,
           error: new Error(error?.message === 'Invalid login credentials' ? 'Invalid email or password.' : (error?.message || 'Authentication failed.'))
         };
       } catch (err) {
-        if (demoMatch) {
-          return {
-            data: {
-              user: { id: demoMatch.id, email: demoMatch.email },
-              session: { access_token: 'dev-token', expires_at: Date.now() + 3600000 },
-              profile: demoMatch,
-              employee: demoMatch,
-              role: demoMatch.role
-            },
-            error: null
-          };
-        }
         return { data: null, error: new Error('Network error connecting to authentication server.') };
       }
     }

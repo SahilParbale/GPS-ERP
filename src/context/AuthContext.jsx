@@ -94,16 +94,31 @@ export function AuthProvider({ children }) {
             setEmployee(resolvedProfile.employee || resolvedProfile);
             setRole(resolvedProfile.role || 'ADMIN');
           }
+          localStorage.removeItem('gps_erp_dev_user');
         } else {
           // Check if local dev session is stored in localStorage
           const localDevUser = localStorage.getItem('gps_erp_dev_user');
           if (localDevUser && mounted) {
             try {
               const parsed = JSON.parse(localDevUser);
-              setUser({ id: parsed.id, email: parsed.email });
-              setProfile(parsed);
-              setEmployee(parsed);
-              setRole(parsed.role || 'ADMIN');
+              if (parsed?.email) {
+                // Attempt to establish real Supabase session using dev credentials
+                const { data } = await authService.signIn({
+                  email: parsed.email,
+                  password: parsed.password || 'Password123!'
+                });
+                if (data?.session && mounted) {
+                  setSession(data.session);
+                  setUser(data.user);
+                  setProfile(data.profile);
+                  setEmployee(data.employee);
+                  setRole(data.role || 'ADMIN');
+                  localStorage.removeItem('gps_erp_dev_user');
+                  return;
+                }
+              }
+              // If sign-in failed, clean up stale dev user so user can log in cleanly
+              localStorage.removeItem('gps_erp_dev_user');
             } catch {
               localStorage.removeItem('gps_erp_dev_user');
             }
@@ -131,6 +146,7 @@ export function AuthProvider({ children }) {
           setEmployee(resolved.employee || resolved);
           setRole(resolved.role || 'ADMIN');
         }
+        localStorage.removeItem('gps_erp_dev_user');
         setIsLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setSession(null);
@@ -171,9 +187,11 @@ export function AuthProvider({ children }) {
       setEmployee(data.employee);
       setRole(data.role || 'ADMIN');
 
-      // Save dev user in localStorage for refresh persistence if offline/demo
+      // Save dev user in localStorage for refresh persistence only if offline/demo
       if (data.session?.access_token === 'dev-token') {
         localStorage.setItem('gps_erp_dev_user', JSON.stringify(data.profile));
+      } else {
+        localStorage.removeItem('gps_erp_dev_user');
       }
       setIsLoading(false);
       return { success: true };
@@ -197,14 +215,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Quick switch between demo roles (for testing & development verification)
-  const switchDemoRole = useCallback((roleCode) => {
+  const switchDemoRole = useCallback(async (roleCode) => {
     const target = DEMO_USERS.find((u) => u.role === roleCode) || DEMO_USERS[0];
-    setUser({ id: target.id, email: target.email });
-    setProfile(target);
-    setEmployee(target);
-    setRole(target.role);
-    localStorage.setItem('gps_erp_dev_user', JSON.stringify(target));
-  }, []);
+    return await signIn({
+      email: target.email,
+      password: target.password || 'Password123!'
+    });
+  }, [signIn]);
 
   // Check if current user role can access a screen
   const canAccessScreen = useCallback((screenId) => {
