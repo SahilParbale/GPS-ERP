@@ -33,13 +33,34 @@ import SettingsScreen from './screens/SettingsScreen';
 import DocumentsScreen from './screens/DocumentsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import EmailActivityScreen from './screens/EmailActivityScreen';
+import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt';
+import PWAOfflineNotice from './components/pwa/PWAOfflineNotice';
 
 import { WORK_ORDERS, SPINDLES } from './data/mockData';
+
+// Helper to resolve initial screen from PWA shortcut query parameters
+const getInitialScreen = () => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const screenParam = params.get('screen');
+    const validScreens = [
+      'dashboard', 'production', 'workforce', 'work-order-detail',
+      'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
+      'sales', 'customers', 'contacts', 'suppliers', 'invoices',
+      'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
+      'documents', 'notifications', 'email-activity', 'reports', 'settings'
+    ];
+    if (screenParam && validScreens.includes(screenParam)) {
+      return screenParam;
+    }
+  }
+  return 'dashboard';
+};
 
 function AppContent() {
   const { isAuthenticated, isLoading, canAccessScreen, role } = useAuth();
 
-  const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const [currentScreen, setCurrentScreen] = useState(getInitialScreen);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(WORK_ORDERS[0]);
   const [selectedSpindle, setSelectedSpindle] = useState(SPINDLES[0]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -448,6 +469,12 @@ function AppContent() {
           )}
         </div>
       </Modal>
+
+      {/* Controlled PWA Update Prompt */}
+      <PWAUpdatePrompt />
+
+      {/* Network Connectivity Monitor */}
+      <PWAOfflineNotice />
     </div>
   );
 }

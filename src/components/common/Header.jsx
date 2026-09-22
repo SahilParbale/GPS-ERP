@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/database/notificationService';
 import UserProfileModal from '../auth/UserProfileModal';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
+import InstallAppPrompt from '../pwa/InstallAppPrompt';
 
 export default function Header({ 
   currentScreen, 
@@ -379,6 +380,9 @@ export default function Header({
           <span>Nanded City Unit 1</span>
         </div>
 
+        {/* PWA Desktop App Install Button */}
+        <InstallAppPrompt variant="header" />
+
         {/* Quick Action Button */}
         <button 
           type="button" 
@@ -617,6 +621,9 @@ export default function Header({
                 <KeyRound size={14} color="var(--primary)" />
                 <span>Change Password</span>
               </button>
+
+              {/* Install PWA Option in Menu */}
+              <InstallAppPrompt variant="menu" onInstalled={() => setShowUserMenu(false)} />
 
               {/* Dev Mode Role Switcher */}
               <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '4px', paddingTop: '6px' }}>

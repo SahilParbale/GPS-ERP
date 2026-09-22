@@ -7,6 +7,7 @@ import {
   Code, Building2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import InstallAppPrompt from '../components/pwa/InstallAppPrompt';
 
 export default function LoginScreen() {
   const { signIn, resetPassword, updatePassword, isPasswordRecovery, setIsPasswordRecovery, demoUsers } = useAuth();
@@ -1058,6 +1059,9 @@ export default function LoginScreen() {
               Click any role to auto-populate test credentials
             </div>
           </div>
+
+          {/* PWA Desktop App Install CTA */}
+          <InstallAppPrompt variant="login" />
 
           {/* ---------------------------------------------------------------- */}
           {/* BOTTOM CARD FOOTER                                               */}
