@@ -253,9 +253,14 @@ export default function Header({
           title={isSidebarCollapsed ? "Open sidebar (Normal view)" : "Close sidebar (Full screen view)"}
           aria-label={isSidebarCollapsed ? "Open sidebar" : "Close sidebar"}
         >
-          {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          <span className="mobile-menu-icon" style={{ display: 'none', alignItems: 'center' }}>
+            <Menu size={18} />
+          </span>
+          <span className="desktop-toggle-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </span>
           {isSidebarCollapsed && (
-            <span style={{ fontSize: '11px', fontWeight: 600, marginLeft: '4px', color: 'var(--primary)' }}>
+            <span className="desktop-toggle-text" style={{ fontSize: '11px', fontWeight: 600, marginLeft: '4px', color: 'var(--primary)' }}>
               Open Sidebar
             </span>
           )}
@@ -286,8 +291,9 @@ export default function Header({
                 position: 'absolute',
                 top: '38px',
                 left: '0',
-                right: '0',
-                minWidth: '380px',
+                right: 'auto',
+                width: 'clamp(280px, 90vw, 420px)',
+                maxWidth: 'calc(100vw - 20px)',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-md)',
@@ -376,11 +382,12 @@ export default function Header({
         {/* Quick Action Button */}
         <button 
           type="button" 
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm header-quick-btn"
           onClick={onOpenQuickAction}
+          title="New rapid shop floor action"
         >
           <Plus size={14} />
-          <span>New Entry</span>
+          <span className="header-quick-text">New Entry</span>
         </button>
 
         {/* Notification Bell */}
@@ -402,12 +409,12 @@ export default function Header({
                 position: 'absolute',
                 top: '44px',
                 right: '0',
-                width: '320px',
+                width: 'min(320px, calc(100vw - 20px))',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-md)',
                 boxShadow: 'var(--shadow-lg)',
-                zIndex: 50,
+                zIndex: 100,
                 padding: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -527,7 +534,7 @@ export default function Header({
                 position: 'absolute',
                 top: '48px',
                 right: '0',
-                width: '270px',
+                width: 'min(270px, calc(100vw - 20px))',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-md)',

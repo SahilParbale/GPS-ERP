@@ -4,7 +4,7 @@ import {
   ShieldCheck, Wrench, Users, Truck, FileText, 
   BarChart3, Settings, ChevronRight, Activity, 
   PanelLeftClose, PanelLeftOpen, Building2, ShoppingCart,
-  Receipt, Mail, Shield, FolderOpen, Bell
+  Receipt, Mail, Shield, FolderOpen, Bell, X
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
@@ -130,17 +130,32 @@ export default function Sidebar({
               />
             </div>
           </div>
-          {!isCollapsed && (
-            <button
-              type="button"
-              className="sidebar-close-btn"
-              onClick={onToggleCollapse}
-              title="Collapse to icon rail"
-              aria-label="Collapse sidebar"
-            >
-              <PanelLeftClose size={15} />
-            </button>
-          )}
+          <div className="sidebar-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Mobile-only close drawer button */}
+            {isMobileOpen && (
+              <button
+                type="button"
+                className="sidebar-close-btn mobile-close-btn"
+                onClick={onCloseMobile}
+                title="Close navigation drawer"
+                aria-label="Close navigation"
+              >
+                <X size={16} />
+              </button>
+            )}
+            {/* Desktop collapse to rail button */}
+            {!isCollapsed && !isMobileOpen && (
+              <button
+                type="button"
+                className="sidebar-close-btn desktop-collapse-btn"
+                onClick={onToggleCollapse}
+                title="Collapse to icon rail"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose size={15} />
+              </button>
+            )}
+          </div>
         </div>
 
         <nav className="sidebar-nav">
