@@ -9,6 +9,8 @@ import {
 } from '../data/contactsData';
 import { contactService } from '../services/database/contactService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportContactsDirectoryPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { useAuth } from '../context/AuthContext';
 import {
   Search, Users, Mail, Phone, Building2, Copy, Check,
@@ -32,6 +34,8 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [deptFilter, setDeptFilter] = useState('All');
   const [copiedKey, setCopiedKey] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const loadContacts = async () => {
     setIsLoading(true);
@@ -254,48 +258,29 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
     }
   };
 
-  // Export CSV
+  // Export Directory
   const handleExportCsv = () => {
-    const headers = [
-      'Company Name',
-      'Category',
-      'Tier',
-      'Location',
-      'GSTIN',
-      'Primary Contact Name',
-      'Primary Contact Role',
-      'Primary Email (TO)',
-      'Primary Phone',
-      'Configured CC Emails',
-      'Notes'
-    ];
-
-    const rows = contacts.map(c => [
-      `"${c.companyName}"`,
-      `"${c.category}"`,
-      `"${c.tier}"`,
-      `"${c.location}"`,
-      `"${c.gstin}"`,
-      `"${c.primaryContact.name}"`,
-      `"${c.primaryContact.designation}"`,
-      `"${c.primaryContact.email}"`,
-      `"${c.primaryContact.phone}"`,
-      `"${c.ccList.map(cc => cc.email).join('; ')}"`,
-      `"${(c.notes || '').replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `GPS_Spindle_Contacts_And_CC_Directory.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (onNotify) {
-      onNotify(`Exported ${contacts.length} company email directories to CSV.`);
-    }
+    setPreviewDoc({
+      type: 'Report',
+      reportTitle: 'UNIFIED CONTACTS & EMAIL DIRECTORY',
+      id: `CONT-DIR-${new Date().toISOString().split('T')[0]}`,
+      metrics: [
+        { label: 'Configured Companies', value: contacts.length },
+        { label: 'Customers / Clients', value: contacts.filter(c => c.category === 'Customer').length },
+        { label: 'Suppliers / Vendors', value: contacts.filter(c => c.category === 'Supplier').length }
+      ],
+      headers: ['#', 'Company Name', 'Category', 'Primary Contact', 'Direct Email', 'Phone', 'Associated CCs'],
+      rows: contacts.map((c, idx) => [
+        idx + 1,
+        c.companyName,
+        c.category,
+        c.primaryContact,
+        c.primaryEmail,
+        c.primaryPhone || '—',
+        Array.isArray(c.ccEmails) ? c.ccEmails.join(', ') : (c.ccEmails || '—')
+      ])
+    });
+    setIsPreviewOpen(true);
   };
 
   if (isLoading) {
@@ -345,10 +330,10 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
             type="button"
             className="btn btn-secondary"
             onClick={handleExportCsv}
-            title="Download full CSV email and CC register"
+            title="Download official PDF contact and CC directory"
           >
             <Download size={14} />
-            <span>Export CSV</span>
+            <span>Export Directory (PDF)</span>
           </button>
 
           <button
@@ -370,7 +355,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '12px',
-        marginBottom: '14px'
+        flexShrink: 0
       }}>
         <div className="section-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -414,8 +399,8 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
       </div>
 
       {/* 3. INTERNAL GPS SPINDLE OFFICIAL CC QUICK BAR */}
-      <div className="section-card" style={{ padding: '12px 16px', marginBottom: '14px', background: '#fafaf9', border: '1px solid #e7e5e4' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+      <div className="section-card" style={{ padding: '14px 18px', background: '#fafaf9', border: '1px solid #e7e5e4', flexShrink: 0, overflow: 'visible' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
             <Briefcase size={14} color="var(--primary)" />
             <span>GPS Spindle Internal Official CCs (Quick 1-Click Copy)</span>
@@ -437,13 +422,14 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '5px 10px',
+                  padding: '6px 12px',
                   background: isCopied ? '#ecfdf5' : '#ffffff',
                   border: `1px solid ${isCopied ? '#10b981' : 'var(--border-color)'}`,
                   borderRadius: '16px',
                   fontSize: '11.5px',
                   color: isCopied ? '#059669' : 'var(--text-main)',
                   cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   transition: 'all 0.15s ease'
                 }}
                 title={`Click to copy: ${gps.email} (${gps.role})`}
@@ -458,7 +444,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
       </div>
 
       {/* 4. UNIVERSAL SEARCH & CATEGORY FILTER BAR */}
-      <div className="section-card" style={{ padding: '12px 16px', marginBottom: '16px' }}>
+      <div className="section-card" style={{ padding: '12px 18px', flexShrink: 0, overflow: 'visible' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Universal Search Input */}
           <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
@@ -528,7 +514,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
       </div>
 
       {/* 5. SYSTEMATIC CONTACT CARDS DIRECTORY */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flexShrink: 0 }}>
         {filteredContacts.length === 0 ? (
           <div className="section-card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
             <Mail size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
@@ -990,6 +976,14 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
           onNotify={onNotify}
         />
       )}
+
+      {/* Contacts Directory Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

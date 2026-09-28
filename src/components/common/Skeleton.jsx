@@ -394,4 +394,271 @@ export function CustomerScreenSkeleton() {
   );
 }
 
+/**
+ * Workforce & Staff Management Screen Skeleton
+ */
+export function WorkforceScreenSkeleton() {
+  return (
+    <div className="content-area skeleton-fade-in">
+      <SkeletonPageHeader />
+      
+      {/* 8 Top KPI Metric Cards */}
+      <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', marginBottom: '16px' }}>
+        {Array.from({ length: 8 }).map((_, idx) => (
+          <div key={idx} className="metric-card" style={{ padding: '12px 14px' }}>
+            <div className="metric-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <Skeleton width="75px" height="11px" />
+              <Skeleton width="22px" height="22px" variant="circle" />
+            </div>
+            <Skeleton width="60px" height="22px" style={{ margin: '4px 0' }} />
+            <Skeleton width="85px" height="10px" />
+          </div>
+        ))}
+      </div>
+
+      {/* Activity Feed Banner Shimmer */}
+      <div className="section-card" style={{ marginBottom: '14px', padding: '14px 18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <Skeleton width="220px" height="15px" />
+          <Skeleton width="130px" height="11px" />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
+              <Skeleton width="60px" height="12px" />
+              <Skeleton width="2px" height="20px" />
+              <Skeleton width="140px" height="13px" />
+              <Skeleton width="40%" height="11px" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs Shimmer */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {['120px', '140px', '130px', '160px', '140px'].map((w, i) => (
+          <Skeleton key={i} width={w} height="36px" borderRadius="var(--radius-md)" />
+        ))}
+      </div>
+
+      {/* Staff Grid Shimmer */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="section-card" style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <Skeleton width="36px" height="36px" borderRadius="var(--radius-sm)" />
+                <div>
+                  <Skeleton width="110px" height="14px" style={{ marginBottom: '4px' }} />
+                  <Skeleton width="80px" height="11px" />
+                </div>
+              </div>
+              <Skeleton width="55px" height="18px" variant="badge" />
+            </div>
+            <Skeleton width="100%" height="24px" style={{ marginBottom: '8px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+              <Skeleton width="70px" height="11px" />
+              <Skeleton width="60px" height="11px" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reports & Executive BI Screen Skeleton
+ */
+export function ReportsScreenSkeleton() {
+  return (
+    <div className="content-area skeleton-fade-in">
+      <SkeletonPageHeader />
+      
+      {/* 4 BI Top KPI Cards */}
+      <SkeletonMetricCards count={4} />
+
+      {/* 2x2 Analytics Charts Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
+        {/* Chart 1 Skeleton: Bar Chart */}
+        <div className="section-card">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Skeleton width="220px" height="15px" />
+            <Skeleton width="80px" height="11px" />
+          </div>
+          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', borderBottom: '1px solid var(--border-color)', gap: '12px' }}>
+              {[60, 85, 45, 90, 75, 95].map((h, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <Skeleton width="24px" height="11px" />
+                  <Skeleton width="32px" height={`${h}%`} borderRadius="4px 4px 0 0" />
+                  <Skeleton width="28px" height="11px" />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+              <Skeleton width="110px" height="12px" />
+              <Skeleton width="120px" height="12px" />
+            </div>
+          </div>
+        </div>
+
+        {/* Chart 2 Skeleton: Progress Bar Breakdown */}
+        <div className="section-card">
+          <div className="card-header">
+            <Skeleton width="200px" height="15px" />
+          </div>
+          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Skeleton width="160px" height="13px" />
+                  <Skeleton width="40px" height="13px" />
+                </div>
+                <Skeleton width="100%" height="8px" borderRadius="4px" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chart 3 Skeleton: Quality Metrics List */}
+        <div className="section-card">
+          <div className="card-header">
+            <Skeleton width="210px" height="15px" />
+          </div>
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <Skeleton width="140px" height="13px" style={{ marginBottom: '6px' }} />
+                  <Skeleton width="200px" height="11px" />
+                </div>
+                <Skeleton width="50px" height="18px" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chart 4 Skeleton: Root Causes Breakdown */}
+        <div className="section-card">
+          <div className="card-header">
+            <Skeleton width="220px" height="15px" />
+          </div>
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Skeleton width="160px" height="13px" />
+                <div style={{ textAlign: 'right' }}>
+                  <Skeleton width="45px" height="13px" style={{ marginBottom: '4px' }} />
+                  <Skeleton width="60px" height="11px" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Settings & Enterprise Configuration Screen Skeleton
+ */
+export function SettingsScreenSkeleton() {
+  return (
+    <div className="content-area skeleton-fade-in">
+      <SkeletonPageHeader />
+      
+      {/* 4 Settings Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        {['180px', '160px', '210px', '170px'].map((w, i) => (
+          <Skeleton key={i} width={w} height="36px" borderRadius="var(--radius-md)" />
+        ))}
+      </div>
+
+      {/* Main Settings Form Card */}
+      <div className="section-card">
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Skeleton width="240px" height="16px" />
+          <Skeleton width="180px" height="12px" />
+        </div>
+
+        <div style={{ padding: '24px' }}>
+          {/* Company Profile Header Banner */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', marginBottom: '24px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <Skeleton width="64px" height="64px" borderRadius="var(--radius-md)" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              <Skeleton width="220px" height="18px" />
+              <Skeleton width="340px" height="12px" />
+            </div>
+            <Skeleton width="110px" height="28px" variant="badge" />
+          </div>
+
+          {/* 2-Column Form Fields Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <Skeleton width="120px" height="12px" />
+                <Skeleton width="100%" height="38px" borderRadius="var(--radius-md)" />
+              </div>
+            ))}
+          </div>
+
+          {/* Full-width Textarea Field */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+            <Skeleton width="140px" height="12px" />
+            <Skeleton width="100%" height="72px" borderRadius="var(--radius-md)" />
+          </div>
+
+          {/* Form Action Footer */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <Skeleton width="100px" height="36px" borderRadius="var(--radius-md)" />
+            <Skeleton width="140px" height="36px" borderRadius="var(--radius-md)" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Notifications & Plant Realtime Alerts Screen Skeleton
+ */
+export function NotificationsScreenSkeleton() {
+  return (
+    <div className="content-area skeleton-fade-in">
+      <SkeletonPageHeader />
+      
+      {/* 3 Alert Metric KPI Cards */}
+      <SkeletonMetricCards count={3} />
+
+      {/* Notifications Filter & List Card */}
+      <div className="section-card">
+        <SkeletonFilterBar />
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ padding: '14px 18px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: i < 2 ? 'var(--bg-surface-subtle)' : '#ffffff', display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <Skeleton width="34px" height="34px" borderRadius="var(--radius-sm)" />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Skeleton width="180px" height="14px" />
+                    <Skeleton width="60px" height="16px" variant="badge" />
+                  </div>
+                  <Skeleton width="70px" height="11px" />
+                </div>
+                <Skeleton width="85%" height="12px" />
+                <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                  <Skeleton width="90px" height="11px" />
+                  <Skeleton width="80px" height="11px" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default Skeleton;

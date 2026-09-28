@@ -10,9 +10,11 @@ import { PRODUCTION_PIPELINE_STAGES } from '../data/mockData';
 import { workOrderService } from '../services/database/workOrderService';
 import { manufacturingService } from '../services/database/manufacturingService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportShiftReportPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   Plus, Search, Filter, Eye, ArrowRight, Cog, 
-  Wrench, Layers, Factory, Check, RefreshCw, AlertCircle 
+  Wrench, Layers, Factory, Check, RefreshCw, AlertCircle, Download
 } from 'lucide-react';
 
 export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
@@ -27,6 +29,8 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [isNewWoOpen, setIsNewWoOpen] = useState(false);
   const [isSubmittingWo, setIsSubmittingWo] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Form state
   const [newWo, setNewWo] = useState({
@@ -144,6 +148,36 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
         subtitle="Live routing of precision spindles across 8 manufacturing stages"
         badge={`${workOrders.length} Active Orders`}
       >
+        <button 
+          type="button" 
+          className="btn btn-secondary"
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'SHOP FLOOR PRODUCTION SCHEDULE & ROUTING',
+              id: `PROD-SCH-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Active Work Orders', value: workOrders.length },
+                { label: 'Critical Priority', value: workOrders.filter(w => w.priority === 'Critical').length },
+                { label: 'In Assembly / Test', value: workOrders.filter(w => ['assembly', 'balancing', 'testing'].includes(w.stage)).length }
+              ],
+              headers: ['#', 'WO Number', 'Spindle Model & Serial', 'Customer', 'Current Stage / Cell', 'Target Due Date', 'Priority'],
+              rows: workOrders.map((wo, idx) => [
+                idx + 1,
+                wo.id || wo.workOrderNumber,
+                `${wo.spindleModel} (${wo.serial || '—'})`,
+                wo.customer,
+                wo.currentStage || wo.stage || 'In Progress',
+                wo.dueDate || '—',
+                wo.priority
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
+        >
+          <Download size={14} />
+          <span>Production Schedule (PDF)</span>
+        </button>
         <button 
           type="button" 
           className="btn btn-primary"
@@ -560,6 +594,14 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
           </div>
         </form>
       </Modal>
+
+      {/* Production Schedule Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

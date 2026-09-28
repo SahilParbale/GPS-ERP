@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   FileText, Upload, Download, Search, Trash2, Eye, 
   RefreshCw, Filter, ShieldCheck, AlertCircle, CheckCircle2,
@@ -159,6 +160,17 @@ export default function DocumentsScreen({ onNotify }) {
     return matchesCategory && matchesSearch;
   });
 
+  if (isLoading) {
+    return (
+      <TablePageSkeleton 
+        hasMetrics={true} 
+        metricCount={4} 
+        columns={['260px', '160px', '130px', '90px', '120px', '130px', '110px', '120px']} 
+        rows={7} 
+      />
+    );
+  }
+
   return (
     <div className="content-area">
       <PageHeader 
@@ -287,13 +299,7 @@ export default function DocumentsScreen({ onNotify }) {
           </div>
         )}
 
-        {/* Loading State */}
-        {isLoading && (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-            <RefreshCw size={28} className="spin" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-            <div>Loading managed documents from secure Supabase Storage...</div>
-          </div>
-        )}
+
 
         {/* Document Table */}
         {!isLoading && !error && (

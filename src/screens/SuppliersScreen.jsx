@@ -3,6 +3,8 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import { supplierService } from '../services/database/supplierService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportVendorDirectoryPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { Search, Truck, Star, Phone, FileText, Plus, Download, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function SuppliersScreen({ onNotify }) {
@@ -10,6 +12,8 @@ export default function SuppliersScreen({ onNotify }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const loadSuppliers = async () => {
     setIsLoading(true);
@@ -97,6 +101,36 @@ export default function SuppliersScreen({ onNotify }) {
       >
         <button 
           type="button" 
+          className="btn btn-secondary"
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'APPROVED VENDOR & SUPPLIER DIRECTORY',
+              id: `VEND-DIR-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Approved Vendors', value: suppliers.length },
+                { label: 'Avg Lead Time', value: '14 Days' },
+                { label: 'Quality Rating', value: '99.4% Pass' }
+              ],
+              headers: ['#', 'Vendor Code', 'Supplier Name', 'Supplied Categories', 'Location', 'Lead Time', 'Rating'],
+              rows: suppliers.map((s, idx) => [
+                idx + 1,
+                s.id || `VEND-${idx + 1}`,
+                s.name,
+                s.category,
+                s.location,
+                s.leadTime,
+                s.rating
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
+        >
+          <Download size={14} />
+          <span>Export Vendors (PDF)</span>
+        </button>
+        <button 
+          type="button" 
           className="btn btn-primary"
           onClick={() => onNotify('Vendor Onboarding Modal opened')}
         >
@@ -182,6 +216,14 @@ export default function SuppliersScreen({ onNotify }) {
           </table>
         </div>
       </div>
+
+      {/* Vendor Directory Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

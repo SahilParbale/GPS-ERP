@@ -7,6 +7,8 @@ import CustomSelect from '../components/common/CustomSelect';
 import { inventoryService } from '../services/database/inventoryService';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportInventoryValuationPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, AlertTriangle, Boxes, 
@@ -40,6 +42,8 @@ export default function InventoryScreen({ onNotify }) {
   const [activeTab, setActiveTab] = useState('stock');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Raise PO Modal State
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
@@ -95,58 +99,29 @@ export default function InventoryScreen({ onNotify }) {
   }, []);
 
   const handleExportValuationCsv = () => {
-    const rows = valuationData.items || [];
-    if (rows.length === 0) {
-      if (onNotify) onNotify('No valuation records available to export.');
-      return;
-    }
-
-    const headers = [
-      'SKU / Part Number',
-      'Material / Component Name',
-      'Category',
-      'Unit of Measure',
-      'Unit Cost (INR)',
-      'Quantity on Hand',
-      'Quantity Reserved',
-      'Quantity Available',
-      'Warehouse Facility',
-      'Bin Location',
-      'Total Inventory Value (INR)',
-      'Last Counted Date'
-    ];
-
-    const csvRows = [
-      headers.join(','),
-      ...rows.map(r => [
-        `"${r.sku || r.partNumber}"`,
-        `"${(r.name || '').replace(/"/g, '""')}"`,
-        `"${r.category}"`,
-        `"${r.unitOfMeasure}"`,
-        r.unitCost,
-        r.quantityOnHand,
-        r.quantityReserved,
-        r.quantityAvailable,
-        `"${r.warehouseName} (${r.warehouseCode})"`,
-        `"${r.binLocation}"`,
-        r.lineValuation,
-        `"${r.lastCountedDate}"`
-      ].join(','))
-    ];
-
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `GPS_Spindle_Inventory_Valuation_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    if (onNotify) {
-      onNotify(`Exported valuation report for ${rows.length} stock items (${valuationData.summary?.totalInventoryValueFormatted}).`);
-    }
+    const stockList = (valuationData.items && valuationData.items.length > 0) ? valuationData.items : items;
+    setPreviewDoc({
+      type: 'Report',
+      reportTitle: 'INVENTORY VALUATION & STOCK STATEMENT',
+      id: `INV-VAL-${new Date().toISOString().split('T')[0]}`,
+      metrics: [
+        { label: 'Total Valuation', value: valuationData.summary?.totalInventoryValueFormatted || '₹0' },
+        { label: 'Total Catalogued SKUs', value: stockList.length },
+        { label: 'Low / Reorder Items', value: lowStockItems.length },
+        { label: 'Active Warehouses', value: valuationData.warehouses?.length || 2 }
+      ],
+      headers: ['#', 'SKU / Part Code', 'Description', 'Warehouse Bin', 'Available Qty', 'Unit Cost', 'Total Valuation'],
+      rows: stockList.slice(0, 50).map((it, idx) => [
+        idx + 1,
+        it.sku || it.item_code || `SKU-${idx + 1}`,
+        it.name || it.description,
+        it.location || it.warehouse || 'Central Stores',
+        `${it.availableQty || it.quantity || 0} ${it.unit || 'pcs'}`,
+        `₹${Number(it.unitCost || it.cost_price || 0).toLocaleString('en-IN')}`,
+        `₹${Number(it.totalValue || (it.availableQty * it.unitCost) || 0).toLocaleString('en-IN')}`
+      ])
+    });
+    setIsPreviewOpen(true);
   };
 
   const filteredItems = items.filter((item) => {
@@ -308,7 +283,7 @@ export default function InventoryScreen({ onNotify }) {
           title="Switch to Inventory Valuation view or export statement"
         >
           <Download size={14} />
-          <span>{activeTab === 'valuation' ? 'Export Valuation CSV' : 'Stock Valuation'}</span>
+          <span>{activeTab === 'valuation' ? 'Export Valuation (PDF)' : 'Stock Valuation'}</span>
         </button>
         <button 
           type="button" 
@@ -899,6 +874,14 @@ export default function InventoryScreen({ onNotify }) {
           </Modal>
         );
       })()}
+
+      {/* Inventory Valuation Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

@@ -6,6 +6,8 @@ import PipelineVisualizer from '../components/common/PipelineVisualizer';
 import PageHeader from '../components/common/PageHeader';
 import { dashboardService } from '../services/database';
 import { DashboardSkeleton } from '../components/common/Skeleton';
+import { exportShiftReportPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   ArrowUpRight, AlertTriangle, Clock, Eye, 
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
@@ -27,6 +29,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Fetch all live dashboard data in parallel from PostgreSQL
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
@@ -139,10 +143,32 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify && onNotify('Production Shift Report downloaded (PDF)')}
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'SHOP FLOOR PRODUCTION & SHIFT OPERATIONS REPORT',
+              id: `SHIFT-REP-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Active Spindle Orders', value: totalWoCount || workOrders.length },
+                { label: 'Critical Deliveries', value: upcomingDeliveries.length },
+                { label: 'Active Shop Cells', value: `${shopBays.filter(b => b.status === 'Active').length} Bays` }
+              ],
+              headers: ['#', 'WO Number', 'Spindle Model & Serial', 'Customer', 'Current Cell', 'Target Date', 'Status'],
+              rows: workOrders.map((wo, idx) => [
+                idx + 1,
+                wo.id || wo.workOrderNumber,
+                `${wo.spindleModel} (${wo.serial || '—'})`,
+                wo.customer,
+                wo.currentStage || wo.bay || 'Machining',
+                wo.dueDate || '—',
+                wo.priority || 'Normal'
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
         >
           <Download size={14} />
-          <span>Shift Report</span>
+          <span>Shift Report (PDF)</span>
         </button>
 
         <button 
@@ -473,6 +499,14 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           </div>
         </div>
       </div>
+
+      {/* Production Shift Report Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportProformaInvoicePdf, exportProformaInvoiceRegisterPdf } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -371,7 +372,15 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify('Exported Proforma Invoice registry (Excel)')}
+          onClick={() => {
+            try {
+              exportProformaInvoiceRegisterPdf(proformaInvoices);
+              if (onNotify) onNotify('Proforma Invoice Register downloaded (PDF)');
+            } catch (err) {
+              console.error('Failed to export PI register PDF:', err);
+              if (onNotify) onNotify('Failed to export PI register PDF', 'error');
+            }
+          }}
         >
           <Download size={14} />
           <span>Export PIs</span>
@@ -480,7 +489,12 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               ) : (
                 filteredPIs.map((pi) => (
                   <tr key={pi.id}>
-                    <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                    <td 
+                      className="mono" 
+                      style={{ fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}
+                      onClick={() => handleOpenPreview(pi)}
+                      title="Click to view Proforma Invoice pop-up"
+                    >
                       {pi.piNumber}
                     </td>
                     <td>
@@ -528,7 +542,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '4px 7px', fontSize: '11.5px' }}
                           onClick={() => handleOpenPreview(pi)}
-                          title="PDF Preview"
+                          title="Open Document Pop-up (Download PDF & Print)"
                         >
                           <FileText size={12} />
                           <span>PDF</span>
@@ -879,7 +893,23 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => window.print()}
+                  onClick={() => handleOpenPreview(selectedPI)}
+                  title="Open Document Pop-up"
+                >
+                  <FileText size={13} />
+                  <span>Preview</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    try {
+                      window.print();
+                      if (onNotify) onNotify(`Print dialog opened for Proforma Invoice ${selectedPI.piNumber || selectedPI.id}`);
+                    } catch (err) {
+                      console.error('Failed to print PI:', err);
+                    }
+                  }}
                 >
                   <Printer size={13} />
                   <span>Print</span>
@@ -887,10 +917,18 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => handleOpenPreview(selectedPI)}
+                  onClick={() => {
+                    try {
+                      exportProformaInvoicePdf(selectedPI);
+                      if (onNotify) onNotify(`Proforma Invoice ${selectedPI.piNumber || selectedPI.id} downloaded (PDF)`);
+                    } catch (err) {
+                      console.error('Failed to download PI PDF:', err);
+                      if (onNotify) onNotify('Failed to download PI PDF', 'error');
+                    }
+                  }}
                 >
-                  <FileText size={13} />
-                  <span>PDF Preview</span>
+                  <Download size={13} />
+                  <span>Download PDF</span>
                 </button>
                 <button 
                   type="button" 

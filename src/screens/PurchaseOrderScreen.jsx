@@ -5,6 +5,7 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportPurchaseOrderPdf, exportPurchaseOrderRegisterPdf } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -377,10 +378,32 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify('Exported PO register to Excel spreadsheet')}
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'PURCHASE ORDER PROCUREMENT & VENDOR REGISTER',
+              id: `PO-REG-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Total Purchase Orders', value: purchaseOrders.length },
+                { label: 'Approved & Active', value: purchaseOrders.filter(p => p.status === 'Approved' || p.status === 'Sent').length },
+                { label: 'Pending Delivery', value: purchaseOrders.filter(p => p.status !== 'Delivered' && p.status !== 'Cancelled').length }
+              ],
+              headers: ['#', 'PO Number', 'Supplier / Vendor', 'Expected Delivery', 'Payment Terms', 'Total Value', 'Status'],
+              rows: purchaseOrders.map((po, idx) => [
+                idx + 1,
+                po.id || po.poNumber,
+                po.supplier,
+                po.expectedDelivery || '14 Days',
+                po.paymentTerms || 'Net 30',
+                `₹${Number(po.totalAmount || po.amount || 0).toLocaleString('en-IN')}`,
+                po.status
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
         >
           <Download size={14} />
-          <span>Export POs</span>
+          <span>Export POs (PDF)</span>
         </button>
         <button 
           type="button" 
@@ -485,7 +508,12 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               ) : (
                 filteredPOs.map((po) => (
                   <tr key={po.id}>
-                    <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                    <td 
+                      className="mono" 
+                      style={{ fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}
+                      onClick={() => handleOpenPreview(po)}
+                      title="Click to view Purchase Order pop-up"
+                    >
                       {po.poNumber}
                     </td>
                     <td>
@@ -901,7 +929,23 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => { window.print(); }}
+                  onClick={() => handleOpenPreview(selectedPO)}
+                  title="Open Document Pop-up"
+                >
+                  <FileText size={13} />
+                  <span>Preview</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    try {
+                      window.print();
+                      if (onNotify) onNotify(`Print dialog opened for Purchase Order ${selectedPO.poNumber || selectedPO.id}`);
+                    } catch (err) {
+                      console.error('Failed to print PO:', err);
+                    }
+                  }}
                 >
                   <Printer size={13} />
                   <span>Print</span>
@@ -910,7 +954,13 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => {
-                    handleOpenPreview(selectedPO);
+                    try {
+                      exportPurchaseOrderPdf(selectedPO);
+                      if (onNotify) onNotify(`Purchase Order ${selectedPO.poNumber || selectedPO.id} downloaded (PDF)`);
+                    } catch (err) {
+                      console.error('Failed to download PO PDF:', err);
+                      if (onNotify) onNotify('Failed to download PO PDF', 'error');
+                    }
                   }}
                 >
                   <FileText size={13} />

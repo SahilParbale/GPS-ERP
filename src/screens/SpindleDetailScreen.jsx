@@ -4,6 +4,8 @@ import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import { spindleModelService } from '../services/database/spindleModelService';
 import { DetailScreenSkeleton } from '../components/common/Skeleton';
+import { exportCalibrationCertificatePdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   ArrowLeft, QrCode, Download, Printer, Shield, 
   Wrench, Activity, CheckCircle, Cpu, FileCheck,
@@ -17,6 +19,8 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
   const [isLoading, setIsLoading] = useState(!spindle);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('specs');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const loadSpindleDetail = useCallback(async () => {
     setIsLoading(true);
@@ -119,7 +123,18 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           <button 
             type="button" 
             className="btn btn-secondary btn-sm"
-            onClick={() => onNotify && onNotify(`Digital Metrology Certificate generated for ${sp.serialNumber}`)}
+            onClick={() => {
+              setPreviewDoc({
+                spindle: sp,
+                spindle_serial: sp.serialNumber,
+                spindle_model: sp.model,
+                customer: sp.customer,
+                checkpoints: qualityRecords,
+                type: 'Calibration Certificate',
+                id: `CAL-${sp.serialNumber}`
+              });
+              setIsPreviewOpen(true);
+            }}
           >
             <Download size={14} />
             <span>Download Certificate</span>
@@ -418,6 +433,14 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
           </div>
         </div>
       )}
+
+      {/* Calibration Certificate Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

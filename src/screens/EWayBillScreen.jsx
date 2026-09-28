@@ -7,6 +7,7 @@ import CustomSelect from '../components/common/CustomSelect';
 import { ewayBillService } from '../services/database/ewayBillService';
 import { logisticsService } from '../services/database/logisticsService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportEWayBillPdf, exportEWayBillRegisterPdf } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -488,10 +489,33 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify('Exported active E-Way Bill registry')}
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'OFFICIAL E-WAY BILL TRANSIT REGISTRY & LOGISTICS REPORT',
+              id: `EWB-REG-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Total E-Way Bills', value: eWayBills.length },
+                { label: 'Active in Transit', value: metrics.activeEWB },
+                { label: 'Expiring Soon', value: metrics.expiringSoon },
+                { label: 'Total Dispatches', value: dispatches.length }
+              ],
+              headers: ['#', 'E-Way Bill #', 'Tax Invoice Ref', 'Consignee Client', 'Vehicle / Transporter', 'Consignment Value', 'Status'],
+              rows: eWayBills.map((e, idx) => [
+                idx + 1,
+                e.ewbNumber,
+                e.invoice,
+                e.customer,
+                `${e.vehicle} (${e.transporter || 'Direct'})`,
+                `₹${Number(e.totalInvoiceValue || 0).toLocaleString('en-IN')}`,
+                e.status
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
         >
           <Download size={14} />
-          <span>Export Summary</span>
+          <span>Export Summary (PDF)</span>
         </button>
         <button 
           type="button" 
@@ -651,7 +675,12 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
               ) : (
                 filteredEWBs.map((ewb) => (
                   <tr key={ewb.id}>
-                    <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                    <td 
+                      className="mono" 
+                      style={{ fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}
+                      onClick={() => handleOpenPreview(ewb)}
+                      title="Click to view E-Way Bill pop-up"
+                    >
                       {ewb.ewbNumber}
                     </td>
                     <td className="mono" style={{ fontWeight: 600, color: 'var(--text-main)' }}>
@@ -1344,7 +1373,15 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    try {
+                      exportEWayBillPdf(selectedEWB);
+                      if (onNotify) onNotify(`E-Way Bill ${selectedEWB.ewbNumber} printed (PDF)`);
+                    } catch (err) {
+                      console.error('Failed to print E-Way Bill PDF:', err);
+                      window.print();
+                    }
+                  }}
                 >
                   <Printer size={13} />
                   <span>Print</span>
@@ -1352,10 +1389,18 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => handleOpenPreview(selectedEWB)}
+                  onClick={() => {
+                    try {
+                      exportEWayBillPdf(selectedEWB);
+                      if (onNotify) onNotify(`E-Way Bill ${selectedEWB.ewbNumber} downloaded (PDF)`);
+                    } catch (err) {
+                      console.error('Failed to download E-Way Bill PDF:', err);
+                      if (onNotify) onNotify('Failed to download E-Way Bill PDF', 'error');
+                    }
+                  }}
                 >
                   <FileText size={13} />
-                  <span>PDF Preview</span>
+                  <span>Download PDF</span>
                 </button>
                 <button 
                   type="button" 

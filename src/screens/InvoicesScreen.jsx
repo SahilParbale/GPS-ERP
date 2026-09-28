@@ -5,11 +5,13 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { invoiceService } from '../services/database/invoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportTaxInvoicePdf, exportGstr1ReportPdf } from '../utils/pdfGenerator';
 import { 
   Search, FileText, DollarSign, Download, Printer, 
   CheckCircle, Plus, AlertCircle, Mail, Eye, RefreshCw 
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 
 export default function InvoicesScreen({ onNotify }) {
   const [invoices, setInvoices] = useState([]);
@@ -20,6 +22,13 @@ export default function InvoicesScreen({ onNotify }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [invoiceForEmail, setInvoiceForEmail] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handleOpenPreview = (inv) => {
+    setPreviewDoc(inv);
+    setIsPreviewOpen(true);
+  };
 
   const loadInvoices = async () => {
     setIsLoading(true);
@@ -103,10 +112,32 @@ export default function InvoicesScreen({ onNotify }) {
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify('GST GSTR-1 Sales Report downloaded (Excel)')}
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'GSTR-1 OUTWARD SUPPLIES & GST RETURN STATEMENT',
+              id: `GSTR1-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Registered Invoices', value: invoices.length },
+                { label: 'B2B Supplies', value: invoices.filter(i => i.status !== 'Draft').length },
+                { label: 'GST Jurisdiction', value: '27-Maharashtra' }
+              ],
+              headers: ['#', 'Invoice Number', 'Recipient Customer', 'Customer GSTIN', 'Invoice Date', 'Total Value', 'Status'],
+              rows: invoices.map((inv, idx) => [
+                idx + 1,
+                inv.id,
+                inv.customer,
+                inv.gstin || '27AABCG1492K1Z8',
+                inv.date,
+                inv.amount,
+                inv.status
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
         >
           <Download size={14} />
-          <span>GSTR-1 Export</span>
+          <span>GSTR-1 Export (PDF)</span>
         </button>
       </PageHeader>
 
@@ -197,7 +228,14 @@ export default function InvoicesScreen({ onNotify }) {
             <tbody>
               {filteredInvoices.map((inv) => (
                 <tr key={inv.id}>
-                  <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{inv.id}</td>
+                  <td 
+                    className="mono" 
+                    style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer' }}
+                    onClick={() => handleOpenPreview(inv)}
+                    title="Click to view Tax Invoice pop-up"
+                  >
+                    {inv.id}
+                  </td>
                   <td style={{ fontWeight: 600 }}>{inv.customer}</td>
                   <td className="mono" style={{ fontSize: '12px' }}>{inv.refOrder}</td>
                   <td className="mono" style={{ fontSize: '12px' }}>{inv.date}</td>
@@ -214,11 +252,21 @@ export default function InvoicesScreen({ onNotify }) {
                         type="button" 
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '4px 8px', gap: '4px' }}
+                        onClick={() => handleOpenPreview(inv)}
+                        title="View & Download Official Tax Invoice PDF"
+                      >
+                        <FileText size={12} />
+                        <span>PDF</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', gap: '4px' }}
                         onClick={() => setSelectedInvoice(inv)}
                         title="View Tax Invoice"
                       >
                         <Eye size={12} />
-                        <span>View</span>
+                        <span>Details</span>
                       </button>
                       <button 
                         type="button" 
@@ -228,7 +276,7 @@ export default function InvoicesScreen({ onNotify }) {
                         title="Send invoice via Outlook-style email"
                       >
                         <Mail size={12} />
-                        <span>Email Invoice</span>
+                        <span>Email</span>
                       </button>
                     </div>
                   </td>
@@ -249,9 +297,15 @@ export default function InvoicesScreen({ onNotify }) {
           footer={
             <>
               <button type="button" className="btn btn-secondary" onClick={() => setSelectedInvoice(null)}>Close</button>
-              <button type="button" className="btn btn-secondary" onClick={() => onNotify(`Printing Invoice ${selectedInvoice.id}`)}>
-                <Printer size={13} />
-                <span>Print Invoice</span>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  handleOpenPreview(selectedInvoice);
+                }}
+              >
+                <FileText size={13} />
+                <span>PDF Preview</span>
               </button>
               <button 
                 type="button" 
@@ -332,6 +386,14 @@ export default function InvoicesScreen({ onNotify }) {
           onNotify={onNotify}
         />
       )}
+
+      {/* Document Preview Pop-Up Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

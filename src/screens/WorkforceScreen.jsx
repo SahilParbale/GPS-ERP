@@ -6,6 +6,7 @@ import ProgressBar from '../components/common/ProgressBar';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import { WorkforceScreenSkeleton } from '../components/common/Skeleton';
 import { workOrderService } from '../services/database/workOrderService';
 import {
   INITIAL_WORKFORCE_KPIS,
@@ -18,6 +19,8 @@ import {
 import { workforceService } from '../services/database/workforceService';
 import { leaveService } from '../services/database/leaveService';
 import { manufacturingService } from '../services/database/manufacturingService';
+import { exportWorkLogPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import {
   Search, Filter, Plus, Users, Clock, AlertTriangle,
   CheckCircle2, AlertCircle, ArrowRight, Eye, UserCheck,
@@ -37,6 +40,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedShift, setSelectedShift] = useState('All');
   const [selectedBay, setSelectedBay] = useState('All');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Core Workforce State
   const [staffList, setStaffList] = useState([]);
@@ -815,55 +820,14 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   // ACTION 6: EXPORT CSV WORK LOG
   // ==========================================
   const handleExportWorkLogs = () => {
-    const headers = [
-      'Log ID',
-      'Employee ID',
-      'Employee Name',
-      'Date',
-      'Start Time',
-      'End Time',
-      'Duration',
-      'Work Type',
-      'Task',
-      'Work Order',
-      'Spindle',
-      'Machine/Bay',
-      'Department',
-      'Progress %',
-      'Status',
-      'Remarks'
-    ];
-
-    const rows = workLogs.map(log => [
-      `"${log.id}"`,
-      `"${log.employeeId}"`,
-      `"${log.employeeName}"`,
-      `"${log.date}"`,
-      `"${log.startTime}"`,
-      `"${log.endTime}"`,
-      `"${log.duration}"`,
-      `"${log.workType || 'Production'}"`,
-      `"${log.task.replace(/"/g, '""')}"`,
-      `"${log.workOrder}"`,
-      `"${log.spindle}"`,
-      `"${log.machine} / ${log.bay}"`,
-      `"${log.department}"`,
-      `"${log.progress}%"`,
-      `"${log.status}"`,
-      `"${(log.remarks || '').replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `GPS_Spindle_Employee_Work_Log_September_2026.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (onNotify) {
-      onNotify(`Exported ${workLogs.length} employee work logs to CSV.`);
+    try {
+      exportWorkLogPdf(workLogs);
+      if (onNotify) {
+        onNotify(`Technician Work Log Report downloaded (PDF) for ${workLogs.length} employee records.`);
+      }
+    } catch (err) {
+      console.error('Failed to export work log PDF:', err);
+      if (onNotify) onNotify('Failed to download work log PDF', 'error');
     }
   };
 
@@ -992,19 +956,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   };
 
   if (isLoadingStaff) {
-    return (
-      <div className="content-area">
-        <PageHeader
-          title="Staff & Workforce"
-          subtitle="Loading workforce personnel and roster from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching active technicians, shifts, and department allocations...</div>
-        </div>
-      </div>
-    );
+    return <WorkforceScreenSkeleton />;
   }
 
   if (staffError) {
@@ -1050,10 +1002,10 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             type="button"
             className="btn btn-secondary"
             onClick={handleExportWorkLogs}
-            title="Download full client-side CSV work log register"
+            title="Download official PDF work log register"
           >
             <Download size={14} />
-            <span>Export Work Log</span>
+            <span>Export Work Log (PDF)</span>
           </button>
 
           <button
@@ -2638,14 +2590,49 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleOpenAddLog(selectedStaff)}
-                  >
-                    <Plus size={12} />
-                    <span>Add Log Entry</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setPreviewDoc({
+                          type: 'Report',
+                          reportTitle: `EMPLOYEE WORK LOG & PRODUCTIVITY DOSSIER: ${selectedStaff.name} (${selectedStaff.id})`,
+                          id: `LOG-${selectedStaff.id}-${new Date().toISOString().split('T')[0]}`,
+                          metrics: [
+                            { label: 'Department', value: selectedStaff.department },
+                            { label: 'Shift / Station', value: `${selectedStaff.shift} • ${selectedStaff.location || 'Bay 3'}` },
+                            { label: 'Logged Entries', value: selectedStaffLogs.length },
+                            { label: 'Hours Logged', value: selectedStaff.hoursLogged || '8.2h' }
+                          ],
+                          headers: ['#', 'Date & Time', 'Duration', 'Task & Operation', 'Work Order', 'Spindle Serial', 'Progress', 'Status'],
+                          rows: selectedStaffLogs.map((log, idx) => [
+                            idx + 1,
+                            `${log.date} ${log.startTime}–${log.endTime}`,
+                            log.duration,
+                            log.task,
+                            log.workOrder,
+                            log.spindle,
+                            `${log.progress}%`,
+                            log.status
+                          ])
+                        });
+                        setIsPreviewOpen(true);
+                      }}
+                      title="Preview & Export Official Work Log Report (PDF)"
+                    >
+                      <Download size={12} />
+                      <span>Export Log (PDF)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenAddLog(selectedStaff)}
+                    >
+                      <Plus size={12} />
+                      <span>Add Log Entry</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Log Search & Filter */}
@@ -3729,6 +3716,14 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           </form>
         </Modal>
       )}
+
+      {/* Workforce Work Log Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

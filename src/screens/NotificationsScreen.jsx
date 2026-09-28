@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import CustomSelect from '../components/common/CustomSelect';
+import { NotificationsScreenSkeleton } from '../components/common/Skeleton';
 import { 
   Bell, Check, CheckCheck, Trash2, Filter, AlertTriangle, 
   CheckCircle2, Info, AlertOctagon, RefreshCw, ExternalLink,
@@ -155,6 +156,10 @@ export default function NotificationsScreen({ onNavigate, onNotify }) {
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const criticalCount = notifications.filter(n => n.priority === 'Critical' || n.priority === 'Urgent').length;
 
+  if (isLoading) {
+    return <NotificationsScreenSkeleton />;
+  }
+
   return (
     <div className="content-area">
       <PageHeader 
@@ -287,13 +292,7 @@ export default function NotificationsScreen({ onNavigate, onNotify }) {
           </div>
         )}
 
-        {/* Loading State */}
-        {isLoading && (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-            <RefreshCw size={28} className="spin" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-            <div>Fetching realtime notifications from Supabase...</div>
-          </div>
-        )}
+
 
         {/* Notification Cards List */}
         {!isLoading && !error && (

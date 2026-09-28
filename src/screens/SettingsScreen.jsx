@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
+import { SettingsScreenSkeleton } from '../components/common/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { settingsService } from '../services/settings/settingsService';
 import { 
@@ -193,20 +194,7 @@ export default function SettingsScreen({ onNotify }) {
 
   // Render Loading State
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Industrial ERP Configuration & Settings" 
-          subtitle="Manage company plant details, user role-based permissions, and machine calibrations"
-        />
-        <div className="section-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <Loader2 size={32} className="spin" style={{ color: 'var(--primary)', margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>
-            Loading live enterprise configuration from Supabase PostgreSQL...
-          </p>
-        </div>
-      </div>
-    );
+    return <SettingsScreenSkeleton />;
   }
 
   // Render Database Error State with Retry

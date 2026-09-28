@@ -11,11 +11,13 @@ import {
   maintenanceService 
 } from '../services/database';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportServiceJobReportPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { SERVICE_PIPELINE_STAGES } from '../data/mockData';
 import { 
   Plus, Search, Wrench, AlertTriangle, Clock, 
   CheckCircle, FileText, Eye, RefreshCw, AlertCircle, 
-  ShieldAlert, Settings, Activity, CheckSquare
+  ShieldAlert, Settings, Activity, CheckSquare, Download
 } from 'lucide-react';
 
 export default function ServiceScreen({ onNavigate, onNotify }) {
@@ -30,6 +32,8 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // New Service Request Form State
   const [newRequest, setNewRequest] = useState({
@@ -352,6 +356,22 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setPreviewDoc({
+                      ...selectedJob,
+                      type: 'Service Report',
+                      id: selectedJob.id || 'SRV-2026-0041'
+                    });
+                    setIsPreviewOpen(true);
+                  }}
+                  title="Preview official overhaul & metrology diagnostics report (PDF)"
+                >
+                  <Download size={14} />
+                  <span>Service Report (PDF)</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm"
                   onClick={handleAdvanceStep}
                 >
                   <Wrench size={14} />
@@ -577,6 +597,14 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
           </div>
         </div>
       </Modal>
+
+      {/* Service Overhaul Report Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

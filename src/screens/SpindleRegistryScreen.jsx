@@ -6,6 +6,8 @@ import CustomSelect from '../components/common/CustomSelect';
 import { spindleModelService } from '../services/database/spindleModelService';
 import { customerService } from '../services/database/customerService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportSpindleRegistryPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Filter, Plus, Eye, Wrench, Download, 
@@ -24,6 +26,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Registration Modal State
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -185,10 +189,31 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
         <button 
           type="button" 
           className="btn btn-secondary"
-          onClick={() => onNotify('Exported Spindle Registry (CSV)')}
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'SERIALIZED SPINDLE FLEET & ASSET REGISTRY',
+              id: `SPINDLE-REG-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Registered Fleet Units', value: spindles.length },
+                { label: 'Operational In Service', value: spindles.filter(s => s.status === 'Operational' || s.status === 'Active').length },
+                { label: 'Under Overhaul / Testing', value: spindles.filter(s => s.status === 'Testing' || s.status === 'Under Service').length }
+              ],
+              headers: ['#', 'Serial Number', 'Model & Specification', 'Customer Account', 'Max RPM / Power', 'Status'],
+              rows: spindles.map((s, idx) => [
+                idx + 1,
+                s.serialNumber || s.id,
+                s.model,
+                s.customer,
+                `${s.maxRpm || 24000} RPM • ${s.powerKw || 15} kW`,
+                s.status
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
         >
           <Download size={14} />
-          <span>Export Registry</span>
+          <span>Export Registry (PDF)</span>
         </button>
         <button 
           type="button" 
@@ -580,6 +605,14 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
           )}
         </form>
       </Modal>
+
+      {/* Spindle Registry Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

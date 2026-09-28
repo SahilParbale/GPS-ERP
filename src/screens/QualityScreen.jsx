@@ -6,7 +6,9 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { qualityService } from '../services/database';
 import { QualityScreenSkeleton } from '../components/common/Skeleton';
+import { exportCalibrationCertificatePdf } from '../utils/pdfGenerator';
 import { useAuth } from '../context/AuthContext';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   ShieldCheck, CheckCircle2, XCircle, Printer, 
   UserCheck, AlertCircle, RefreshCw, Loader2, Edit3, 
@@ -21,6 +23,8 @@ export default function QualityScreen({ onNotify }) {
   const [inspections, setInspections] = useState([]);
   const [selectedInspectionId, setSelectedInspectionId] = useState(null);
   const [selectedInspection, setSelectedInspection] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Async Lifecycle States
   const [isLoading, setIsLoading] = useState(true);
@@ -208,14 +212,15 @@ export default function QualityScreen({ onNotify }) {
     }
   };
 
-  // 9. Print Calibration Certificate
+  // 9. Print / Download Calibration Certificate via Pop-up Preview
   const handlePrint = () => {
     if (!selectedInspection) return;
-    const spindleSerial = selectedInspection.spindle?.serial_number || selectedInspection.inspection_number;
-    if (onNotify) {
-      onNotify(`Full Calibration Certificate printed for ${spindleSerial}`);
-    }
-    window.print();
+    setPreviewDoc({
+      ...selectedInspection,
+      type: 'Calibration Certificate',
+      id: selectedInspection.inspection_number || `CAL-${selectedInspection.id || '2026'}`
+    });
+    setIsPreviewOpen(true);
   };
 
   // Render Loading State
@@ -550,6 +555,15 @@ export default function QualityScreen({ onNotify }) {
             <button 
               type="button" 
               className="btn btn-secondary"
+              onClick={handlePrint}
+              title="Download official ISO Calibration & Metrology Certificate (PDF)"
+            >
+              <Printer size={14} />
+              <span>Certificate (PDF)</span>
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-secondary"
               onClick={handleReject}
               disabled={isMutating || isRejected || !isAuthorizedToEdit}
               style={{ color: '#dc2626', borderColor: '#fca5a5' }}
@@ -707,6 +721,14 @@ export default function QualityScreen({ onNotify }) {
           </form>
         )}
       </Modal>
+
+      {/* Calibration Certificate Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

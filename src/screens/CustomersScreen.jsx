@@ -6,6 +6,8 @@ import { customerService } from '../services/database/customerService';
 import { contactService } from '../services/database/contactService';
 import { documentService } from '../services/database/documentService';
 import { CustomerScreenSkeleton } from '../components/common/Skeleton';
+import { exportCustomerDirectoryPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   Search, Users, Phone, Mail, FileText, 
   RefreshCw, AlertCircle, Download, CheckCircle2, Star
@@ -18,6 +20,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('fleet');
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Live sub-data state for selected customer
   const [subData, setSubData] = useState({
@@ -242,6 +246,35 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
         badge={`${customers.length} Enterprise Clients`}
       >
+        <button 
+          type="button" 
+          className="btn btn-secondary"
+          onClick={() => {
+            setPreviewDoc({
+              type: 'Report',
+              reportTitle: 'CORPORATE CUSTOMER DIRECTORY & FLEET REPORT',
+              id: `CUST-DIR-${new Date().toISOString().split('T')[0]}`,
+              metrics: [
+                { label: 'Active Enterprise Clients', value: customers.length },
+                { label: 'Total Installed Spindles', value: customers.reduce((sum, c) => sum + (c.activeSpindles || 0), 0) },
+                { label: 'Key Accounts (Tier 1)', value: customers.filter(c => c.tier === 'Tier 1' || c.status === 'Active').length }
+              ],
+              headers: ['#', 'Client Name', 'City / State', 'GSTIN', 'Installed Fleet', 'Account Status'],
+              rows: customers.map((c, idx) => [
+                idx + 1,
+                c.name,
+                `${c.city || 'Pune'}, ${c.state || 'Maharashtra'}`,
+                c.gstin || '27AABCG1492K1Z8',
+                `${c.activeSpindles || 0} Units`,
+                c.status || 'Active'
+              ])
+            });
+            setIsPreviewOpen(true);
+          }}
+        >
+          <Download size={14} />
+          <span>Export Accounts (PDF)</span>
+        </button>
         <button
           type="button"
           className="btn btn-secondary"
@@ -643,6 +676,14 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         </div>
         )}
       </div>
+
+      {/* Customer Directory Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

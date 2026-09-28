@@ -6,6 +6,8 @@ import Tabs from '../components/common/Tabs';
 import { workOrderService } from '../services/database/workOrderService';
 import { spindleModelService } from '../services/database/spindleModelService';
 import { DetailScreenSkeleton } from '../components/common/Skeleton';
+import { exportJobTravelerPdf } from '../utils/pdfGenerator';
+import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   ArrowLeft, FileText, CheckCircle, Clock, ShieldCheck, 
   User, Printer, Check, Download, AlertCircle, Wrench,
@@ -20,6 +22,8 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('operations');
   const [isSigningOff, setIsSigningOff] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const loadWorkOrderDetail = useCallback(async () => {
     setIsLoading(true);
@@ -154,10 +158,18 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           <button 
             type="button" 
             className="btn btn-secondary btn-sm"
-            onClick={() => onNotify && onNotify(`Printing Shop Floor Job Traveler Sheet for ${wo.id}`)}
+            onClick={() => {
+              setPreviewDoc({
+                ...wo,
+                operations,
+                type: 'Job Traveler',
+                id: wo.id || wo.workOrderNumber || 'WO-2026-0182'
+              });
+              setIsPreviewOpen(true);
+            }}
           >
             <Printer size={14} />
-            <span>Print Traveler</span>
+            <span>Print Traveler (PDF)</span>
           </button>
           <button 
             type="button" 
@@ -457,6 +469,14 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           </div>
         </div>
       )}
+
+      {/* Shop Floor Job Traveler Pop-up Preview Modal */}
+      <DocumentPreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        doc={previewDoc}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

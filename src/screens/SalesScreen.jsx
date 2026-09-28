@@ -6,6 +6,7 @@ import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
+import { exportQuotationPdf, exportElementAsPdf } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
@@ -277,8 +278,24 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     await loadQuotations();
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!selectedQuote) return;
+    try {
+      const element = document.getElementById('printable-quotation');
+      let success = false;
+      const cleanId = String(selectedQuote.estimateNo || selectedQuote.id || 'QTN').replace(/[^a-zA-Z0-9_-]/g, '_');
+      if (element) {
+        success = await exportElementAsPdf(element, `GPS_Estimate_${cleanId}.pdf`);
+      }
+      if (!success) {
+        exportQuotationPdf(selectedQuote);
+      }
+      if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
+    } catch (err) {
+      console.error('Failed to export quotation PDF:', err);
+      exportQuotationPdf(selectedQuote);
+      if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
+    }
   };
 
   if (isLoading) {
@@ -551,7 +568,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
             </div>
 
             {/* Document Body (Matching Estimate_QTN 2026-27 294 PDF) */}
-            <div style={{ padding: '14px 16px', background: '#ffffff', color: '#0f172a', fontSize: '11px', lineHeight: '1.35' }}>
+            <div id="printable-quotation" style={{ padding: '14px 16px', background: '#ffffff', color: '#0f172a', fontSize: '11px', lineHeight: '1.35' }}>
               
               {/* Document Title Banner */}
               <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '15px', letterSpacing: '0.04em', borderBottom: '2px solid #0f172a', paddingBottom: '3px', marginBottom: '8px' }}>

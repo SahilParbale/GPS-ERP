@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import EmailActivityTable from '../components/email/EmailActivityTable';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { Mail, Plus, RefreshCw, Send, AlertCircle, Inbox, Clock, CheckCircle } from 'lucide-react';
 import { fetchEmailActivityLive } from '../services/emailService';
 
@@ -58,6 +59,17 @@ export default function EmailActivityScreen({ onNotify }) {
   const sentCount = emailList.filter(e => e.status === 'Sent' || e.status === 'Delivered').length;
   const draftCount = emailList.filter(e => e.status === 'Draft' || e.status === 'Queued').length;
   const failedCount = emailList.filter(e => e.status === 'Failed').length;
+
+  if (isLoading) {
+    return (
+      <TablePageSkeleton 
+        hasMetrics={true} 
+        metricCount={4} 
+        columns={['135px', '125px', '180px', '180px', '220px', '95px', '120px', '100px']} 
+        rows={7} 
+      />
+    );
+  }
 
   return (
     <div className="content-area">
@@ -153,16 +165,8 @@ export default function EmailActivityScreen({ onNotify }) {
         </div>
       )}
 
-      {/* Loading State */}
-      {isLoading && (
-        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-          <RefreshCw size={28} className="spin" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Loading transmission logs from Supabase email_activity...</div>
-        </div>
-      )}
-
       {/* Live Email Activity Table */}
-      {!isLoading && !error && (
+      {!error && (
         <EmailActivityTable 
           emailList={emailList}
           onOpenComposerForDraft={handleOpenDraftInComposer}

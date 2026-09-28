@@ -675,6 +675,10 @@ html, body {
   min-width: 0;
 }
 
+.content-area > * {
+  flex-shrink: 0;
+}
+
 /* Page Header */
 .page-header {
   display: flex;
@@ -2468,3 +2472,32 @@ select option:checked {
     transform: translateY(0);
   }
 }
+
+/* Print Styles for Quotations, Proforma Invoices & Document Previews */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printable-quotation,
+  #printable-quotation *,
+  #printable-document-preview,
+  #printable-document-preview *,
+  #printable-proforma,
+  #printable-proforma * {
+    visibility: visible !important;
+  }
+  #printable-quotation,
+  #printable-document-preview,
+  #printable-proforma {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
