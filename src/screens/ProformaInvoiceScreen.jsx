@@ -4,6 +4,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -332,19 +333,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Proforma Invoices" 
-          subtitle="Loading live proforma invoices from PostgreSQL..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching commercial proformas, advance payment milestones, and line items...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton hasMetrics={true} metricCount={3} columns={['100px', '160px', '120px', '90px', '90px', '90px', '80px', '70px']} rows={6} />;
   }
 
   if (error) {

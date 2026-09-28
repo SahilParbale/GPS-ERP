@@ -9,6 +9,7 @@ import CustomSelect from '../components/common/CustomSelect';
 import { PRODUCTION_PIPELINE_STAGES } from '../data/mockData';
 import { workOrderService } from '../services/database/workOrderService';
 import { manufacturingService } from '../services/database/manufacturingService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Plus, Search, Filter, Eye, ArrowRight, Cog, 
   Wrench, Layers, Factory, Check, RefreshCw, AlertCircle 
@@ -99,20 +100,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
 
   // Loading State
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Production Management & Shop Floor Operations" 
-          subtitle="Loading live routing and machine cell telemetry from Supabase..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
-          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>Fetching Precision Manufacturing Orders...</div>
-          <p style={{ fontSize: '12.5px', marginTop: '6px' }}>Connecting to live production operations, shop bays, and traveler telemetry.</p>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['100px', '110px', '160px', '140px', '120px', '90px', '90px', '70px']} rows={7} />;
   }
 
   // Error State

@@ -5,6 +5,7 @@ import ProgressBar from '../components/common/ProgressBar';
 import Tabs from '../components/common/Tabs';
 import { workOrderService } from '../services/database/workOrderService';
 import { spindleModelService } from '../services/database/spindleModelService';
+import { DetailScreenSkeleton } from '../components/common/Skeleton';
 import { 
   ArrowLeft, FileText, CheckCircle, Clock, ShieldCheck, 
   User, Printer, Check, Download, AlertCircle, Wrench,
@@ -88,25 +89,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
 
   // Loading State
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-sm"
-            onClick={() => onNavigate('production')}
-          >
-            <ArrowLeft size={14} />
-            <span>Back to Production Board</span>
-          </button>
-        </div>
-        <div className="section-card" style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
-          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>Loading Traveler Sheet & Operations...</div>
-          <p style={{ fontSize: '12.5px', marginTop: '6px' }}>Retrieving live specifications, BOM components, and routing steps from Supabase.</p>
-        </div>
-      </div>
-    );
+    return <DetailScreenSkeleton />;
   }
 
   // Error State

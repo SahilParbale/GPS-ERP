@@ -10,6 +10,7 @@ import {
   assetService, 
   maintenanceService 
 } from '../services/database';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { SERVICE_PIPELINE_STAGES } from '../data/mockData';
 import { 
   Plus, Search, Wrench, AlertTriangle, Clock, 
@@ -180,19 +181,7 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Spindle Overhaul, Rebuilding & Service" 
-          subtitle="Loading live restoration pipeline and equipment registries..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
-          <div>Retrieving live factory service jobs and plant asset registries...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['100px', '140px', '160px', '220px', '120px', '90px', '80px', '70px']} rows={6} />;
   }
 
   if (error) {

@@ -5,6 +5,7 @@ import EmptyState from '../components/common/EmptyState';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { qualityService } from '../services/database';
+import { QualityScreenSkeleton } from '../components/common/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldCheck, CheckCircle2, XCircle, Printer, 
@@ -219,21 +220,7 @@ export default function QualityScreen({ onNotify }) {
 
   // Render Loading State
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Quality Control & Metrology Acceptance" 
-          subtitle="Micron-level dimensional tolerance inspection, air gauging, and dynamic balancing sign-off"
-          badge="ISO 9001:2015 Standards"
-        />
-        <div className="section-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <Loader2 size={32} className="spin" style={{ color: 'var(--primary)', margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>
-            Loading live quality inspections from database...
-          </p>
-        </div>
-      </div>
-    );
+    return <QualityScreenSkeleton />;
   }
 
   // Render Error State with Retry

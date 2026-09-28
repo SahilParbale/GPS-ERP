@@ -3,6 +3,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import { spindleModelService } from '../services/database/spindleModelService';
+import { DetailScreenSkeleton } from '../components/common/Skeleton';
 import { 
   ArrowLeft, QrCode, Download, Printer, Shield, 
   Wrench, Activity, CheckCircle, Cpu, FileCheck,
@@ -57,25 +58,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
   }, [loadSpindleDetail]);
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-sm"
-            onClick={() => onNavigate('spindles')}
-          >
-            <ArrowLeft size={14} />
-            <span>Back to Spindle Registry</span>
-          </button>
-        </div>
-        <div className="section-card" style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={28} className="spin-icon" style={{ marginBottom: '14px', color: 'var(--primary)' }} />
-          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>Loading Digital Twin & Subsystems...</div>
-          <p style={{ fontSize: '12.5px', marginTop: '6px' }}>Retrieving live serial telemetry, fitted components, and metrology inspection records.</p>
-        </div>
-      </div>
-    );
+    return <DetailScreenSkeleton hasSchematic={true} />;
   }
 
   if (error || !spData) {

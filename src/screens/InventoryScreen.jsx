@@ -6,6 +6,7 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { inventoryService } from '../services/database/inventoryService';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, AlertTriangle, Boxes, 
@@ -259,19 +260,7 @@ export default function InventoryScreen({ onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Materials, Spares & Tooling Inventory" 
-          subtitle="Loading stock inventory from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching live inventory products and warehouse stock balances...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['110px', '200px', '140px', '90px', '80px', '100px', '80px']} rows={8} />;
   }
 
   if (error) {

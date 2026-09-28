@@ -5,6 +5,7 @@ import ProgressBar from '../components/common/ProgressBar';
 import PipelineVisualizer from '../components/common/PipelineVisualizer';
 import PageHeader from '../components/common/PageHeader';
 import { dashboardService } from '../services/database';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 import { 
   ArrowUpRight, AlertTriangle, Clock, Eye, 
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
@@ -86,20 +87,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
   // Loading Skeleton State
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader
-          title="Manufacturing Operations Dashboard"
-          subtitle="GPS Spindle Nanded City Unit 1 • Live PostgreSQL Metrics"
-        />
-        <div className="section-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <Loader2 size={32} className="spin" style={{ color: 'var(--primary)', margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>
-            Aggregating real-time manufacturing and production metrics...
-          </p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Error State with Retry (Zero Mock Fallback)

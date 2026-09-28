@@ -4,6 +4,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { invoiceService } from '../services/database/invoiceService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Search, FileText, DollarSign, Download, Printer, 
   CheckCircle, Plus, AlertCircle, Mail, Eye, RefreshCw 
@@ -64,19 +65,7 @@ export default function InvoicesScreen({ onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Commercial Invoices & Payment Tracking" 
-          subtitle="Loading live tax invoices from PostgreSQL..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching commercial tax invoices, GST billing, and accounts receivables...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton hasMetrics={true} metricCount={3} columns={['100px', '160px', '120px', '90px', '90px', '90px', '90px', '80px', '70px']} rows={6} />;
   }
 
   if (error) {

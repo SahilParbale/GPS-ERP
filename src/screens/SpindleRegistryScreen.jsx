@@ -5,6 +5,7 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { spindleModelService } from '../services/database/spindleModelService';
 import { customerService } from '../services/database/customerService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Filter, Plus, Eye, Wrench, Download, 
@@ -146,19 +147,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
   });
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Spindle Fleet & Asset Registry" 
-          subtitle="Loading serialized asset registry from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching serialized spindles and engineering model specifications...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['140px', '180px', '120px', '140px', '100px', '80px']} rows={6} />;
   }
 
   if (error) {

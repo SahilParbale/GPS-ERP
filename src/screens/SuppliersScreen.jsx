@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import { supplierService } from '../services/database/supplierService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { Search, Truck, Star, Phone, FileText, Plus, Download, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function SuppliersScreen({ onNotify }) {
@@ -59,19 +60,7 @@ export default function SuppliersScreen({ onNotify }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Precision Vendors & Component Suppliers" 
-          subtitle="Loading approved vendor records from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching approved component suppliers from database...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['110px', '180px', '160px', '130px', '90px', '100px']} rows={6} />;
   }
 
   if (error) {

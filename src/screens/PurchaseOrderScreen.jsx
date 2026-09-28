@@ -4,6 +4,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -338,19 +339,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Purchase Order Management" 
-          subtitle="Loading live purchase orders from PostgreSQL..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching purchase orders, vendor contracts, and line items...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton hasMetrics={true} metricCount={3} columns={['100px', '160px', '140px', '100px', '90px', '90px', '80px', '70px']} rows={6} />;
   }
 
   if (error) {

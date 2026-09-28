@@ -8,6 +8,7 @@ import {
   PRESET_EMAIL_GROUPS
 } from '../data/contactsData';
 import { contactService } from '../services/database/contactService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   Search, Users, Mail, Phone, Building2, Copy, Check,
@@ -298,19 +299,7 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader
-          title="Contacts & Email Directory"
-          subtitle="Loading centralized contact directory from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching client and supplier contacts from database...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['140px', '180px', '160px', '140px', '120px', '80px']} rows={6} />;
   }
 
   if (error) {

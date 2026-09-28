@@ -5,6 +5,7 @@ import Tabs from '../components/common/Tabs';
 import { customerService } from '../services/database/customerService';
 import { contactService } from '../services/database/contactService';
 import { documentService } from '../services/database/documentService';
+import { CustomerScreenSkeleton } from '../components/common/Skeleton';
 import { 
   Search, Users, Phone, Mail, FileText, 
   RefreshCw, AlertCircle, Download, CheckCircle2, Star
@@ -189,19 +190,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Industrial Customer Accounts" 
-          subtitle="Loading customer accounts from live database..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching authorized enterprise customer accounts...</div>
-        </div>
-      </div>
-    );
+    return <CustomerScreenSkeleton />;
   }
 
   if (error) {

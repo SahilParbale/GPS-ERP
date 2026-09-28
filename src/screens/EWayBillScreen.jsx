@@ -6,6 +6,7 @@ import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
 import { ewayBillService } from '../services/database/ewayBillService';
 import { logisticsService } from '../services/database/logisticsService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -449,19 +450,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="E-Way Bill System" 
-          subtitle="Loading live E-Way Bills from PostgreSQL..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching consignment transit passes, Part-A/Part-B transporter logistics & dispatch compliance...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['120px', '160px', '140px', '120px', '90px', '80px', '70px']} rows={6} />;
   }
 
   if (error) {

@@ -2359,6 +2359,112 @@ select option:checked {
   background: var(--primary);
 }
 
+/* ==========================================================================
+   Precision Skeleton Shimmer & Loading State Transitions
+   ========================================================================== */
 
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
 
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #F3E9EE 0%,
+    #FAF4F7 35%,
+    #FFFFFF 50%,
+    #FAF4F7 65%,
+    #F3E9EE 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
 
+.skeleton-block {
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    #F3E9EE 0%,
+    #FAF4F7 35%,
+    #FFFFFF 50%,
+    #FAF4F7 65%,
+    #F3E9EE 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-text {
+  border-radius: var(--radius-sm);
+  height: 12px;
+  background: linear-gradient(
+    90deg,
+    #F3E9EE 0%,
+    #FAF4F7 35%,
+    #FFFFFF 50%,
+    #FAF4F7 65%,
+    #F3E9EE 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-badge {
+  border-radius: 9999px;
+  height: 20px;
+  width: 64px;
+  background: linear-gradient(
+    90deg,
+    #F3E9EE 0%,
+    #FAF4F7 35%,
+    #FFFFFF 50%,
+    #FAF4F7 65%,
+    #F3E9EE 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-avatar {
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    #F3E9EE 0%,
+    #FAF4F7 35%,
+    #FFFFFF 50%,
+    #FAF4F7 65%,
+    #F3E9EE 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-table-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 16px;
+}
+
+.skeleton-fade-in {
+  animation: skeletonFadeIn 0.25s ease-out forwards;
+}
+
+@keyframes skeletonFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -5,6 +5,7 @@ import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
@@ -281,19 +282,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
   };
 
   if (isLoading) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Sales Enquiries, Quotations & Commercial Orders" 
-          subtitle="Loading live quotations from PostgreSQL..."
-          badge="Live Supabase"
-        />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <RefreshCw size={24} className="spin-icon" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <div>Fetching registered customer quotations, scope of work, and pricing...</div>
-        </div>
-      </div>
-    );
+    return <TablePageSkeleton columns={['140px', '180px', '120px', '100px', '90px', '80px']} rows={6} />;
   }
 
   if (error) {
