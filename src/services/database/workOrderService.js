@@ -103,7 +103,7 @@ export const workOrderService = {
         notes,
         customer_name,
         customer:customers(id, customer_code, company_name),
-        model:spindle_models(id, model_code, model_name, max_speed_rpm, rated_power_kw, rated_torque_nm, tool_interface_type),
+        model:spindle_models(id, model_code, model_name, max_rpm, rated_power_kw, nominal_torque_nm, taper_standard),
         spindle:spindles(id, serial_number, current_stage, status, max_rpm, power_kw, torque_nm, taper_interface, balance_grade, vibration_overall_velocity_mms, clamping_force_measured_kn),
         bay:production_bays(id, code, name),
         machine:machines(id, code, name),
@@ -145,10 +145,10 @@ export const workOrderService = {
       completedOps: Math.round(((wo.progress_percentage || 0) / 100) * 8),
       value: '₹8,45,000',
       specifications: {
-        maxSpeed: wo.spindle?.max_rpm ? `${wo.spindle.max_rpm.toLocaleString()} RPM` : (wo.model?.max_speed_rpm ? `${wo.model.max_speed_rpm.toLocaleString()} RPM` : '24,000 RPM'),
+        maxSpeed: wo.spindle?.max_rpm ? `${wo.spindle.max_rpm.toLocaleString()} RPM` : (wo.model?.max_rpm ? `${wo.model.max_rpm.toLocaleString()} RPM` : '24,000 RPM'),
         ratedPower: wo.spindle?.power_kw ? `${wo.spindle.power_kw} kW (S1 continuous)` : `${wo.model?.rated_power_kw || 15.0} kW`,
-        torque: wo.spindle?.torque_nm ? `${wo.spindle.torque_nm} Nm` : `${wo.model?.rated_torque_nm || 32} Nm`,
-        toolTaper: wo.spindle?.taper_interface || wo.model?.tool_interface_type || 'HSK-A63 DIN 69893',
+        torque: wo.spindle?.torque_nm ? `${wo.spindle.torque_nm} Nm` : `${wo.model?.nominal_torque_nm || 32} Nm`,
+        toolTaper: wo.spindle?.taper_interface || wo.model?.taper_standard || 'HSK-A63 DIN 69893',
         taperRunoutLimit: '≤ 0.0010 mm',
         arborRunoutLimit: '≤ 0.0030 mm @ 300mm',
         drawbarForce: wo.spindle?.clamping_force_measured_kn ? `${wo.spindle.clamping_force_measured_kn} kN` : '18.0 kN ± 1.0',
@@ -188,8 +188,7 @@ export const workOrderService = {
         qc_sign_off,
         completed_at,
         bay:production_bays(id, code, name),
-        machine:machines(id, code, name),
-        assigned_employee:employees(id, employee_code, first_name, last_name)
+        machine:machines(id, code, name)
       `,
       eq: { work_order_id: woId },
       orderBy: 'sequence_no',

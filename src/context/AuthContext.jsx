@@ -68,6 +68,8 @@ export function AuthProvider({ children }) {
   const [employee, setEmployee] = useState(null);
   const [role, setRole] = useState('ADMIN');
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
@@ -170,48 +172,65 @@ export function AuthProvider({ children }) {
   // Sign In action
   const signIn = useCallback(async ({ email, password }) => {
     setAuthError(null);
+    setIsLoggingIn(true);
     setIsLoading(true);
 
-    const { data, error } = await authService.signIn({ email, password });
+    try {
+      const { data, error } = await authService.signIn({ email, password });
 
-    if (error) {
-      setAuthError(error.message);
-      setIsLoading(false);
-      return { success: false, error: error.message };
-    }
-
-    if (data) {
-      setUser(data.user);
-      setSession(data.session);
-      setProfile(data.profile);
-      setEmployee(data.employee);
-      setRole(data.role || 'ADMIN');
-
-      // Save dev user in localStorage for refresh persistence only if offline/demo
-      if (data.session?.access_token === 'dev-token') {
-        localStorage.setItem('gps_erp_dev_user', JSON.stringify(data.profile));
-      } else {
-        localStorage.removeItem('gps_erp_dev_user');
+      if (error) {
+        setAuthError(error.message);
+        setIsLoading(false);
+        setIsLoggingIn(false);
+        return { success: false, error: error.message };
       }
-      setIsLoading(false);
-      return { success: true };
-    }
 
-    setIsLoading(false);
-    return { success: false, error: 'Unknown authentication error' };
+      if (data) {
+        setUser(data.user);
+        setSession(data.session);
+        setProfile(data.profile);
+        setEmployee(data.employee);
+        setRole(data.role || 'ADMIN');
+
+        // Save dev user in localStorage for refresh persistence only if offline/demo
+        if (data.session?.access_token === 'dev-token') {
+          localStorage.setItem('gps_erp_dev_user', JSON.stringify(data.profile));
+        } else {
+          localStorage.removeItem('gps_erp_dev_user');
+        }
+        setIsLoading(false);
+        setIsLoggingIn(false);
+        return { success: true };
+      }
+
+      setIsLoading(false);
+      setIsLoggingIn(false);
+      return { success: false, error: 'Unknown authentication error' };
+    } catch (err) {
+      setIsLoading(false);
+      setIsLoggingIn(false);
+      return { success: false, error: err.message || 'Authentication error' };
+    }
   }, []);
 
   // Sign Out action
   const signOut = useCallback(async () => {
+    setIsLoggingOut(true);
     setIsLoading(true);
-    await authService.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setEmployee(null);
-    setRole('ADMIN');
-    localStorage.removeItem('gps_erp_dev_user');
-    setIsLoading(false);
+    try {
+      await authService.signOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setEmployee(null);
+      setRole('ADMIN');
+      localStorage.removeItem('gps_erp_dev_user');
+    } catch (err) {
+      console.warn('[AuthContext] signOut error:', err);
+    } finally {
+      setIsLoading(false);
+      setIsLoggingOut(false);
+    }
   }, []);
 
   // Quick switch between demo roles (for testing & development verification)
@@ -245,6 +264,8 @@ export function AuthProvider({ children }) {
     roleLabel: profile?.roleLabel || role,
     isAuthenticated: Boolean(user || profile),
     isLoading,
+    isLoggingIn,
+    isLoggingOut,
     authError,
     setAuthError,
     isPasswordRecovery,

@@ -661,4 +661,266 @@ export function NotificationsScreenSkeleton() {
   );
 }
 
+/**
+ * Dark Surface Shimmer Block (for dark sidebars & hero panels)
+ */
+export function SkeletonDark({ 
+  width = '100%', 
+  height = '14px', 
+  borderRadius, 
+  variant = 'rect', 
+  className = '', 
+  style = {} 
+}) {
+  const getRadius = () => {
+    if (borderRadius) return borderRadius;
+    if (variant === 'circle') return '50%';
+    if (variant === 'badge') return '9999px';
+    if (variant === 'text') return 'var(--radius-sm, 4px)';
+    return 'var(--radius-md, 6px)';
+  };
+
+  return (
+    <div
+      className={`skeleton-shimmer-dark ${className}`}
+      style={{
+        width,
+        height,
+        borderRadius: getRadius(),
+        ...style
+      }}
+    />
+  );
+}
+
+/**
+ * Login Screen Skeleton (shown during logout, login transition, and unauthenticated bootstrap)
+ */
+export function LoginScreenSkeleton({ message = 'Securely signing out of plant session...' }) {
+  return (
+    <div 
+      className="gps-login-root skeleton-fade-in"
+      style={{
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        position: 'relative',
+        overflow: 'hidden',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: '#FFFFFF'
+      }}
+    >
+      {/* Left Hero Panel */}
+      <div 
+        className="gps-login-left"
+        style={{
+          flex: '0 0 52%',
+          background: 'linear-gradient(135deg, #70162F 0%, #4A0D1E 100%)',
+          padding: '48px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px' }}>
+            <SkeletonDark width="40px" height="40px" borderRadius="8px" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <SkeletonDark width="150px" height="16px" />
+              <SkeletonDark width="100px" height="11px" />
+            </div>
+          </div>
+
+          <div style={{ maxWidth: '440px' }}>
+            <SkeletonDark width="280px" height="28px" style={{ marginBottom: '12px' }} />
+            <SkeletonDark width="340px" height="14px" style={{ marginBottom: '8px' }} />
+            <SkeletonDark width="220px" height="14px" style={{ marginBottom: '32px' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} style={{ padding: '14px 16px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <SkeletonDark width="140px" height="14px" style={{ marginBottom: '6px' }} />
+                  <SkeletonDark width="90%" height="11px" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <SkeletonDark width="180px" height="12px" />
+          <SkeletonDark width="90px" height="20px" variant="badge" />
+        </div>
+      </div>
+
+      {/* Right Form Card Panel */}
+      <div 
+        className="gps-login-right"
+        style={{
+          flex: '0 0 48%',
+          backgroundColor: '#F8FAFC',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 24px',
+          position: 'relative'
+        }}
+      >
+        <div 
+          style={{
+            width: '100%',
+            maxWidth: '430px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '12px',
+            padding: '32px 30px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+            border: '1px solid #E2E8F0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Skeleton width="90px" height="22px" variant="badge" />
+            <Skeleton width="110px" height="12px" />
+          </div>
+
+          <div>
+            <Skeleton width="210px" height="22px" style={{ marginBottom: '6px' }} />
+            <Skeleton width="260px" height="12px" />
+          </div>
+
+          {message && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--primary)', fontWeight: 600 }}>
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+              <span>{message}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+            <Skeleton width="80px" height="11px" />
+            <Skeleton width="100%" height="34px" borderRadius="6px" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <Skeleton width="70px" height="11px" />
+            <Skeleton width="100%" height="34px" borderRadius="6px" />
+          </div>
+
+          <Skeleton width="100%" height="35px" borderRadius="6px" style={{ marginTop: '6px' }} />
+
+          <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '14px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <Skeleton width="130px" height="12px" />
+              <Skeleton width="40px" height="12px" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              {Array.from({ length: 9 }).map((_, i) => (
+                <Skeleton key={i} width="100%" height="26px" borderRadius="4px" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * App Shell Skeleton (shown during login, session restore, and authenticated transitions)
+ */
+export function AppShellSkeleton({ message = 'Authenticating & Initializing Precision ERP...' }) {
+  return (
+    <div className="app-container skeleton-fade-in" style={{ height: '100vh', display: 'flex', overflow: 'hidden' }}>
+      {/* Sidebar Shimmer */}
+      <div 
+        className="app-sidebar" 
+        style={{ 
+          width: '240px', 
+          flexShrink: 0, 
+          background: '#1A0E13', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          padding: '16px 12px',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)' 
+        }}
+      >
+        <div>
+          {/* Brand Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', marginBottom: '24px' }}>
+            <SkeletonDark width="32px" height="32px" borderRadius="6px" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <SkeletonDark width="110px" height="14px" />
+              <SkeletonDark width="75px" height="10px" />
+            </div>
+          </div>
+
+          {/* Nav Links */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '6px' }}>
+                <SkeletonDark width="16px" height="16px" borderRadius="4px" />
+                <SkeletonDark width={i % 2 === 0 ? '110px' : '90px'} height="12px" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* User Profile Footer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <SkeletonDark width="30px" height="30px" variant="circle" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <SkeletonDark width="80px" height="12px" />
+            <SkeletonDark width="50px" height="10px" />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Workspace Area */}
+      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-app, #F8FAFC)' }}>
+        {/* Header Shimmer */}
+        <div 
+          style={{ 
+            height: '56px', 
+            flexShrink: 0, 
+            background: '#FFFFFF', 
+            borderBottom: '1px solid var(--border-color)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            padding: '0 24px' 
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Skeleton width="28px" height="28px" borderRadius="6px" />
+            <Skeleton width="240px" height="32px" borderRadius="6px" />
+          </div>
+
+          {/* Active Status Badge if message */}
+          {message && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '9999px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--primary)', fontWeight: 600 }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+              <span>{message}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Skeleton width="110px" height="30px" borderRadius="6px" />
+            <Skeleton width="32px" height="32px" variant="circle" />
+            <Skeleton width="32px" height="32px" variant="circle" />
+          </div>
+        </div>
+
+        {/* Main Dashboard Shimmer Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          <DashboardSkeleton />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default Skeleton;

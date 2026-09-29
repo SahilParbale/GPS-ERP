@@ -9,6 +9,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 // Auth Integration
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginScreen from './screens/LoginScreen';
+import { AppShellSkeleton, LoginScreenSkeleton } from './components/common/Skeleton';
 
 // Screens
 import DashboardScreen from './screens/DashboardScreen';
@@ -58,7 +59,7 @@ const getInitialScreen = () => {
 };
 
 function AppContent() {
-  const { isAuthenticated, isLoading, canAccessScreen, role } = useAuth();
+  const { isAuthenticated, isLoading, isLoggingIn, isLoggingOut, canAccessScreen, role } = useAuth();
 
   const [currentScreen, setCurrentScreen] = useState(getInitialScreen);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(WORK_ORDERS[0]);
@@ -127,63 +128,26 @@ function AppContent() {
     }
   };
 
-  // 1. Splash Loading State (no flash of protected content)
+  // 1. Logging out state -> Show Login Screen Skeleton
+  if (isLoggingOut) {
+    return <LoginScreenSkeleton message="Securely signing out of plant session..." />;
+  }
+
+  // 2. Logging in state -> Show App Shell Skeleton
+  if (isLoggingIn) {
+    return <AppShellSkeleton message="Authenticating & Loading Precision ERP..." />;
+  }
+
+  // 3. Initial splash / session boot loading state
   if (isLoading) {
-    return (
-      <div 
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#FFFFFF',
-          fontFamily: 'var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)'
-        }}
-      >
-        <div 
-          style={{
-            padding: '24px 32px',
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid #E8D5DA',
-            boxShadow: '0 8px 24px rgba(122, 31, 61, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px'
-          }}
-        >
-          <div 
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-              border: '1px solid #E8D5DA',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-            }}
-          >
-            <img src="/logo.jpg" alt="GPS Spindles" style={{ height: '32px', width: 'auto' }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#7A5260', fontWeight: '500' }}>
-            <div 
-              style={{
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                border: '2px solid #E8D5DA',
-                borderTopColor: '#7A1F3D',
-                animation: 'spin 0.8s linear infinite'
-              }} 
-            />
-            <span>Initializing Precision ERP Session...</span>
-          </div>
-        </div>
-      </div>
+    return isAuthenticated ? (
+      <AppShellSkeleton message="Restoring Precision ERP Workspace..." />
+    ) : (
+      <LoginScreenSkeleton message="Initializing Precision ERP Portal..." />
     );
   }
 
-  // 2. Unauthenticated User State
+  // 4. Unauthenticated User State
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
@@ -228,6 +192,7 @@ function AppContent() {
       case 'work-order-detail':
         return (
           <WorkOrderDetailScreen 
+            key={selectedWorkOrder?.id || selectedWorkOrder?.dbId || 'wo-detail'}
             workOrder={selectedWorkOrder}
             onNavigate={setCurrentScreen}
             onNotify={addToast}
@@ -259,6 +224,7 @@ function AppContent() {
       case 'inventory':
         return (
           <InventoryScreen 
+            onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
         );

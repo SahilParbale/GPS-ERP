@@ -16,7 +16,7 @@ import {
   ShieldAlert, ShoppingCart
 } from 'lucide-react';
 
-export default function InventoryScreen({ onNotify }) {
+export default function InventoryScreen({ onNavigate, onNotify }) {
   const { role, profile } = useAuth();
   const userRole = (profile?.role?.code || profile?.role || role?.code || role || '').toUpperCase();
   const canRaisePO = ['ADMIN', 'MANAGEMENT', 'PURCHASE'].includes(userRole);

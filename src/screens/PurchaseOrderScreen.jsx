@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
+import ConfirmActionModal from '../components/common/ConfirmActionModal';
 
 const PRESET_SUPPLIERS = [
   {
@@ -96,6 +97,14 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
   const [poForEmail, setPoForEmail] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Rich Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    type: 'cancel',
+    po: null,
+    isLoading: false
+  });
 
   // Form State for Create / Edit PO
   const [formData, setFormData] = useState({
@@ -324,18 +333,76 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
     setIsPreviewOpen(true);
   };
 
-  const handleCancelPO = async (poId) => {
-    try {
-      const res = await purchaseOrderService.updatePurchaseOrderStatus(poId, 'Cancelled');
-      if (res.error) throw res.error;
-      onNotify(`Purchase Order ${poId} marked as Cancelled.`, 'warning');
-      await loadPurchaseOrders();
-      if (selectedPO?.id === poId) {
-        setSelectedPO(prev => ({ ...prev, status: 'Cancelled' }));
+  const handlePromptCancelPO = (po) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'cancel',
+      po: po,
+      isLoading: false
+    });
+  };
+
+  const handlePromptDeletePO = (po) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'delete',
+      po: po,
+      isLoading: false
+    });
+  };
+
+  const handleExecuteConfirm = async () => {
+    if (!confirmModal.po) return;
+    const po = confirmModal.po;
+    const poId = po.id || po.poNumber;
+    const poNum = po.poNumber || po.id;
+    const isDelete = confirmModal.type === 'delete';
+
+    setConfirmModal(prev => ({ ...prev, isLoading: true }));
+
+    if (isDelete) {
+      try {
+        // Optimistic remove
+        setPurchaseOrders(prev => prev.filter(p => p.id !== poId && p.poNumber !== poId));
+        if (selectedPO && (selectedPO.id === poId || selectedPO.poNumber === poId)) {
+          setIsDetailDrawerOpen(false);
+          setSelectedPO(null);
+        }
+
+        const res = await purchaseOrderService.deletePurchaseOrder(poId);
+        if (res.error) throw res.error;
+
+        onNotify(`Purchase Order ${poNum} permanently deleted.`, 'info');
+        setConfirmModal({ isOpen: false, type: 'delete', po: null, isLoading: false });
+        await loadPurchaseOrders();
+      } catch (err) {
+        console.error('Error deleting PO:', err);
+        onNotify(err.message || 'Failed to delete Purchase Order', 'danger');
+        setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        await loadPurchaseOrders();
       }
-    } catch (err) {
-      console.error('Error cancelling PO:', err);
-      onNotify(err.message || 'Failed to cancel Purchase Order', 'danger');
+    } else {
+      try {
+        // Optimistic status update
+        setPurchaseOrders(prev => prev.map(p => 
+          (p.id === poId || p.poNumber === poId) ? { ...p, status: 'Cancelled' } : p
+        ));
+        if (selectedPO && (selectedPO.id === poId || selectedPO.poNumber === poId)) {
+          setSelectedPO(prev => ({ ...prev, status: 'Cancelled' }));
+        }
+
+        const res = await purchaseOrderService.updatePurchaseOrderStatus(poId, 'Cancelled');
+        if (res.error) throw res.error;
+
+        onNotify(`Purchase Order ${poNum} marked as Cancelled.`, 'warning');
+        setConfirmModal({ isOpen: false, type: 'cancel', po: null, isLoading: false });
+        await loadPurchaseOrders();
+      } catch (err) {
+        console.error('Error cancelling PO:', err);
+        onNotify(err.message || 'Failed to cancel Purchase Order', 'danger');
+        setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        await loadPurchaseOrders();
+      }
     }
   };
 
@@ -576,13 +643,22 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                           <button 
                             type="button" 
                             className="btn btn-secondary btn-sm"
-                            style={{ padding: '4px 6px', color: '#dc2626' }}
-                            onClick={() => handleCancelPO(po.id)}
+                            style={{ padding: '4px 6px', color: '#6F6267' }}
+                            onClick={() => handlePromptCancelPO(po)}
                             title="Cancel PO"
                           >
                             <X size={12} />
                           </button>
                         )}
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 6px', color: 'var(--status-danger-text)' }}
+                          onClick={() => handlePromptDeletePO(po)}
+                          title="Delete PO"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -966,6 +1042,26 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                   <FileText size={13} />
                   <span>Download PDF</span>
                 </button>
+                {selectedPO.status !== 'Cancelled' && selectedPO.status !== 'Received' && (
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ color: '#6F6267', borderColor: 'var(--border-button)' }}
+                    onClick={() => handlePromptCancelPO(selectedPO)}
+                  >
+                    <X size={13} />
+                    <span>Cancel PO</span>
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ color: 'var(--status-danger-text)', borderColor: 'var(--status-danger-border)' }}
+                  onClick={() => handlePromptDeletePO(selectedPO)}
+                >
+                  <Trash2 size={13} />
+                  <span>Delete PO</span>
+                </button>
                 <button 
                   type="button" 
                   className="btn btn-primary" 
@@ -1164,6 +1260,27 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
         onClose={() => setIsPreviewOpen(false)}
         doc={previewDoc}
         onNotify={onNotify}
+      />
+
+      {/* RICH CONFIRMATION MODAL */}
+      <ConfirmActionModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => {
+          if (!confirmModal.isLoading) {
+            setConfirmModal({ isOpen: false, type: 'cancel', po: null, isLoading: false });
+          }
+        }}
+        onConfirm={handleExecuteConfirm}
+        onSwitchType={(newType) => {
+          setConfirmModal(prev => ({ ...prev, type: newType }));
+        }}
+        type={confirmModal.type}
+        poNumber={confirmModal.po?.poNumber || confirmModal.po?.id}
+        supplier={confirmModal.po?.supplier}
+        totalAmount={confirmModal.po?.formattedTotal || (confirmModal.po?.totalAmount ? `₹${Number(confirmModal.po.totalAmount).toLocaleString('en-IN')}` : '')}
+        status={confirmModal.po?.status}
+        itemsCount={confirmModal.po?.items?.length}
+        isLoading={confirmModal.isLoading}
       />
     </div>
   );

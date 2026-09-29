@@ -151,20 +151,30 @@ export const baseService = {
    * @param {string} [idColumn='id']
    */
   async update(table, id, data, idColumn = 'id') {
+    let resolvedId = id;
+    let resolvedCol = idColumn;
+    if (typeof id === 'object' && id !== null) {
+      const keys = Object.keys(id);
+      if (keys.length > 0) {
+        resolvedCol = keys[0];
+        resolvedId = id[keys[0]];
+      }
+    }
+
     if (!isConfigured) {
-      return { data: { ...data, [idColumn]: id }, error: null, isMock: true };
+      return { data: { ...data, [resolvedCol]: resolvedId }, error: null, isMock: true };
     }
 
     try {
       const { data: updated, error } = await supabase
         .from(table)
         .update({ ...data, updated_at: new Date().toISOString() })
-        .eq(idColumn, id)
+        .eq(resolvedCol, resolvedId)
         .select();
 
       if (error) {
         const normalized = normalizeDatabaseError(error);
-        console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}" (${id}):`, normalized.message);
+        console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}" (${resolvedId}):`, normalized.message);
         return { data: null, error: normalized, isMock: false };
       }
 
@@ -179,24 +189,34 @@ export const baseService = {
   /**
    * Standard DELETE (or soft delete) query wrapper
    * @param {string} table
-   * @param {string|number} id
+   * @param {string|number|object} id
    * @param {boolean} [soft=false]
    * @param {string} [idColumn='id']
    */
   async delete(table, id, soft = false, idColumn = 'id') {
+    let resolvedId = id;
+    let resolvedCol = idColumn;
+    if (typeof id === 'object' && id !== null) {
+      const keys = Object.keys(id);
+      if (keys.length > 0) {
+        resolvedCol = keys[0];
+        resolvedId = id[keys[0]];
+      }
+    }
+
     if (!isConfigured) {
       return { error: null, isMock: true };
     }
 
     try {
       if (soft) {
-        return await this.update(table, id, { is_deleted: true, deleted_at: new Date().toISOString() }, idColumn);
+        return await this.update(table, resolvedId, { is_deleted: true, deleted_at: new Date().toISOString() }, resolvedCol);
       }
 
-      const { error } = await supabase.from(table).delete().eq(idColumn, id);
+      const { error } = await supabase.from(table).delete().eq(resolvedCol, resolvedId);
       if (error) {
         const normalized = normalizeDatabaseError(error);
-        console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}" (${id}):`, normalized.message);
+        console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}" (${resolvedId}):`, normalized.message);
         return { error: normalized, isMock: false };
       }
 

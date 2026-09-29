@@ -14,7 +14,8 @@ import { exportShiftReportPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { 
   Plus, Search, Filter, Eye, ArrowRight, Cog, 
-  Wrench, Layers, Factory, Check, RefreshCw, AlertCircle, Download
+  Wrench, Layers, Factory, Check, RefreshCw, AlertCircle, Download,
+  Activity, Thermometer, Gauge, Zap, CheckCircle2, ShieldCheck, Clock
 } from 'lucide-react';
 
 export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
@@ -31,6 +32,8 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
   const [isSubmittingWo, setIsSubmittingWo] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [inspectingBay, setInspectingBay] = useState(null);
+  const [isCalibrating, setIsCalibrating] = useState(false);
 
   // Form state
   const [newWo, setNewWo] = useState({
@@ -291,7 +294,15 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
 
                   return (
                     <tr key={wo.id || wo.dbId}>
-                      <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                      <td 
+                        className="mono" 
+                        style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap', fontSize: '13px', cursor: 'pointer' }}
+                        onClick={() => {
+                          if (onSelectWorkOrder) onSelectWorkOrder(wo);
+                          if (onNavigate) onNavigate('work-order-detail');
+                        }}
+                        title={`Open Traveler for ${wo.id || wo.workOrderNo}`}
+                      >
                         {wo.id}
                       </td>
                       <td className="mono" style={{ fontWeight: 500, whiteSpace: 'nowrap', fontSize: '12px' }}>
@@ -360,8 +371,9 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                           style={{ padding: '5px 12px', gap: '5px' }}
                           onClick={() => {
                             if (onSelectWorkOrder) onSelectWorkOrder(wo);
-                            onNavigate('work-order-detail');
+                            if (onNavigate) onNavigate('work-order-detail');
                           }}
+                          title={`View Job Traveler for ${wo.id || wo.workOrderNo}`}
                         >
                           <Eye size={13} />
                           <span>View</span>
@@ -423,7 +435,8 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
                   type="button" 
                   className="btn btn-secondary btn-sm" 
                   style={{ marginTop: '4px', width: '100%', justifyContent: 'center' }}
-                  onClick={() => onNotify && onNotify(`Bay telemetry verified: ${bay.bayName}`)}
+                  onClick={() => setInspectingBay(bay)}
+                  title={`Inspect live sensor telemetry for ${bay.bayName}`}
                 >
                   <Wrench size={13} />
                   <span>Inspect Bay Telemetry</span>
@@ -594,6 +607,264 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
           </div>
         </form>
       </Modal>
+
+      {/* Inspect Bay Telemetry Modal */}
+      {inspectingBay && (
+        <Modal
+          isOpen={true}
+          onClose={() => setInspectingBay(null)}
+          title={`Shop Floor Cell Telemetry: ${inspectingBay.bayName}`}
+          maxWidth="780px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setInspectingBay(null)}
+              >
+                Close Telemetry
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setIsCalibrating(true);
+                    setTimeout(() => {
+                      setIsCalibrating(false);
+                      if (onNotify) onNotify(`Sensors recalibrated for ${inspectingBay.bayName}. Drift: <0.02 µm.`);
+                    }, 800);
+                  }}
+                  disabled={isCalibrating}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={13} className={isCalibrating ? 'spin' : ''} />
+                  <span>{isCalibrating ? 'Calibrating...' : 'Zero Sensor Gauges'}</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    const matchingWo = workOrders.find(w => w.id === inspectingBay.workOrder || w.workOrderNo === inspectingBay.workOrder);
+                    const targetWo = matchingWo || {
+                      id: inspectingBay.workOrder,
+                      spindleSerial: inspectingBay.spindleSerial,
+                      spindleModel: 'GPS-HSK-A63-24K',
+                      customer: 'Tata Advanced Systems Ltd',
+                      shopBay: inspectingBay.bayName,
+                      assignedOperator: inspectingBay.assignedStaff,
+                      status: 'In Progress',
+                      priority: 'High',
+                      dueDate: '2026-03-25',
+                      progress: inspectingBay.progress || 75
+                    };
+                    if (onSelectWorkOrder) onSelectWorkOrder(targetWo);
+                    setInspectingBay(null);
+                    if (onNavigate) onNavigate('work-order-detail');
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Eye size={14} />
+                  <span>View Traveler ({inspectingBay.workOrder})</span>
+                </button>
+              </div>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header Telemetry Status Card */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              flexWrap: 'wrap', 
+              gap: '12px',
+              padding: '12px 16px',
+              background: 'var(--bg-surface-subtle)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{inspectingBay.machine}</span>
+                  <StatusBadge status={inspectingBay.status} size="sm" />
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Operator: <strong>{inspectingBay.assignedStaff}</strong> • Station: <strong>{inspectingBay.bayId?.toUpperCase()}</strong>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cell Utilization</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: inspectingBay.utilization > 100 ? '#dc2626' : 'var(--primary)' }}>
+                  {inspectingBay.utilization}%
+                </div>
+              </div>
+            </div>
+
+            {/* Active Job Card */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+              gap: '10px',
+              padding: '12px 14px',
+              background: 'var(--bg-surface)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Active Production Job</div>
+                <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '13px' }}>
+                  {inspectingBay.workOrder}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Target Spindle Serial</div>
+                <div className="mono" style={{ fontWeight: 600, fontSize: '13px' }}>
+                  {inspectingBay.spindleSerial}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Manufacturing Operation</div>
+                <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)' }}>
+                  {inspectingBay.operation}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Shift Elapsed</div>
+                <div className="mono" style={{ fontWeight: 500, fontSize: '12.5px' }}>
+                  {inspectingBay.duration || '2h 15m'} (Started {inspectingBay.started || '08:30 AM'})
+                </div>
+              </div>
+            </div>
+
+            {/* Live Sensor Gauges Matrix */}
+            <div>
+              <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={14} color="var(--primary)" />
+                <span>Live Real-Time Sensor Telemetry Channels</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                {/* 1. Spindle Temperature */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Thermometer size={13} color="#f59e0b" /> Bearing Front Temp
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>Nominal</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: 'var(--text-main)' }}>
+                    23.8 °C
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Ambient: 22.0 °C • Rise: +1.8 °C
+                  </div>
+                </div>
+
+                {/* 2. Vibration Severity */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Activity size={13} color="#3b82f6" /> Vibration (FFT RMS)
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>ISO Class A</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: 'var(--text-main)' }}>
+                    0.26 mm/s
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Warning limit: 0.45 mm/s
+                  </div>
+                </div>
+
+                {/* 3. Coolant Pressure */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Gauge size={13} color="#06b6d4" /> Coolant Circuit
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>Stable</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: 'var(--text-main)' }}>
+                    4.6 bar
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Flow: 14.2 L/min @ 18.5 °C
+                  </div>
+                </div>
+
+                {/* 4. Air Purge Pressure */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <ShieldCheck size={13} color="#10b981" /> Seal Air Purge
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>Protected</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: 'var(--text-main)' }}>
+                    2.4 bar
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Triple labyrinth positive pressure
+                  </div>
+                </div>
+
+                {/* 5. Motor Load */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Zap size={13} color="#8b5cf6" /> Spindle Drive Load
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#eff6ff', color: '#1d4ed8', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>52% Load</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: 'var(--text-main)' }}>
+                    7.8 kW
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Rated: 15.0 kW (S1 continuous)
+                  </div>
+                </div>
+
+                {/* 6. Dynamic Runout (TIR) */}
+                <div style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={13} color="#059669" /> Dynamic Runout (TIR)
+                    </span>
+                    <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>In Spec</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px', color: '#059669' }}>
+                    0.65 µm
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Max allowable: ≤ 1.0 µm
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrology & Calibration Log */}
+            <div style={{ 
+              padding: '12px 14px', 
+              background: 'var(--bg-surface-subtle)', 
+              borderRadius: '6px', 
+              fontSize: '12px',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div>
+                <strong>Sensor Calibration Certificate:</strong> ISO/IEC 17025 Compliant • Valid until <strong>30-Apr-2026</strong>
+              </div>
+              <div style={{ color: 'var(--text-muted)' }}>
+                Sample Rate: <strong>1,000 Hz Live Stream</strong>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Production Schedule Pop-up Preview Modal */}
       <DocumentPreviewModal 

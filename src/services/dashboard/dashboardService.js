@@ -353,12 +353,14 @@ export const dashboardService = {
 
         return {
           id: item.id,
+          productId: item.product?.id,
           sku: item.product?.sku || item.product?.part_number || 'SKU-GEN',
           name: item.product?.name || 'Precision Component',
           category: item.product?.part_number ? item.product.part_number.split('-')[0] : 'Spares',
           availableQty: avail,
           reservedQty: Number(item.quantity_reserved) || 0,
           minStock: min,
+          unitCost: Number(item.product?.unit_cost_inr) || 38500,
           unit: item.product?.unit_of_measure || 'PCS',
           status
         };
