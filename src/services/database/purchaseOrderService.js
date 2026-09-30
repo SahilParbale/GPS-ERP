@@ -3,6 +3,8 @@ import { supabase } from '../supabase/supabaseClient';
 import { PURCHASE_ORDERS } from '../../data/mockData';
 
 const LOCAL_STORAGE_KEY = 'gps_erp_custom_purchase_orders';
+const RAISED_MATERIALS_KEY = 'gps_erp_po_raised_materials';
+const DELETED_POS_KEY = 'gps_erp_deleted_pos';
 
 /**
  * Get locally stored purchase orders created by users in this browser session
@@ -36,6 +38,131 @@ export function saveCustomPO(po) {
 }
 
 /**
+ * Get materials that have had a PO raised
+ */
+export function getRaisedMaterials() {
+  try {
+    const raw = localStorage.getItem(RAISED_MATERIALS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+
+    let deletedIds = [];
+    try {
+      const dRaw = localStorage.getItem(DELETED_POS_KEY);
+      deletedIds = dRaw ? JSON.parse(dRaw) : [];
+    } catch (e) {}
+
+    const customPOs = getStoredCustomPOs();
+    const cancelledPoNumbers = new Set(
+      customPOs.filter(p => p.status === 'Cancelled').map(p => p.poNumber || p.id)
+    );
+
+    return list.filter(item => {
+      if (item.poNumber && deletedIds.includes(item.poNumber)) return false;
+      if (item.poNumber && cancelledPoNumbers.has(item.poNumber)) return false;
+      return true;
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Persist raised material record so it is hidden from Dashboard shortage alerts
+ */
+export function saveRaisedMaterial(material, poNumber) {
+  if (!material) return;
+  try {
+    const existing = getRaisedMaterials();
+    const matSku = (material.sku || '').trim().toUpperCase();
+    const entry = {
+      id: material.id,
+      productId: material.productId,
+      sku: matSku,
+      name: material.name,
+      poNumber: poNumber,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [
+      entry,
+      ...existing.filter(e => {
+        if (matSku && e.sku === matSku) return false;
+        if (material.id && (e.id === material.id || e.materialId === material.id)) return false;
+        return true;
+      })
+    ];
+    localStorage.setItem(RAISED_MATERIALS_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('[purchaseOrderService] Failed to save raised material:', e);
+  }
+}
+
+/**
+ * Remove raised material mapping if PO is cancelled or deleted
+ */
+export function removeRaisedMaterial(poNumberOrId) {
+  if (!poNumberOrId) return;
+  try {
+    const existing = getRaisedMaterials();
+    const updated = existing.filter(e => e.poNumber !== poNumberOrId && e.id !== poNumberOrId);
+    localStorage.setItem(RAISED_MATERIALS_KEY, JSON.stringify(updated));
+  } catch (e) {}
+}
+
+/**
+ * Check whether a material or inventory item already has an active PO raised
+ */
+export function isMaterialPoRaised(material) {
+  if (!material) return false;
+  const matSku = (material.sku || '').trim().toUpperCase();
+  const matId = material.id;
+  const matProdId = material.productId;
+  const matName = (material.name || '').trim().toLowerCase();
+
+  // 1. Check raised materials list
+  const raised = getRaisedMaterials();
+  const matchInRaised = raised.some(r => {
+    if (matSku && r.sku && r.sku === matSku) return true;
+    if (matId && (r.id === matId || r.materialId === matId)) return true;
+    if (matProdId && r.productId === matProdId) return true;
+    if (matName && r.name && r.name.toLowerCase() === matName) return true;
+    return false;
+  });
+  if (matchInRaised) return true;
+
+  // 2. Check active custom PO line items
+  let deletedIds = [];
+  try {
+    const dRaw = localStorage.getItem(DELETED_POS_KEY);
+    deletedIds = dRaw ? JSON.parse(dRaw) : [];
+  } catch (e) {}
+
+  const customPOs = getStoredCustomPOs();
+  const activeCustomPOs = customPOs.filter(p => 
+    p.status !== 'Cancelled' &&
+    !deletedIds.includes(p.poNumber) &&
+    !deletedIds.includes(p.id)
+  );
+
+  for (const po of activeCustomPOs) {
+    for (const it of (po.items || [])) {
+      const itSku = (it.sku || it.item || '').trim().toUpperCase();
+      if (matSku && itSku && (matSku === itSku || itSku.includes(matSku) || matSku.includes(itSku))) {
+        return true;
+      }
+      if (matProdId && it.productId && it.productId === matProdId) {
+        return true;
+      }
+      const itName = (it.name || it.desc || '').trim().toLowerCase();
+      if (matName && itName && (itName.includes(matName) || matName.includes(itName))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Resolve supplier UUID for database foreign key constraints
  */
 function resolveSupplierId(supplierId, supplierName) {
@@ -57,6 +184,11 @@ function resolveSupplierId(supplierId, supplierName) {
  * Handles Purchase Requisitions (PR), Purchase Orders (PO), and Line Items.
  */
 export const purchaseOrderService = {
+  getRaisedMaterials,
+  saveRaisedMaterial,
+  removeRaisedMaterial,
+  isMaterialPoRaised,
+
   /**
    * Fetch all Purchase Orders with items
    */
@@ -398,6 +530,10 @@ export const purchaseOrderService = {
       }
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(custom));
 
+      if (newStatus === 'Cancelled') {
+        removeRaisedMaterial(id);
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('gps_entities_updated', { 
           detail: { entity: 'purchase-orders', id, status: newStatus } 
@@ -443,6 +579,8 @@ export const purchaseOrderService = {
         deletedIds.push(id);
         localStorage.setItem(DELETED_POS_KEY, JSON.stringify(deletedIds));
       }
+
+      removeRaisedMaterial(id);
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('gps_entities_updated', { 

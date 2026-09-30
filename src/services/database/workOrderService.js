@@ -247,8 +247,8 @@ export const workOrderService = {
 
     const payload = {
       work_order_no: woNo,
-      model_id: modelId,
-      customer_id: customerId,
+      model_id: modelId || null,
+      customer_id: customerId || null,
       customer_name: data.customer || 'Enterprise Client',
       order_type: data.order_type || 'New Spindle Build',
       priority: data.priority || 'High',

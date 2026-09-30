@@ -205,18 +205,20 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
           badge="Database Notice"
         />
-        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {error.message || 'Unable to retrieve live customer records from PostgreSQL database.'}
-          </p>
-          <button type="button" className="btn btn-secondary" onClick={loadCustomers}>
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+              {error.message || 'Unable to retrieve live customer records from PostgreSQL database.'}
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={loadCustomers}>
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -230,10 +232,12 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
           badge="0 Enterprise Clients"
         />
-        <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Users size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>No Customer Accounts Found</div>
-          <p style={{ fontSize: '13px' }}>The live customers database table currently contains zero records.</p>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Users size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+            <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>No Customer Accounts Found</div>
+            <p style={{ fontSize: '13px' }}>The live customers database table currently contains zero records.</p>
+          </div>
         </div>
       </div>
     );
@@ -285,6 +289,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           <span>Email & CC Directory</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       <div className="grid-2col-cust">
         {/* Left: Customers List */}
@@ -684,6 +690,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

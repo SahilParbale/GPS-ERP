@@ -967,18 +967,20 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           subtitle="Employee Work Log & Daily Manufacturing Activity Tracking System"
           badge="Database Notice"
         />
-        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {staffError.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {staffError.message || 'Unable to retrieve live workforce personnel records from PostgreSQL database.'}
-          </p>
-          <button type="button" className="btn btn-secondary" onClick={loadWorkforceData}>
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+              {staffError.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+              {staffError.message || 'Unable to retrieve live workforce personnel records from PostgreSQL database.'}
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={loadWorkforceData}>
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1029,6 +1031,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           </button>
         </div>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* 2. TOP 8 KPI CARDS */}
       <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))' }}>
@@ -3724,6 +3728,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

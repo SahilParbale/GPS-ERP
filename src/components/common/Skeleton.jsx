@@ -191,8 +191,10 @@ export function TablePageSkeleton({
   return (
     <div className="content-area skeleton-fade-in">
       <SkeletonPageHeader />
-      {hasMetrics && <SkeletonMetricCards count={metricCount} />}
-      <SkeletonTable rows={rows} columns={columns} />
+      <div className="content-body">
+        {hasMetrics && <SkeletonMetricCards count={metricCount} />}
+        <SkeletonTable rows={rows} columns={columns} />
+      </div>
     </div>
   );
 }
@@ -204,39 +206,41 @@ export function DashboardSkeleton() {
   return (
     <div className="content-area skeleton-fade-in">
       <SkeletonPageHeader />
-      <SkeletonMetricCards count={4} />
-      <SkeletonPipeline stages={6} />
-      
-      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <SkeletonTable rows={5} columns={[ '100px', '110px', '140px', '130px', '90px', '70px' ]} />
-          <SkeletonTable rows={4} columns={[ '160px', '100px', '90px', '80px', '70px' ]} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="section-card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <Skeleton width="140px" height="15px" />
-              <Skeleton width="60px" height="12px" />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <Skeleton width="120px" height="13px" style={{ marginBottom: '6px' }} />
-                  <Skeleton width="80%" height="11px" />
-                </div>
-              ))}
-            </div>
+      <div className="content-body">
+        <SkeletonMetricCards count={4} />
+        <SkeletonPipeline stages={6} />
+        
+        <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <SkeletonTable rows={5} columns={[ '100px', '110px', '140px', '130px', '90px', '70px' ]} />
+            <SkeletonTable rows={4} columns={[ '160px', '100px', '90px', '80px', '70px' ]} />
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="section-card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <Skeleton width="140px" height="15px" />
+                <Skeleton width="60px" height="12px" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                    <Skeleton width="120px" height="13px" style={{ marginBottom: '6px' }} />
+                    <Skeleton width="80%" height="11px" />
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <div className="section-card" style={{ padding: '20px' }}>
-            <Skeleton width="150px" height="15px" style={{ marginBottom: '16px' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Skeleton width="120px" height="12px" />
-                  <Skeleton width="45px" height="12px" />
-                </div>
-              ))}
+            <div className="section-card" style={{ padding: '20px' }}>
+              <Skeleton width="150px" height="15px" style={{ marginBottom: '16px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Skeleton width="120px" height="12px" />
+                    <Skeleton width="45px" height="12px" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

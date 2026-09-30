@@ -246,18 +246,20 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
           subtitle="Precision alloy steels, ceramic bearings, stators, and encoder stock controls"
           badge="Database Notice"
         />
-        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {error.message || 'Unable to retrieve live inventory records from PostgreSQL database.'}
-          </p>
-          <button type="button" className="btn btn-secondary" onClick={loadInventory}>
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+              {error.message || 'Unable to retrieve live inventory records from PostgreSQL database.'}
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={loadInventory}>
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -294,6 +296,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
           <span>Raise Purchase PO</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* KPI Cards */}
       <div className="metrics-grid">
@@ -882,6 +886,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

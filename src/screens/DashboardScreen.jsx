@@ -10,7 +10,11 @@ import { exportShiftReportPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
-import { purchaseOrderService } from '../services/database/purchaseOrderService';
+import { 
+  purchaseOrderService, 
+  saveRaisedMaterial, 
+  isMaterialPoRaised 
+} from '../services/database/purchaseOrderService';
 import { 
   ArrowUpRight, AlertTriangle, Clock, Eye, 
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
@@ -189,13 +193,35 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
       await purchaseOrderService.createPurchaseOrder(poPayload);
 
+      // Persist raised material record so it is excluded from dashboard shortage alerts
+      saveRaisedMaterial(selectedMaterialForPo, poNum);
+
       if (onNotify) {
         onNotify(`Purchase Order ${poNum} successfully generated for ${selectedMaterialForPo.sku} (Total: ₹${total.toLocaleString('en-IN')})`);
       }
 
-      setCriticalMaterials(prev => prev.map(m => 
-        m.id === selectedMaterialForPo.id ? { ...m, status: 'PO Raised', reservedQty: (m.reservedQty || 0) + qty } : m
+      // Remove respective material shortage order / alert from dashboard
+      const targetMat = selectedMaterialForPo;
+      setCriticalMaterials(prev => prev.filter(m => 
+        m.id !== targetMat.id &&
+        (!targetMat.sku || m.sku !== targetMat.sku) &&
+        (!targetMat.productId || m.productId !== targetMat.productId)
       ));
+
+      // Decrement low_stock KPI card count if present
+      setMetrics(prev => prev.map(m => {
+        if (m.id === 'low_stock') {
+          const count = Math.max(0, (parseInt(m.value, 10) || 0) - 1);
+          return {
+            ...m,
+            value: String(count),
+            trend: count > 0 ? `${count} below threshold` : 'Inventory healthy',
+            alert: count > 0,
+            isUp: count === 0
+          };
+        }
+        return m;
+      }));
 
       setSelectedMaterialForPo(null);
 
@@ -232,7 +258,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         dashboardService.getDashboardMetrics(),
         dashboardService.getProductionPipelineStages(),
         dashboardService.getRecentWorkOrders(5),
-        dashboardService.getCriticalMaterials(5),
+        dashboardService.getCriticalMaterials(10),
         dashboardService.getUpcomingDeliveries(4),
         dashboardService.getShopBayUtilization(4),
         dashboardService.getRecentActivityFeed(5)
@@ -242,11 +268,33 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         throw new Error(metricsRes.error.message || 'Failed to load KPI metrics');
       }
 
-      setMetrics(metricsRes.data || []);
+      // Filter out materials that already have a PO raised so their alerts are not seen on the dashboard
+      const rawMaterials = materialsRes.data || [];
+      const unaddressedMaterials = rawMaterials.filter(m => !isMaterialPoRaised(m));
+      const displayMaterials = unaddressedMaterials.slice(0, 5);
+
+      // Adjust low_stock metric to reflect only materials without PO raised
+      const raisedCount = rawMaterials.length - unaddressedMaterials.length;
+      const adjustedMetrics = (metricsRes.data || []).map(metric => {
+        if (metric.id === 'low_stock') {
+          const currentVal = parseInt(metric.value, 10) || 0;
+          const adjustedVal = Math.max(0, currentVal - raisedCount);
+          return {
+            ...metric,
+            value: String(adjustedVal),
+            trend: adjustedVal > 0 ? `${adjustedVal} below threshold` : 'Inventory healthy',
+            alert: adjustedVal > 0,
+            isUp: adjustedVal === 0
+          };
+        }
+        return metric;
+      });
+
+      setMetrics(adjustedMetrics);
       setPipelineStages(pipelineRes.data || []);
       setWorkOrders(woRes.data || []);
       setTotalWoCount(woRes.totalCount || (woRes.data ? woRes.data.length : 0));
-      setCriticalMaterials(materialsRes.data || []);
+      setCriticalMaterials(displayMaterials);
       setUpcomingDeliveries(deliveriesRes.data || []);
       setShopBays(baysRes.data || []);
       setRecentActivity(activityRes.data || []);
@@ -265,6 +313,19 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
   useEffect(() => {
     fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Synchronize dashboard whenever entities change (e.g. PO raised, deleted, cancelled)
+  useEffect(() => {
+    const handleEntityUpdate = (e) => {
+      if (e?.detail?.entity === 'purchase-orders') {
+        fetchDashboardData(false);
+      }
+    };
+    window.addEventListener('gps_entities_updated', handleEntityUpdate);
+    return () => {
+      window.removeEventListener('gps_entities_updated', handleEntityUpdate);
+    };
   }, [fetchDashboardData]);
 
   // Loading Skeleton State
@@ -348,18 +409,10 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           <Download size={14} />
           <span>Shift Report (PDF)</span>
         </button>
-
-        <button 
-          type="button" 
-          className="btn btn-primary"
-          onClick={() => onNavigate && onNavigate('production')}
-        >
-          <Plus size={14} />
-          <span>New Work Order</span>
-        </button>
       </PageHeader>
 
-      {/* KPI Cards Grid */}
+      <div className="content-body">
+        {/* KPI Cards Grid */}
       <div className="metrics-grid">
         {metrics.map((metric) => (
           <MetricCard 
@@ -861,6 +914,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           </div>
         </Modal>
       )}
+      </div>
     </div>
   );
 }

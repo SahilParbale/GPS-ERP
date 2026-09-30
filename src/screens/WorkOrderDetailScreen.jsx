@@ -261,7 +261,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
   return (
     <div className="content-area">
       {/* Top Header with Back Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+      <div className="page-header">
         <button 
           type="button" 
           className="btn btn-secondary btn-sm"
@@ -271,7 +271,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           <span>Back to Production Board</span>
         </button>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="page-actions">
           <button 
             type="button" 
             className="btn btn-secondary btn-sm"
@@ -299,6 +299,8 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           </button>
         </div>
       </div>
+
+      <div className="content-body">
 
       {/* Main WO Info Card */}
       <div className="section-card">
@@ -604,6 +606,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

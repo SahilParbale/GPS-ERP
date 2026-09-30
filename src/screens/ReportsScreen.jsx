@@ -132,6 +132,8 @@ export default function ReportsScreen({ onNotify }) {
         </div>
       </PageHeader>
 
+      <div className="content-body">
+
       {/* Error Banner with Retry */}
       {error && (
         <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -299,6 +301,7 @@ export default function ReportsScreen({ onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

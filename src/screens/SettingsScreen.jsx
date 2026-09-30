@@ -205,21 +205,23 @@ export default function SettingsScreen({ onNotify }) {
           title="Industrial ERP Configuration & Settings" 
           subtitle="Manage company plant details, user role-based permissions, and machine calibrations"
         />
-        <div className="section-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <AlertCircle size={40} style={{ color: '#dc2626', margin: '0 auto 16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Connection Error</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
-            {error}
-          </p>
-          <button 
-            type="button" 
-            className="btn btn-primary"
-            onClick={loadLiveSettings}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-          >
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <AlertCircle size={40} style={{ color: '#dc2626', margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Connection Error</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
+              {error}
+            </p>
+            <button 
+              type="button" 
+              className="btn btn-primary"
+              onClick={loadLiveSettings}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -251,6 +253,8 @@ export default function SettingsScreen({ onNotify }) {
           )}
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* Role Access / Save Notice */}
       {!isManagement && (
@@ -604,6 +608,7 @@ export default function SettingsScreen({ onNotify }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

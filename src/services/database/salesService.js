@@ -223,6 +223,18 @@ export const salesService = {
   },
 
   /**
+   * Link a launched Work Order to a quotation
+   */
+  async linkWorkOrderToQuotation(id, woNo) {
+    const filterField = id.includes('-') && id.length === 36 ? 'id' : 'quotation_number';
+    return await baseService.update('quotations', { [filterField]: id }, {
+      status: 'Approved',
+      notes: `[WO_LAUNCHED: ${woNo}]`,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  /**
    * Convert Approved Quotation into a Proforma Invoice
    */
   async convertQuotationToProformaInvoice(quoteId) {

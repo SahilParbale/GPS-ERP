@@ -75,18 +75,20 @@ export default function SuppliersScreen({ onNotify }) {
           subtitle="Tier-1 procurement sources for ceramic hybrid bearings, alloy steels, and optical encoders"
           badge="Database Notice"
         />
-        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {error.message || 'Unable to retrieve live vendor records from PostgreSQL database.'}
-          </p>
-          <button type="button" className="btn btn-secondary" onClick={loadSuppliers}>
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+              {error.message || 'Unable to retrieve live vendor records from PostgreSQL database.'}
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={loadSuppliers}>
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -138,6 +140,8 @@ export default function SuppliersScreen({ onNotify }) {
           <span>Add Approved Vendor</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       <div className="section-card">
         <div className="filter-bar">
@@ -224,6 +228,7 @@ export default function SuppliersScreen({ onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

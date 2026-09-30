@@ -5,13 +5,15 @@ import Modal from '../components/common/Modal';
 import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
+import { workOrderService } from '../services/database/workOrderService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportQuotationPdf, exportElementAsPdf } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
-  MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle
+  MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
+  Factory, Wrench, Loader2, Play, Calendar, ShieldCheck
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import EmailActivityTable from '../components/email/EmailActivityTable';
@@ -100,10 +102,40 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  // Convert Quotation to Work Order State
+  const [isCreateWoOpen, setIsCreateWoOpen] = useState(false);
+  const [isSubmittingWo, setIsSubmittingWo] = useState(false);
+  const [lastCreatedWo, setLastCreatedWo] = useState(null);
+  const [launchedWoMap, setLaunchedWoMap] = useState(() => {
+    try {
+      const cached = localStorage.getItem('gps_quotation_work_orders');
+      return cached ? JSON.parse(cached) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [woForm, setWoForm] = useState({
+    workOrderNo: '',
+    customer: '',
+    customerId: null,
+    spindleModel: 'GPS-HSK-A63-24K',
+    serial: '',
+    orderType: 'Spindle Overhaul & Repair',
+    priority: 'High',
+    dueDate: '',
+    initialStage: 'material',
+    quantity: 1,
+    notes: '',
+    autoApproveQuote: true
+  });
+
   const loadQuotations = async () => {
     setIsLoading(true);
     setError(null);
-    const res = await salesService.getQuotations();
+    const [res, woRes] = await Promise.all([
+      salesService.getQuotations(),
+      workOrderService.getWorkOrders()
+    ]);
     if (res.error) {
       setError(res.error);
       setIsLoading(false);
@@ -111,6 +143,41 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     }
     const data = res.data || [];
     setQuotations(data);
+
+    // Synchronize launched WOs mapping from DB work orders, quotation notes, and localStorage
+    let localMap = {};
+    try {
+      const cached = localStorage.getItem('gps_quotation_work_orders');
+      if (cached) localMap = JSON.parse(cached);
+    } catch (e) {}
+
+    const dbWos = woRes?.data || [];
+    const mergedMap = { ...localMap };
+
+    dbWos.forEach(wo => {
+      const woNotes = wo.notes || '';
+      data.forEach(q => {
+        const matchesQuoteId = woNotes.includes(q.id) || (q.estimateNo && woNotes.includes(q.estimateNo));
+        const quoteNotesMatch = q.notes && (q.notes.includes(wo.workOrderNo) || q.notes.includes(wo.id));
+        if (matchesQuoteId || quoteNotesMatch) {
+          mergedMap[q.id] = {
+            woNo: wo.workOrderNo,
+            quoteId: q.id,
+            customer: wo.customer || q.customer,
+            serial: wo.spindleSerial || q.spindleSerial,
+            model: wo.spindleModel,
+            bay: wo.shopBay || 'Bay 1',
+            stage: wo.currentStage || 'machining'
+          };
+        }
+      });
+    });
+
+    setLaunchedWoMap(mergedMap);
+    try {
+      localStorage.setItem('gps_quotation_work_orders', JSON.stringify(mergedMap));
+    } catch (e) {}
+
     setSelectedQuote(prev => {
       if (prev) {
         const match = data.find(q => q.id === prev.id);
@@ -185,16 +252,31 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     return { subtotal, taxAmount, totalAmount, totalQty, amountInWords };
   }, [formState.items, formState.taxRate]);
 
-  const filteredQuotes = quotations.filter((q) => {
-    const matchesStatus = statusFilter === 'all' || q.status.toLowerCase() === statusFilter.toLowerCase();
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = !query || 
-      q.id.toLowerCase().includes(query) ||
-      q.customer.toLowerCase().includes(query) ||
-      (q.spindleSerial && q.spindleSerial.toLowerCase().includes(query)) ||
-      (q.contactPerson && q.contactPerson.toLowerCase().includes(query));
-    return matchesStatus && matchesSearch;
-  });
+  const woLaunchedCount = useMemo(() => {
+    return quotations.filter(q => !!launchedWoMap[q.id]).length;
+  }, [quotations, launchedWoMap]);
+
+  const filteredQuotes = useMemo(() => {
+    return quotations.filter((q) => {
+      const linkedWo = launchedWoMap[q.id];
+      const matchesStatus = 
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'wo launched'
+            ? Boolean(linkedWo)
+            : q.status.toLowerCase() === statusFilter.toLowerCase();
+
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = !query || 
+        q.id.toLowerCase().includes(query) ||
+        q.customer.toLowerCase().includes(query) ||
+        (q.spindleSerial && q.spindleSerial.toLowerCase().includes(query)) ||
+        (q.contactPerson && q.contactPerson.toLowerCase().includes(query)) ||
+        (linkedWo && linkedWo.woNo && linkedWo.woNo.toLowerCase().includes(query));
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [quotations, launchedWoMap, statusFilter, searchQuery]);
 
   const handleApproveQuote = async (quoteId) => {
     const res = await salesService.updateQuotationStatus(quoteId, 'Approved');
@@ -204,6 +286,135 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     }
     onNotify(`Quotation ${quoteId} marked as Approved. Ready for Work Order creation.`);
     await loadQuotations();
+  };
+
+  const detectSpindleModel = (quote) => {
+    if (!quote) return 'GPS-HSK-A63-24K';
+    const text = `${quote.spindleSerial || ''} ${(quote.items || []).map(i => i.name).join(' ')} ${Array.isArray(quote.scopeOfWork) ? quote.scopeOfWork.join(' ') : (quote.scopeOfWork || '')}`.toUpperCase();
+    if (text.includes('HSK-63') || text.includes('HSK-A63') || text.includes('KESSLAR')) return 'GPS-HSK-A63-24K';
+    if (text.includes('BT40') || text.includes('BT-40')) return 'GPS-BT40-15K';
+    if (text.includes('HF') || text.includes('60K')) return 'GPS-HF-60K';
+    if (text.includes('BT50') || text.includes('BT-50')) return 'GPS-BT50-10K';
+    if (text.includes('E25') || text.includes('42K')) return 'GPS-HSK-E25-42K';
+    return 'GPS-HSK-A63-24K';
+  };
+
+  const handleOpenCreateWo = (quote = selectedQuote) => {
+    if (!quote) {
+      if (onNotify) onNotify('Please select a quotation first', 'warning');
+      return;
+    }
+    const detectedModel = detectSpindleModel(quote);
+    const isRepair = quote.items?.some(it => (it.name || '').toUpperCase().includes('REPAIR')) || 
+                     (Array.isArray(quote.scopeOfWork) && quote.scopeOfWork.some(s => s.toUpperCase().includes('DISMANTLE')));
+
+    const defaultNotes = [
+      `Generated from Quotation ${quote.id}`,
+      `Customer: ${quote.customer}`,
+      `Target Spindle Serial: ${quote.spindleSerial || 'N/A'}`,
+      quote.scopeOfWork && Array.isArray(quote.scopeOfWork) && quote.scopeOfWork.length > 0 
+        ? `Scope of Work:\n${quote.scopeOfWork.join('\n')}` 
+        : (quote.scopeOfWork || '')
+    ].filter(Boolean).join('\n\n');
+
+    setWoForm({
+      workOrderNo: `WO-2026-${Math.floor(100 + Math.random() * 900)}`,
+      customer: quote.customer || '',
+      customerId: quote.customerId || null,
+      spindleModel: detectedModel,
+      serial: quote.spindleSerial || `GPS-${Math.floor(1000 + Math.random() * 9000)}`,
+      orderType: isRepair ? 'Spindle Overhaul & Repair' : 'New Spindle Build',
+      priority: 'High',
+      dueDate: new Date(Date.now() + 21 * 86400000).toISOString().split('T')[0],
+      initialStage: 'material',
+      quantity: 1,
+      notes: defaultNotes,
+      autoApproveQuote: quote.status !== 'Approved'
+    });
+    setIsCreateWoOpen(true);
+  };
+
+  const handleExecuteCreateWo = async (e) => {
+    if (e) e.preventDefault();
+    if (!woForm.customer.trim()) {
+      if (onNotify) onNotify('Please enter a Customer Organization', 'warning');
+      return;
+    }
+    if (!woForm.serial.trim()) {
+      if (onNotify) onNotify('Please enter a Spindle Serial Number', 'warning');
+      return;
+    }
+
+    setIsSubmittingWo(true);
+    try {
+      const res = await workOrderService.createWorkOrder({
+        work_order_no: woForm.workOrderNo,
+        spindleModel: woForm.spindleModel,
+        customer: woForm.customer,
+        customer_id: woForm.customerId,
+        serial: woForm.serial,
+        order_type: woForm.orderType,
+        priority: woForm.priority,
+        dueDate: woForm.dueDate,
+        initialStage: woForm.initialStage,
+        quantity: Number(woForm.quantity) || 1,
+        notes: woForm.notes
+      });
+
+      if (res.error) {
+        if (onNotify) onNotify(`Failed to create work order: ${res.error.message || 'Database error'}`, 'error');
+        setIsSubmittingWo(false);
+        return;
+      }
+
+      // If autoApproveQuote is checked and quote isn't already Approved, update quote status in DB
+      if (woForm.autoApproveQuote && selectedQuote && selectedQuote.status !== 'Approved') {
+        await salesService.updateQuotationStatus(selectedQuote.dbId || selectedQuote.id, 'Approved');
+        setQuotations(prev => prev.map(q => q.id === selectedQuote.id ? { ...q, status: 'Approved', rawStatus: 'Approved' } : q));
+        setSelectedQuote(prev => prev ? { ...prev, status: 'Approved', rawStatus: 'Approved' } : prev);
+      }
+
+      setIsSubmittingWo(false);
+      setIsCreateWoOpen(false);
+
+      const generatedWoNo = res.data?.id || res.data?.work_order_no || woForm.workOrderNo;
+      const newLinkedWo = {
+        woNo: generatedWoNo,
+        quoteId: selectedQuote?.id,
+        customer: woForm.customer,
+        serial: woForm.serial,
+        model: woForm.spindleModel,
+        bay: 'Bay 1',
+        launchedAt: new Date().toISOString()
+      };
+
+      setLaunchedWoMap(prev => {
+        const next = { ...prev, [selectedQuote?.id]: newLinkedWo };
+        try {
+          localStorage.setItem('gps_quotation_work_orders', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+
+      setLastCreatedWo(newLinkedWo);
+
+      // Link work order directly in quotation database record
+      if (selectedQuote) {
+        try {
+          await salesService.linkWorkOrderToQuotation(selectedQuote.dbId || selectedQuote.id, generatedWoNo);
+        } catch (e) {
+          console.warn('Could not link work order in quotation table:', e);
+        }
+      }
+
+      if (onNotify) {
+        onNotify(`Work Order ${generatedWoNo} generated successfully for ${woForm.customer}! Routed to Bay 1.`, 'success');
+      }
+    } catch (err) {
+      console.error('Failed to create Work Order:', err);
+      if (onNotify) onNotify('An unexpected error occurred while launching work order', 'error');
+      setIsSubmittingWo(false);
+    }
   };
 
   // Add line item in modal
@@ -344,7 +555,8 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
         </button>
       </PageHeader>
 
-      {/* Top Level Tabs: Quotations vs Email Activity */}
+      <div className="content-body">
+        {/* Top Level Tabs: Quotations vs Email Activity */}
       <Tabs 
         tabs={[
           { id: 'quotations', label: 'Commercial Quotations & Proposals', count: filteredQuotes.length },
@@ -389,9 +601,10 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 size="sm"
-                style={{ width: '150px' }}
+                style={{ width: '160px' }}
               >
                 <option value="all">All Statuses ({quotations.length})</option>
+                <option value="wo launched">WO Launched ({woLaunchedCount})</option>
                 <option value="under review">Under Review</option>
                 <option value="approved">Approved</option>
                 <option value="draft">Draft</option>
@@ -407,6 +620,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
               ) : (
                 filteredQuotes.map((q) => {
                   const isSelected = selectedQuote?.id === q.id;
+                  const linkedWo = launchedWoMap[q.id];
                   return (
                     <div
                       key={q.id}
@@ -423,11 +637,30 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                         gap: '3px'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
                         <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
                           {q.id}
                         </span>
-                        <StatusBadge status={q.status} size="sm" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {linkedWo && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '9.5px',
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: '9999px',
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              border: '1px solid #6ee7b7'
+                            }}>
+                              <CheckCircle size={9} color="#059669" />
+                              <span>WO Launched</span>
+                            </span>
+                          )}
+                          <StatusBadge status={linkedWo ? 'Approved' : q.status} size="sm" />
+                        </div>
                       </div>
 
                       <div style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -447,11 +680,68 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                         </div>
                       )}
 
+                      {/* Visual indexing strip for launched Work Order */}
+                      {linkedWo && (
+                        <div style={{
+                          marginTop: '4px',
+                          padding: '4px 8px',
+                          background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
+                          border: '1px solid #a7f3d0',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '11px',
+                          color: '#065f46'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Factory size={11} color="#059669" />
+                            <span style={{ fontWeight: 600 }}>WO:</span>
+                            <span className="mono" style={{ fontWeight: 700, color: '#047857' }}>{linkedWo.woNo}</span>
+                          </div>
+                          <span style={{
+                            fontSize: '9px',
+                            background: '#10b981',
+                            color: '#ffffff',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            fontWeight: 700,
+                            letterSpacing: '0.02em'
+                          }}>
+                            BAY 1
+                          </span>
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                           {q.validUntil ? `Valid: ${q.validUntil}` : '30d Validity'}
                         </span>
                         <div style={{ display: 'flex', gap: '4px' }}>
+                          {linkedWo && onNavigate && (
+                            <button 
+                              type="button" 
+                              className="btn btn-sm"
+                              style={{
+                                height: '22px',
+                                padding: '0 6px',
+                                fontSize: '10px',
+                                gap: '3px',
+                                background: '#ecfdf5',
+                                border: '1px solid #a7f3d0',
+                                color: '#065f46',
+                                fontWeight: 600
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate('production');
+                              }}
+                              title={`Open ${linkedWo.woNo} in Production`}
+                            >
+                              <Factory size={9} color="#059669" />
+                              <span>{linkedWo.woNo}</span>
+                            </button>
+                          )}
                           <button 
                             type="button" 
                             className="btn btn-secondary btn-sm"
@@ -489,83 +779,206 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
         )}
 
         {/* Right Column: Authentic PDF Invoice Document View */}
-        {selectedQuote && (
-          <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0 }}>
-            {/* Top Action Header */}
-            <div style={{ 
-              padding: '10px 14px', 
-              background: 'var(--bg-surface-subtle)', 
-              borderBottom: '1px solid var(--border-color)', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
-                <StatusBadge status={selectedQuote.status} size="sm" />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
-              </div>
+        {selectedQuote && (() => {
+          const selectedLinkedWo = launchedWoMap[selectedQuote.id];
+          return (
+            <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0 }}>
+              {/* Top Action Header */}
+              <div style={{ 
+                padding: '10px 14px', 
+                background: 'var(--bg-surface-subtle)', 
+                borderBottom: '1px solid var(--border-color)', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
+                  <StatusBadge status={selectedLinkedWo ? 'Approved' : selectedQuote.status} size="sm" />
+                  {selectedLinkedWo && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '9999px',
+                      background: '#ecfdf5',
+                      color: '#065f46',
+                      border: '1px solid #6ee7b7'
+                    }}>
+                      <CheckCircle size={12} color="#059669" />
+                      <span>WO Launched:</span>
+                      <span className="mono">{selectedLinkedWo.woNo}</span>
+                    </span>
+                  )}
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
+                </div>
 
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setIsDocExpanded(!isDocExpanded)}
-                  title={isDocExpanded ? "Split view" : "Full screen preview"}
-                  style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
-                >
-                  {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                  <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
-                </button>
-
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={handlePrint}
-                  title="Print official Estimate / Invoice"
-                  style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
-                >
-                  <Printer size={12} />
-                  <span>Print PDF</span>
-                </button>
-
-                {selectedQuote.status !== 'Approved' && (
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <button 
                     type="button" 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleApproveQuote(selectedQuote.id)}
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setIsDocExpanded(!isDocExpanded)}
+                    title={isDocExpanded ? "Split view" : "Full screen preview"}
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
                   >
-                    <CheckCircle size={12} />
-                    <span>Approve</span>
+                    {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                    <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
                   </button>
-                )}
 
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleOpenEmailForQuote(selectedQuote)}
-                  title="Send quotation via Outlook-style email composer"
-                  style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                >
-                  <Mail size={12} color="var(--primary)" />
-                  <span>Send Email</span>
-                </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={handlePrint}
+                    title="Print official Estimate / Invoice"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                  >
+                    <Printer size={12} />
+                    <span>Print PDF</span>
+                  </button>
 
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => onNotify(`Quotation ${selectedQuote.id} converted into Production Work Order`)}
-                  title="Convert to Shop Floor Work Order"
-                  style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
-                >
-                  <ArrowRight size={12} />
-                  <span>Create WO</span>
-                </button>
+                  {!selectedLinkedWo && selectedQuote.status !== 'Approved' && (
+                    <button 
+                      type="button" 
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleApproveQuote(selectedQuote.id)}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                    >
+                      <CheckCircle size={12} />
+                      <span>Approve</span>
+                    </button>
+                  )}
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleOpenEmailForQuote(selectedQuote)}
+                    title="Send quotation via Outlook-style email composer"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                  >
+                    <Mail size={12} color="var(--primary)" />
+                    <span>Send Email</span>
+                  </button>
+
+                  {selectedLinkedWo ? (
+                    <>
+                      <button 
+                        type="button" 
+                        className="btn btn-sm"
+                        onClick={() => onNavigate && onNavigate('production')}
+                        title={`View Work Order ${selectedLinkedWo.woNo} in Production Board`}
+                        style={{
+                          height: '28px',
+                          fontSize: '11px',
+                          padding: '0 10px',
+                          gap: '5px',
+                          background: '#ecfdf5',
+                          border: '1px solid #10b981',
+                          color: '#065f46',
+                          fontWeight: 600
+                        }}
+                      >
+                        <Factory size={12} color="#059669" />
+                        <span>WO: {selectedLinkedWo.woNo}</span>
+                      </button>
+
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenCreateWo(selectedQuote)}
+                        title="Launch an additional Work Order for this Quotation"
+                        style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                      >
+                        <Plus size={12} />
+                        <span>New WO</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenCreateWo(selectedQuote)}
+                      title="Convert Quotation to Shop Floor Work Order"
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                    >
+                      <Factory size={12} color="var(--primary)" />
+                      <span>Create WO</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Work Order Launched Confirmation & Indexing Banner */}
+              {selectedLinkedWo && (
+                <div style={{
+                  margin: '10px 14px 0 14px',
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
+                  border: '1px solid #6ee7b7',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)'
+                    }}>
+                      <Factory size={16} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>Work Order <span className="mono" style={{ textDecoration: 'underline' }}>{selectedLinkedWo.woNo}</span> Launched & Indexed</span>
+                        <span style={{ fontSize: '10px', background: '#10b981', color: '#fff', padding: '1px 6px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}>IN PRODUCTION</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#047857', marginTop: '1px' }}>
+                        Model: {selectedLinkedWo.model || detectSpindleModel(selectedQuote)} • Serial: <span className="mono">{selectedLinkedWo.serial || selectedQuote.spindleSerial || 'N/A'}</span> • Routed to Shop Floor Bay 1
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {onNavigate && (
+                      <button 
+                        type="button" 
+                        className="btn btn-primary btn-sm"
+                        onClick={() => onNavigate('production')}
+                        style={{ height: '26px', fontSize: '11px', padding: '0 10px', gap: '4px', background: '#059669', borderColor: '#047857' }}
+                        title="Open Production Board to view traveler sheet"
+                      >
+                        <Factory size={12} />
+                        <span>Open in Production</span>
+                        <ArrowRight size={12} />
+                      </button>
+                    )}
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenCreateWo(selectedQuote)}
+                      style={{ height: '26px', fontSize: '10.5px', padding: '0 8px', gap: '3px' }}
+                      title="Launch another Work Order from this Quotation"
+                    >
+                      <Plus size={11} />
+                      <span>Launch Another WO</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
             {/* Document Body (Matching Estimate_QTN 2026-27 294 PDF) */}
             <div id="printable-quotation" style={{ padding: '14px 16px', background: '#ffffff', color: '#0f172a', fontSize: '11px', lineHeight: '1.35' }}>
@@ -803,7 +1216,8 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
 
             </div>
           </div>
-        )}
+        );
+      })()}
       </div>
       )}
 
@@ -1187,6 +1601,235 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           onNotify={onNotify}
         />
       )}
+
+      {/* Convert Quotation to Production Work Order Modal */}
+      <Modal
+        isOpen={isCreateWoOpen}
+        onClose={() => { if (!isSubmittingWo) setIsCreateWoOpen(false); }}
+        title="Convert Quotation to Production Work Order"
+        maxWidth="680px"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ShieldCheck size={14} color="#059669" />
+              <span>Seeds 8-stage traveler routing automatically</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsCreateWoOpen(false)}
+                disabled={isSubmittingWo}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleExecuteCreateWo}
+                disabled={isSubmittingWo}
+                style={{ gap: '6px' }}
+              >
+                {isSubmittingWo ? (
+                  <>
+                    <Loader2 size={14} className="spin" />
+                    <span>Launching Work Order...</span>
+                  </>
+                ) : (
+                  <>
+                    <Factory size={14} />
+                    <span>Launch Work Order</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <form onSubmit={handleExecuteCreateWo}>
+          {/* Source Quotation Context Banner */}
+          {selectedQuote && (
+            <div style={{
+              padding: '10px 14px',
+              background: 'linear-gradient(135deg, rgba(122, 31, 61, 0.06) 0%, rgba(122, 31, 61, 0.02) 100%)',
+              border: '1px solid rgba(122, 31, 61, 0.2)',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                  <FileText size={14} color="#7A1F3D" />
+                  <span style={{ fontWeight: 700, fontSize: '13px', color: '#7A1F3D' }}>Source Quotation:</span>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '13px' }}>{selectedQuote.id}</span>
+                  <StatusBadge status={selectedQuote.status} size="sm" />
+                </div>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                  Customer: <strong>{selectedQuote.customer}</strong>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>Commercial Value</span>
+                <span className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>
+                  ₹{Number(selectedQuote.totalAmount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Work Order Number *</label>
+              <input 
+                type="text" 
+                className="form-control mono"
+                value={woForm.workOrderNo}
+                onChange={(e) => setWoForm({ ...woForm, workOrderNo: e.target.value })}
+                placeholder="e.g. WO-2026-0850"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Customer Organization *</label>
+              <input 
+                type="text" 
+                className="form-control"
+                value={woForm.customer}
+                onChange={(e) => setWoForm({ ...woForm, customer: e.target.value })}
+                placeholder="e.g. Linamar India Pvt Ltd"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Spindle Model Family *</label>
+              <CustomSelect 
+                value={woForm.spindleModel}
+                onChange={(e) => setWoForm({ ...woForm, spindleModel: e.target.value })}
+                options={[
+                  { value: 'GPS-HSK-A63-24K', label: 'GPS-HSK-A63-24K (Motorized 24k)' },
+                  { value: 'GPS-BT40-15K', label: 'GPS-BT40-15K (Belt Milling 15k)' },
+                  { value: 'GPS-HF-60K', label: 'GPS-HF-60K (High Frequency 60k)' },
+                  { value: 'GPS-BT50-10K', label: 'GPS-BT50-10K (Heavy Geared 10k)' },
+                  { value: 'GPS-HSK-E25-42K', label: 'GPS-HSK-E25-42K (Micro High Speed)' },
+                  { value: 'KESSLAR HSK-63', label: 'KESSLAR HSK-63 (Client Spindle Rebuild)' },
+                  { value: 'Custom Precision Spindle', label: 'Custom Precision Spindle' }
+                ]}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Spindle Serial Number *</label>
+              <input 
+                type="text" 
+                className="form-control mono"
+                value={woForm.serial}
+                onChange={(e) => setWoForm({ ...woForm, serial: e.target.value })}
+                placeholder="e.g. HMMXXVI or GPS-2026-0850"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Order Classification</label>
+              <CustomSelect 
+                value={woForm.orderType}
+                onChange={(e) => setWoForm({ ...woForm, orderType: e.target.value })}
+                options={[
+                  { value: 'Spindle Overhaul & Repair', label: 'Spindle Overhaul & Repair' },
+                  { value: 'New Spindle Build', label: 'New Spindle Build' },
+                  { value: 'Spindle Retrofit & Re-engineering', label: 'Spindle Retrofit & Re-engineering' },
+                  { value: 'Urgent Breakdown Restoration', label: 'Urgent Breakdown Restoration' }
+                ]}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Shop Floor Priority</label>
+              <CustomSelect 
+                value={woForm.priority}
+                onChange={(e) => setWoForm({ ...woForm, priority: e.target.value })}
+                options={[
+                  { value: 'Critical', label: 'Critical (Line-Down Emergency)' },
+                  { value: 'High', label: 'High Priority (Standard Production)' },
+                  { value: 'Medium', label: 'Medium / Normal Schedule' },
+                  { value: 'Low', label: 'Low / Stock Build' }
+                ]}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Initial Stage / Shop Bay</label>
+              <CustomSelect 
+                value={woForm.initialStage}
+                onChange={(e) => setWoForm({ ...woForm, initialStage: e.target.value })}
+                options={[
+                  { value: 'material', label: 'Stage 1: Raw Stock Cutting & Teardown (Bay 1)' },
+                  { value: 'machining', label: 'Stage 2: CNC Rough Turning & Gun Drilling (Bay 2)' },
+                  { value: 'heat_treat', label: 'Stage 3: Case Carburizing & Tempering (Bay 3)' },
+                  { value: 'grinding', label: 'Stage 4: Cylindrical Journal Grinding (Bay 4)' },
+                  { value: 'assembly', label: 'Stage 5: Cleanroom Bearing Assembly (Bay 5)' }
+                ]}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '11px' }}>Target Dispatch Date</label>
+              <input 
+                type="date" 
+                className="form-control mono"
+                value={woForm.dueDate}
+                onChange={(e) => setWoForm({ ...woForm, dueDate: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginTop: '12px' }}>
+            <label className="form-label" style={{ fontSize: '11px' }}>
+              Scope of Work & Production Job Traveler Notes
+            </label>
+            <textarea 
+              className="form-control" 
+              rows={4}
+              value={woForm.notes}
+              onChange={(e) => setWoForm({ ...woForm, notes: e.target.value })}
+              placeholder="Engineering instructions, disassembly notes, and traveler specifications..."
+              style={{ fontSize: '11.5px', lineHeight: '1.4', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          {selectedQuote && selectedQuote.status !== 'Approved' && (
+            <div style={{
+              marginTop: '12px',
+              padding: '10px 12px',
+              background: 'var(--bg-surface-subtle)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <input 
+                type="checkbox" 
+                id="autoApproveCheck"
+                checked={woForm.autoApproveQuote}
+                onChange={(e) => setWoForm({ ...woForm, autoApproveQuote: e.target.checked })}
+                style={{ width: '15px', height: '15px', cursor: 'pointer' }}
+              />
+              <label htmlFor="autoApproveCheck" style={{ fontSize: '12px', cursor: 'pointer', userSelect: 'none', color: 'var(--text-main)' }}>
+                Mark Quotation <strong>{selectedQuote.id}</strong> as <strong>Approved</strong> in Commercial Register upon Work Order launch
+              </label>
+            </div>
+          )}
+        </form>
+      </Modal>
+      </div>
     </div>
   );
 }

@@ -191,6 +191,8 @@ export default function NotificationsScreen({ onNavigate, onNotify }) {
         </div>
       </PageHeader>
 
+      <div className="content-body">
+
       {/* Metrics Summary Strip */}
       <div className="metrics-grid">
         <div className="metric-card">
@@ -426,6 +428,7 @@ export default function NotificationsScreen({ onNavigate, onNotify }) {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -201,6 +201,8 @@ export default function DocumentsScreen({ onNotify }) {
         </div>
       </PageHeader>
 
+      <div className="content-body">
+
       {/* Metrics Summary Strip */}
       <div className="metrics-grid">
         <div className="metric-card">
@@ -560,6 +562,7 @@ export default function DocumentsScreen({ onNotify }) {
           </div>
         </form>
       </Modal>
+      </div>
     </div>
   );
 }

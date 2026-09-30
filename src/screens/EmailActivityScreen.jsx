@@ -104,6 +104,8 @@ export default function EmailActivityScreen({ onNotify }) {
         </div>
       </PageHeader>
 
+      <div className="content-body">
+
       {/* Metrics Summary Strip */}
       <div className="metrics-grid">
         <div className="metric-card">
@@ -184,6 +186,7 @@ export default function EmailActivityScreen({ onNotify }) {
         onSaveDraft={handleSaveDraft}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

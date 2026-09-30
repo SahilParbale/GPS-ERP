@@ -237,21 +237,23 @@ export default function QualityScreen({ onNotify }) {
           subtitle="Micron-level dimensional tolerance inspection, air gauging, and dynamic balancing sign-off"
           badge="ISO 9001:2015 Standards"
         />
-        <div className="section-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <AlertCircle size={40} style={{ color: '#dc2626', margin: '0 auto 16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Connection Error</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
-            {error}
-          </p>
-          <button 
-            type="button" 
-            className="btn btn-primary"
-            onClick={() => fetchInspections()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-          >
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <AlertCircle size={40} style={{ color: '#dc2626', margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Connection Error</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
+              {error}
+            </p>
+            <button 
+              type="button" 
+              className="btn btn-primary"
+              onClick={() => fetchInspections()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -266,22 +268,24 @@ export default function QualityScreen({ onNotify }) {
           subtitle="Micron-level dimensional tolerance inspection, air gauging, and dynamic balancing sign-off"
           badge="ISO 9001:2015 Standards"
         />
-        <div className="section-card">
-          <EmptyState 
-            title="No quality inspections found"
-            description="No metrology inspection records exist in the database yet. Generate inspections from completed assembly work orders."
-            action={
-              <button 
-                type="button" 
-                className="btn btn-secondary"
-                onClick={() => fetchInspections()}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <RefreshCw size={14} />
-                <span>Refresh</span>
-              </button>
-            }
-          />
+        <div className="content-body">
+          <div className="section-card">
+            <EmptyState 
+              title="No quality inspections found"
+              description="No metrology inspection records exist in the database yet. Generate inspections from completed assembly work orders."
+              action={
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => fetchInspections()}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={14} />
+                  <span>Refresh</span>
+                </button>
+              }
+            />
+          </div>
         </div>
       </div>
     );
@@ -353,6 +357,8 @@ export default function QualityScreen({ onNotify }) {
           <span>{isApproved ? 'Approved' : 'Approve Inspection'}</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* Selected Inspection Certificate Card */}
       <div className="section-card">
@@ -729,6 +735,7 @@ export default function QualityScreen({ onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

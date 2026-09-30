@@ -118,25 +118,27 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
           title="Production Management & Shop Floor Operations" 
           subtitle="Live routing of precision spindles across 8 manufacturing stages"
         />
-        <div className="section-card" style={{ padding: '32px 24px', borderLeft: '4px solid var(--danger, #dc2626)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-            <AlertCircle size={24} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
-                Unable to Load Production Operations
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                {error.sanitizedMessage || error.message || 'Database connection error. Please verify authorization.'}
-              </p>
-              <button 
-                type="button" 
-                className="btn btn-primary btn-sm"
-                onClick={loadProductionData}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <RefreshCw size={13} />
-                <span>Retry Connection</span>
-              </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '32px 24px', borderLeft: '4px solid var(--danger, #dc2626)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <AlertCircle size={24} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                  Unable to Load Production Operations
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  {error.sanitizedMessage || error.message || 'Database connection error. Please verify authorization.'}
+                </p>
+                <button 
+                  type="button" 
+                  className="btn btn-primary btn-sm"
+                  onClick={loadProductionData}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={13} />
+                  <span>Retry Connection</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -190,6 +192,8 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
           <span>New Work Order</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* Visual 8-Stage Interactive Pipeline */}
       <div className="section-card">
@@ -873,6 +877,7 @@ export default function ProductionScreen({ onNavigate, onSelectWorkOrder, onNoti
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }

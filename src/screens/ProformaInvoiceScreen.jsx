@@ -345,18 +345,20 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           subtitle="Commercial proformas, advance payment milestone billing, and Sales Order linkage"
           badge="Database Notice"
         />
-        <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-          <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {error.message || 'Unable to retrieve proforma invoices from PostgreSQL database.'}
-          </p>
-          <button type="button" className="btn btn-secondary" onClick={loadPIs}>
-            <RefreshCw size={14} />
-            <span>Retry Connection</span>
-          </button>
+        <div className="content-body">
+          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
+              {error.message || 'Unable to retrieve proforma invoices from PostgreSQL database.'}
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={loadPIs}>
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -394,6 +396,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           <span>+ Create Proforma Invoice</span>
         </button>
       </PageHeader>
+
+      <div className="content-body">
 
       {/* 4 PI Dashboard Metric Cards */}
       <div className="metrics-grid">
@@ -1154,6 +1158,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         doc={previewDoc}
         onNotify={onNotify}
       />
+      </div>
     </div>
   );
 }
