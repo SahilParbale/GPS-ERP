@@ -1967,140 +1967,14 @@ export const exportJobTravelerPdf = (wo, operations = []) => {
 };
 
 // ==========================================
-// 15. OFFICIAL ESTIMATE / QUOTATION PDF (100% MATCHING ON-SCREEN ESTIMATE FORMAT)
+// 15. OFFICIAL ESTIMATE / QUOTATION PDF (100% EXACT 1:1 REPLICA OF ESTIMATE_QTN 2026-27 294 PDF)
 // ==========================================
 export const exportQuotationPdf = (quote = {}) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const marginX = 12;
-  const contentWidth = pageWidth - (marginX * 2); // 186mm
+  const marginX = 14;
+  const contentWidth = pageWidth - (marginX * 2); // 182mm
 
-  const subtotal = Number(quote.subtotal) || (quote.items || []).reduce((sum, it) => sum + (Number(it.qty || 0) * Number(it.unitPrice || 0)), 0);
-  const gstAmount = Number(quote.gstAmount) || Number(quote.taxAmount) || Math.round(subtotal * 0.18);
-  const totalAmount = Number(quote.totalAmount) || (subtotal + gstAmount);
-  const totalQty = (quote.items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0);
-
-  const subtotalFormatted = subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const gstFormatted = gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const totalFormatted = totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // 1. Document Title Banner: "Estimate"
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(15, 23, 42); // #0f172a
-  doc.text('Estimate', pageWidth / 2, 16, { align: 'center' });
-
-  // Underline
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.5);
-  doc.line(marginX, 19, marginX + contentWidth, 19);
-
-  // 2. Company Header & Metadata Grid Box
-  const headerBoxY = 22;
-  const headerBoxH = 26;
-  doc.setDrawColor(203, 213, 225); // #cbd5e1
-  doc.setLineWidth(0.25);
-  doc.roundedRect(marginX, headerBoxY, contentWidth, headerBoxH, 1, 1, 'S');
-
-  // Vertical dividing line at x = 122
-  doc.line(122, headerBoxY, 122, headerBoxY + headerBoxH);
-
-  // Left side: Seller Brand & Address
-  // Logo square emblem
-  doc.setFillColor(122, 31, 61); // Maroon
-  doc.roundedRect(marginX + 2.5, headerBoxY + 3.5, 14, 14, 1.2, 1.2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('GPS', marginX + 9.5, headerBoxY + 11.5, { align: 'center' });
-
-  // Company details
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('GENERAL PRECISION SPINDLES', marginX + 20, headerBoxY + 6.5);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.2);
-  doc.setTextColor(71, 85, 105); // #475569
-  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041', marginX + 20, headerBoxY + 11);
-  doc.text('Ph: +919764252188 / 9764032929 • Email: process@gpsspindles.net', marginX + 20, headerBoxY + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('GSTIN: 27AATFG1527D1ZF • State: 27-Maharashtra', marginX + 20, headerBoxY + 19.5);
-
-  // Right side: Metadata fields
-  // Horizontal dividing line at headerBoxY + 13
-  doc.line(122, headerBoxY + 13, marginX + contentWidth, headerBoxY + 13);
-  // Vertical dividing line at x = 160 (between Estimate No. and Date)
-  doc.line(160, headerBoxY, 160, headerBoxY + 13);
-
-  // Top Left: Estimate No.
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139); // #64748b
-  doc.text('ESTIMATE NO.', 125, headerBoxY + 4.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(quote.estimateNo || quote.id || 'QTN/2026-27/294'), 125, headerBoxY + 9.5);
-
-  // Top Right: Date
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('DATE', 163, headerBoxY + 4.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(quote.date || formatDate(new Date())), 163, headerBoxY + 9.5);
-
-  // Bottom: Place of Supply
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('PLACE OF SUPPLY', 125, headerBoxY + 17.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(122, 31, 61); // Maroon accent
-  doc.text(String(quote.placeOfSupply || quote.state || '23-Madhya Pradesh'), 125, headerBoxY + 22.5);
-
-  // 3. Estimate For (Customer Box)
-  const custBoxY = headerBoxY + headerBoxH + 2.5; // 50.5
-  const custBoxH = 20;
-
-  doc.setFillColor(248, 250, 252); // #f8fafc
-  doc.roundedRect(marginX, custBoxY, contentWidth, custBoxH, 1, 1, 'F');
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(marginX, custBoxY, contentWidth, custBoxH, 1, 1, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.2);
-  doc.setTextColor(100, 116, 139);
-  doc.text('ESTIMATE FOR', marginX + 3, custBoxY + 4);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(quote.customer || quote.customerName || 'LINAMAR INDIA PRIVATE LIMITED'), marginX + 3, custBoxY + 8.5);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(51, 65, 85); // #334155
-  doc.text(String(quote.customerAddress || 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001 India'), marginX + 3, custBoxY + 12.5);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(15, 23, 42);
-  const contactText = `Contact No. : ${quote.contactNo || '7773877714'}      GSTIN : ${quote.gstin || '23AACCL5351J1ZM'}      State: ${quote.state || quote.placeOfSupply || '23-Madhya Pradesh'}`;
-  doc.text(contactText, marginX + 3, custBoxY + 16.8);
-
-  // 4. Line Items Table
   const items = (quote.items && quote.items.length > 0) ? quote.items : [
     { id: 1, name: 'REPAIRING OF KESSLAR HSK-63 SPINDLE', hsn: '84669390', qty: 1, unitPrice: 110000 },
     { id: 2, name: 'SHAFT SLEEVING', hsn: '998717', qty: 1, unitPrice: 225000 },
@@ -2111,168 +1985,291 @@ export const exportQuotationPdf = (quote = {}) => {
     { id: 7, name: 'STATOR INSPECTION', hsn: '998717', qty: 1, unitPrice: 15000 }
   ];
 
-  const tableRows = items.map((item, idx) => [
-    idx + 1,
-    item.name || item.desc,
-    item.hsn || '—',
-    item.qty,
-    'Rs. ' + (Number(item.unitPrice) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-    'Rs. ' + (Number(item.total || (item.qty * item.unitPrice)) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })
-  ]);
+  const subtotal = Number(quote.subtotal) || items.reduce((sum, it) => sum + (Number(it.qty || 0) * Number(it.unitPrice || 0)), 0);
+  const taxRate = Number(quote.taxRate) || 18;
+  const gstAmount = Number(quote.gstAmount) || Number(quote.taxAmount) || Math.round(subtotal * (taxRate / 100));
+  const totalAmount = Number(quote.totalAmount) || (subtotal + gstAmount);
+  const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+
+  const formatRupee = (num) => 'Rs. ' + Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subtotalFormatted = formatRupee(subtotal);
+  const gstFormatted = formatRupee(gstAmount);
+  const totalFormatted = formatRupee(totalAmount);
+
+  // 1. Document Title: "Estimate" centered at top, NO underline
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Estimate', pageWidth / 2, 13, { align: 'center' });
+
+  // 2. Main Outer Top Header Grid (X = marginX, Y = 16)
+  const headerBoxY = 16;
+  const headerBoxH = 26;
+  const splitColX = 124;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.rect(marginX, headerBoxY, contentWidth, headerBoxH, 'S');
+
+  // Vertical dividing line between left company details and right metadata
+  doc.line(splitColX, headerBoxY, splitColX, headerBoxY + headerBoxH);
+
+  // Company details on Left
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text('GENERAL PRECISION SPINDLES', marginX + 3, headerBoxY + 5.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', marginX + 3, headerBoxY + 10);
+  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', marginX + 3, headerBoxY + 13.3);
+  doc.text('Ph: +919764252188 / 9764032929', marginX + 3, headerBoxY + 16.6);
+  doc.text('Email: process@gpsspindles.net', marginX + 3, headerBoxY + 19.9);
+  doc.text('GSTIN: 27AATFG1527D1ZF', marginX + 3, headerBoxY + 23.2);
+  doc.text('State: 27-Maharashtra', marginX + 3, headerBoxY + 25.5);
+
+  // Right side: Metadata fields
+  // Horizontal dividing line at headerBoxY + 13
+  doc.line(splitColX, headerBoxY + 13, marginX + contentWidth, headerBoxY + 13);
+  // Vertical dividing line at x = 160 (continuous 2x2 grid matching Image 2)
+  const midMetaX = 160;
+  doc.line(midMetaX, headerBoxY, midMetaX, headerBoxY + headerBoxH);
+
+  // Top Left: Estimate No.
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Estimate No.', splitColX + 2.5, headerBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text(String(quote.estimateNo || quote.id || 'QTN/2026-27/294'), splitColX + 2.5, headerBoxY + 9.5);
+
+  // Top Right: Date
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text(String(quote.date || '07-09-2026'), midMetaX + 2.5, headerBoxY + 9.5);
+
+  // Bottom: Place of supply (with blank cell on right matching Image 2)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Place of supply', splitColX + 2.5, headerBoxY + 17.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text(String(quote.placeOfSupply || quote.state || '23-Madhya Pradesh'), splitColX + 2.5, headerBoxY + 22.5);
+
+  // 3. Estimate For (Customer Box) - matching generous spacing from Image 3
+  const custBoxY = headerBoxY + headerBoxH;
+  const custBoxH = 34;
+
+  doc.rect(marginX, custBoxY, contentWidth, custBoxH, 'S');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Estimate For', marginX + 3, custBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(String(quote.customer || 'LINAMAR INDIA PRIVATE LIMITED'), marginX + 3, custBoxY + 9);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.text('Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas', marginX + 3, custBoxY + 13.5);
+  doc.text('Dewas, Madhya Pradesh-455001', marginX + 3, custBoxY + 16.7);
+  doc.text('India', marginX + 3, custBoxY + 19.9);
+  // Generous gap after India matching Image 3
+  doc.text(`Contact No. : ${quote.contactNo || '7773877714'}`, marginX + 3, custBoxY + 24.5);
+  doc.text(`GSTIN : ${quote.gstin || '23AACCL5351J1ZM'}`, marginX + 3, custBoxY + 28);
+  doc.text(`State: ${quote.state || quote.placeOfSupply || '23-Madhya Pradesh'}`, marginX + 3, custBoxY + 31.5);
+
+  // 4. Line Items Table
+  const tableRows = items.map((item, idx) => {
+    const lineAmt = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0)));
+    return [
+      idx + 1,
+      item.name || item.desc,
+      item.hsn || '',
+      item.qty,
+      formatRupee(item.unitPrice),
+      formatRupee(lineAmt)
+    ];
+  });
+
+  const displayTableRows = [...tableRows];
+  while (displayTableRows.length < 5) {
+    displayTableRows.push(['', '', '', '', '', '']);
+  }
 
   autoTable(doc, {
-    startY: custBoxY + custBoxH + 2.5,
+    startY: custBoxY + custBoxH,
     margin: { left: marginX, right: marginX },
-    head: [['#', 'Item name', 'HSN/ SAC', 'Qty', 'Price/ Unit', 'Amount']],
-    body: tableRows,
-    foot: [['Total', '', '', totalQty, '', 'Rs. ' + subtotalFormatted]],
+    head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Price/ Unit', 'Amount']],
+    body: displayTableRows,
+    foot: [['', 'Total', '', totalQty, '', subtotalFormatted]],
     theme: 'grid',
     headStyles: {
-      fillColor: [241, 245, 249], // #f1f5f9
-      textColor: [15, 23, 42],    // #0f172a
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.2,
+      fontSize: 7,
       halign: 'center',
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontSize: 6.8,
-      cellPadding: 1.6,
-      textColor: [15, 23, 42],
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
     },
     footStyles: {
-      fillColor: [248, 250, 252],
-      textColor: [15, 23, 42],
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.2,
-      lineColor: [203, 213, 225],
-      lineWidth: 0.25
+      fontSize: 7,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     columnStyles: {
       0: { halign: 'center', cellWidth: 8 },
-      1: { halign: 'left', fontStyle: 'bold', cellWidth: 88 },
+      1: { halign: 'left', fontStyle: 'bold', cellWidth: 82 },
       2: { halign: 'center', cellWidth: 24 },
-      3: { halign: 'center', cellWidth: 16 },
-      4: { halign: 'right', cellWidth: 25 },
-      5: { halign: 'right', fontStyle: 'bold', cellWidth: 25 }
+      3: { halign: 'right', cellWidth: 16 },
+      4: { halign: 'right', cellWidth: 26 },
+      5: { halign: 'right', fontStyle: 'bold', cellWidth: 26 }
     }
   });
 
-  // 5. Estimate Amount in Words Box
-  let currentY = doc.lastAutoTable.finalY + 2;
-  const wordsBoxH = 8;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(marginX, currentY, contentWidth, wordsBoxH, 1, 1, 'F');
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(marginX, currentY, contentWidth, wordsBoxH, 1, 1, 'S');
+  // 5. Middle Section (Words, Description, Amounts)
+  const pageBottom = pageHeight - marginX; // 283mm
+  const bottomH = 44;
+  const bottomY = pageBottom - bottomH; // 239mm
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('ESTIMATE AMOUNT IN WORDS', marginX + 3, currentY + 3.2);
+  let middleY = doc.lastAutoTable.finalY;
+  const middleH = Math.max(54, bottomY - middleY - 26);
+  const midSplitX = marginX + 110;
 
-  doc.setFont('helvetica', 'bolditalic');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(quote.amountInWords || 'Six Lakh Seventy Seven Thousand Three Hundred Twenty Rupees only', marginX + 3, currentY + 6.6);
+  doc.setLineWidth(0.25);
+  doc.rect(marginX, middleY, contentWidth, middleH, 'S');
+  doc.line(midSplitX, middleY, midSplitX, middleY + middleH);
 
-  // 6. Description / Scope of Work & Amounts (2-Column Grid)
-  currentY += wordsBoxH + 2;
-  const gridH = 38;
-  const leftColW = 110;
-  const rightColW = 73;
-  const rightColX = marginX + leftColW + 3;
-
-  // Left: Description Box
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(marginX, currentY, leftColW, gridH, 1, 1, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text('DESCRIPTION', marginX + 3, currentY + 4);
-
-  doc.setDrawColor(226, 232, 240);
-  doc.line(marginX, currentY + 5.5, marginX + leftColW, currentY + 5.5);
+  // Estimate Amount in Words Box
+  const wordsH = 10;
+  doc.line(marginX, middleY + wordsH, midSplitX, middleY + wordsH);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`SERIAL NO: ${quote.spindleSerial || 'HMMXXVI'}     CHALLAN NO: ${quote.challanNo || 'N/A'}     INWORD DATE: ${quote.inwardDate || quote.date || '22-08-2026'}`, marginX + 3, currentY + 9.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Estimate Amount in Words', marginX + 2, middleY + 4);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('SCOPE OF WORK :-', marginX + 3, currentY + 14);
+  doc.setFontSize(7);
+  const amtWords = quote.amountInWords || numberToIndianWords(totalAmount);
+  const amtWordLines = doc.splitTextToSize(amtWords, midSplitX - marginX - 4);
+  doc.text(amtWordLines, marginX + 2, middleY + 8);
 
-  // Scope Items: 2 columns for compact, clean layout
+  // Description Box
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.2);
+  doc.text('Description', marginX + 2, middleY + wordsH + 4);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  let descY = middleY + wordsH + 8;
+  doc.text(`SERIAL NO. ${quote.spindleSerial || 'HMMXXVI'}`, marginX + 2, descY); descY += 3.2;
+  doc.text(`CHALLAN NO. ${quote.challanNo || 'N/A'}`, marginX + 2, descY); descY += 3.2;
+  doc.text(`INWORD DATE. ${quote.inwardDate || '22-08-2026'}`, marginX + 2, descY); descY += 3.2;
+  doc.text('SCOPE OF WORK :-', marginX + 2, descY); descY += 3;
+
   const rawScope = Array.isArray(quote.scopeOfWork)
     ? quote.scopeOfWork
     : (quote.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.8);
-  doc.setTextColor(71, 85, 105);
-
   const halfLen = Math.ceil(rawScope.length / 2);
+  const scopeColW = (midSplitX - marginX - 4) / 2;
   rawScope.slice(0, halfLen).forEach((line, idx) => {
-    doc.text(line.trim(), marginX + 3, currentY + 18 + (idx * 3.1));
+    doc.text(line.trim(), marginX + 2, descY + (idx * 2.8));
   });
   rawScope.slice(halfLen).forEach((line, idx) => {
-    doc.text(line.trim(), marginX + 56, currentY + 18 + (idx * 3.1));
+    doc.text(line.trim(), marginX + 2 + scopeColW, descY + (idx * 2.8));
   });
 
-  // Right: Amounts Box
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(rightColX, currentY, rightColW, gridH, 1, 1, 'S');
+  // Right Side: Amounts Box
+  const amtRX = midSplitX + 2;
+  const amtRight = marginX + contentWidth - 2;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text('AMOUNTS', rightColX + 3, currentY + 4);
-
-  doc.setDrawColor(226, 232, 240);
-  doc.line(rightColX, currentY + 5.5, rightColX + rightColW, currentY + 5.5);
-
-  // Sub Total
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Sub Total', rightColX + 3, currentY + 11.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Rs. ' + subtotalFormatted, rightColX + rightColW - 3, currentY + 11.5, { align: 'right' });
+  doc.setFontSize(6.5);
+  doc.text('Amounts', amtRX, middleY + 4.5);
 
-  // Tax
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  doc.text('Tax (18% IGST)', rightColX + 3, currentY + 18.5);
+  doc.setFontSize(7);
+  doc.text('Sub Total', amtRX, middleY + 14);
+  doc.text(subtotalFormatted, amtRight, middleY + 14, { align: 'right' });
+
+  doc.text(`Tax (${taxRate}%)`, amtRX, middleY + 22);
+  doc.text(gstFormatted, amtRight, middleY + 22, { align: 'right' });
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.line(amtRX, middleY + 27, amtRight, middleY + 27);
+
   doc.setFont('helvetica', 'bold');
-  doc.text('Rs. ' + gstFormatted, rightColX + rightColW - 3, currentY + 18.5, { align: 'right' });
+  doc.setFontSize(8);
+  doc.text('Total', amtRX, middleY + 34);
+  doc.text(totalFormatted, amtRight, middleY + 34, { align: 'right' });
 
-  // Total divider line
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.4);
-  doc.line(rightColX + 3, currentY + 25.5, rightColX + rightColW - 3, currentY + 25.5);
+  // 6. HSN/SAC Tax Summary Table
+  const computeHsnSummary = (itemList) => {
+    const map = {};
+    itemList.forEach(it => {
+      const code = it.hsn ? String(it.hsn).trim() : '';
+      const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
+      if (!map[code]) {
+        map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+      }
+      map[code].taxable += amt;
+    });
+    return Object.values(map).map(entry => {
+      const tax = Math.round(entry.taxable * 0.18);
+      return {
+        hsn: entry.hsn,
+        taxable: entry.taxable,
+        rate: '18%',
+        igst: tax,
+        totalTax: tax
+      };
+    });
+  };
 
-  // Total
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(122, 31, 61); // Maroon
-  doc.text('Total', rightColX + 3, currentY + 32.5);
-  doc.text('Rs. ' + totalFormatted, rightColX + rightColW - 3, currentY + 32.5, { align: 'right' });
+  const hsnList = (quote.hsnSummary && quote.hsnSummary.length > 0)
+    ? quote.hsnSummary
+    : computeHsnSummary(items);
 
-  // 7. HSN/SAC Tax Summary Table
-  currentY += gridH + 2;
-
-  const hsnRows = (quote.hsnSummary && quote.hsnSummary.length > 0)
-    ? quote.hsnSummary.map(h => [h.hsn, 'Rs. ' + (Number(h.taxable) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }), h.rate || '18%', 'Rs. ' + (Number(h.igst) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }), 'Rs. ' + (Number(h.totalTax) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })])
-    : [[quote.items?.[0]?.hsn || '84669390', 'Rs. ' + subtotalFormatted, '18%', 'Rs. ' + gstFormatted, 'Rs. ' + gstFormatted]];
+  const hsnRows = hsnList.map(h => [
+    h.hsn || '',
+    formatRupee(h.taxable),
+    h.rate || '18%',
+    formatRupee(h.igst),
+    formatRupee(h.totalTax)
+  ]);
 
   autoTable(doc, {
-    startY: currentY,
+    startY: middleY + middleH,
     margin: { left: marginX, right: marginX },
     head: [
       [
@@ -2287,113 +2284,141 @@ export const exportQuotationPdf = (quote = {}) => {
       ]
     ],
     body: hsnRows,
-    foot: [['Total', 'Rs. ' + subtotalFormatted, '', 'Rs. ' + gstFormatted, 'Rs. ' + gstFormatted]],
+    foot: [['Total', subtotalFormatted, '', gstFormatted, gstFormatted]],
     theme: 'grid',
     headStyles: {
-      fillColor: [248, 250, 252],
-      textColor: [15, 23, 42],
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
       fontSize: 6.5,
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
     },
     bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontSize: 6.5,
-      cellPadding: 1.4,
-      textColor: [15, 23, 42],
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 }
     },
     footStyles: {
-      fillColor: [241, 245, 249],
-      textColor: [15, 23, 42],
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
       fontSize: 6.5,
-      lineColor: [203, 213, 225],
-      lineWidth: 0.25
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 32 },
-      1: { halign: 'right', cellWidth: 46 },
-      2: { halign: 'center', cellWidth: 26 },
-      3: { halign: 'right', cellWidth: 41 },
-      4: { halign: 'right', cellWidth: 41 }
+      0: { halign: 'center', cellWidth: 38 },
+      1: { halign: 'right', cellWidth: 44 },
+      2: { halign: 'center', cellWidth: 22 },
+      3: { halign: 'right', cellWidth: 40 },
+      4: { halign: 'right', cellWidth: 38 }
     }
   });
 
-  // 8. Bottom 3-Column Grid (Bank Details, Terms, Authorized Signatory)
-  const bottomY = doc.lastAutoTable.finalY + 2;
-  const bottomH = 24;
-  const col1W = 56;
-  const col2W = 72;
-  const col3W = 55;
-  const col2X = marginX + col1W + 1.5;
-  const col3X = col2X + col2W + 1.5;
+  // 7. Bottom 3-Column Footer Box (Bank Details, Terms, Signatory)
+  const col1W = 62;
+  const col2W = 68;
+  const col3W = contentWidth - col1W - col2W;
+  const col2X = marginX + col1W;
+  const col3X = col2X + col2W;
 
-  // Box 1: Bank Details
-  doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.25);
-  doc.roundedRect(marginX, bottomY, col1W, bottomH, 1, 1, 'S');
+  doc.rect(marginX, bottomY, contentWidth, bottomH, 'S');
+  doc.line(col2X, bottomY, col2X, bottomY + bottomH);
+  doc.line(col3X, bottomY, col3X, bottomY + bottomH);
 
+  // Column 1: Bank Details
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Bank Details', marginX + 3, bottomY + 3.8);
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Bank Details', marginX + 2, bottomY + 4.5);
+
+  // QR Code representation
+  doc.setLineWidth(0.2);
+  doc.rect(marginX + 2, bottomY + 7, 14, 14, 'S');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 3, bottomY + 8, 4, 4, 'F');
+  doc.setFillColor(255, 255, 255);
+  doc.rect(marginX + 3.7, bottomY + 8.7, 2.6, 2.6, 'F');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 4.3, bottomY + 9.3, 1.4, 1.4, 'F');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 8.5, bottomY + 8, 4, 4, 'F');
+  doc.setFillColor(255, 255, 255);
+  doc.rect(marginX + 9.2, bottomY + 8.7, 2.6, 2.6, 'F');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 9.8, bottomY + 9.3, 1.4, 1.4, 'F');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 3, bottomY + 16.5, 4, 4, 'F');
+  doc.setFillColor(255, 255, 255);
+  doc.rect(marginX + 3.7, bottomY + 17.2, 2.6, 2.6, 'F');
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginX + 4.3, bottomY + 17.8, 1.4, 1.4, 'F');
+
+  // UPI badge
+  doc.setFillColor(22, 163, 74);
+  doc.rect(marginX + 2, bottomY + 21.5, 14, 3.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(4);
+  doc.setTextColor(255, 255, 255);
+  doc.text('UPI: SCAN TO PAY', marginX + 9, bottomY + 23.8, { align: 'center' });
+
+  // Bank Text
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.8);
+  doc.setTextColor(0, 0, 0);
+  const bankTxtLines = [
+    'Name : ICICI BANK LIMITED, PUNE',
+    'NANDED CITY',
+    'Account No. : 349105000701',
+    'IFSC code : ICIC0003491',
+    "Account holder's name : GENERAL",
+    'PRECISION SPINDLES'
+  ];
+  bankTxtLines.forEach((line, i) => { doc.text(line, marginX + 18, bottomY + 8 + (i * 3.2)); });
+
+  // Column 2: Terms and conditions
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Terms and conditions', col2X + 2, bottomY + 4.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Name : ${quote.bankName || 'ICICI BANK LIMITED, PUNE NANDED CITY'}`, marginX + 3, bottomY + 8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Account No. : ${quote.accountNo || '349105000701'}`, marginX + 3, bottomY + 12);
-  doc.text(`IFSC code : ${quote.ifscCode || 'ICIC0003491'}`, marginX + 3, bottomY + 16);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Account holder's name : ${quote.accountHolder || 'GENERAL PRECISION SPINDLES'}`, marginX + 3, bottomY + 20);
-
-  // Box 2: Terms and Conditions
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(col2X, bottomY, col2W, bottomH, 1, 1, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Terms and conditions', col2X + 3, bottomY + 3.8);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', col2X + 3, bottomY + 7.5, { maxWidth: col2W - 6 });
-
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(5.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`MSME (UDYAM ADHAR) NO-${quote.msmeNo || 'MH26A0189736'}`, col2X + 3, bottomY + 13.5);
+  const termsTextLines = [
+    'We declare that this invoice shows the actual price of',
+    'the goods described and that all particulars are true and',
+    'correct.',
+    '',
+    'Bank Details:',
+    'ICICI Bank Ltd(Nanded City Branch)',
+    'A/c No : 349105000701',
+    'IFSC Code: ICIC0003491',
+    'MSME (UDYAM ADHAR) NO-MH26A0189736',
+    'TYPE OF ENTERPRISES: SPINDLE MANUFACTURING',
+    'AND REPAIRING',
+    'MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF',
+    'CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,',
+    'INTEGRATED,SPINDLE REPAIRING ,SPINDLE',
+    'MANUFACTURING.'
+  ];
+  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, bottomY + 7.5 + (i * 2.35)); });
 
+  // Column 3: Authorized Signatory
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`TYPE OF ENTERPRISES: ${quote.enterpriseType || 'SPINDLE MANUFACTURING AND REPAIRING'}`, col2X + 3, bottomY + 17);
-  doc.text('MAJOR ACTIVITIES: ALL TYPES OF CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,SPINDLE REPAIRING & MANUFACTURING.', col2X + 3, bottomY + 20.5, { maxWidth: col2W - 6 });
-
-  // Box 3: Authorized Signatory
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(col3X, bottomY, col3W, bottomH, 1, 1, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.2);
-  doc.setTextColor(15, 23, 42);
-  doc.text('For : GENERAL PRECISION SPINDLES', col3X + (col3W / 2), bottomY + 4.5, { align: 'center' });
-
-  // Dotted Line for Signature
-  doc.setLineDashPattern([1, 1], 0);
-  doc.setDrawColor(148, 163, 184); // #94a3b8
-  doc.line(col3X + 6, bottomY + 18, col3X + col3W - 6, bottomY + 18);
-  doc.setLineDashPattern([], 0); // reset to solid
-
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Authorized Signatory', col3X + (col3W / 2), bottomY + 21.5, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.text('For : GENERAL PRECISION SPINDLES', col3X + 2, bottomY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('Authorized Signatory', col3X + (col3W / 2), bottomY + bottomH - 4, { align: 'center' });
 
   // Save the PDF
   const cleanId = String(quote.estimateNo || quote.id || 'QTN-2026').replace(/[^a-zA-Z0-9_-]/g, '_');

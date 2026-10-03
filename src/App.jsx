@@ -102,29 +102,17 @@ function AppContent() {
 
   const handleGlobalSearch = (query) => {
     setSearchQuery(query);
-    const q = query.toLowerCase().trim();
-    if (!q) return;
+  };
 
-    if (q.includes('po-') || q.includes('purchase order') || q.includes('purchase') || q.includes('schaeffler') || q.includes('jakob')) {
-      if (canAccessScreen('purchase-orders')) setCurrentScreen('purchase-orders');
-    } else if (q.includes('pi-') || q.includes('proforma')) {
-      if (canAccessScreen('proforma-invoices')) setCurrentScreen('proforma-invoices');
-    } else if (q.includes('ewb-') || q.includes('e-way') || q.includes('way bill') || q.includes('transporter')) {
-      if (canAccessScreen('e-way-bills')) setCurrentScreen('e-way-bills');
-    } else if (q.includes('wo-') || q.includes('work order') || q.includes('prod')) {
-      if (canAccessScreen('production')) setCurrentScreen('production');
-    } else if (q.includes('gps-20') || q.includes('spindle') || q.includes('twin')) {
-      if (canAccessScreen('spindles')) setCurrentScreen('spindles');
-    } else if (q.includes('sr-') || q.includes('repair') || q.includes('service')) {
-      if (canAccessScreen('service')) setCurrentScreen('service');
-    } else if (q.includes('inv-') || q.includes('bill') || q.includes('tax')) {
-      if (canAccessScreen('invoices')) setCurrentScreen('invoices');
-    } else if (q.includes('qc') || q.includes('runout') || q.includes('balance')) {
-      if (canAccessScreen('quality')) setCurrentScreen('quality');
-    } else if (q.includes('stock') || q.includes('bearing') || q.includes('mat-')) {
-      if (canAccessScreen('inventory')) setCurrentScreen('inventory');
-    } else if (q.includes('staff') || q.includes('workforce') || q.includes('worker') || q.includes('operator') || q.includes('emp-')) {
-      if (canAccessScreen('workforce')) setCurrentScreen('workforce');
+  const handleSelectSearchResult = (targetScreen, item) => {
+    if (canAccessScreen(targetScreen)) {
+      setCurrentScreen(targetScreen);
+      setSearchQuery('');
+      if (item) {
+        addToast(`Opened ${item.docType || 'record'}: ${item.docNumber || item.title}`);
+      }
+    } else {
+      addToast(`Access to ${targetScreen} is restricted for your role (${roleLabel || role})`, 'warning');
     }
   };
 
@@ -379,7 +367,7 @@ function AppContent() {
           onOpenQuickAction={() => setQuickActionOpen(true)}
           onSearch={handleGlobalSearch}
           searchQuery={searchQuery}
-          onNavigate={setCurrentScreen}
+          onNavigate={handleSelectSearchResult}
         />
 
         {/* Dynamic Screen View */}

@@ -1,7 +1,6 @@
 import React from 'react';
 import Modal from '../common/Modal';
 import { Download, Printer, FileText, CheckCircle, Truck, AlertTriangle, ShieldCheck, ArrowRight, Wrench, UserCheck, Activity, Award } from 'lucide-react';
-import { numberToIndianWords } from '../../screens/SalesScreen';
 import { 
   exportElementAsPdf,
   exportProformaInvoicePdf, 
@@ -11,7 +10,8 @@ import {
   exportQuotationPdf,
   exportCalibrationCertificatePdf,
   exportJobTravelerPdf,
-  exportServiceJobReportPdf
+  exportServiceJobReportPdf,
+  numberToIndianWords
 } from '../../utils/pdfGenerator';
 
 export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify }) {
@@ -27,7 +27,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
   const isJobTraveler = doc.type === 'Job Traveler' || doc.documentType === 'Job Traveler' || (!!doc.operations && !isCalibration);
   const isService = doc.type === 'Service Report' || doc.documentType === 'Service Report' || (!!doc.failureDescription && !isCalibration && !isJobTraveler);
   const isReport = doc.type === 'Report' || doc.documentType === 'Report' || !!doc.reportType || doc.isReport || (Array.isArray(doc.headers) && Array.isArray(doc.rows));
-  const isInvoice = !isPO && !isPI && !isEWB && !isCalibration && !isJobTraveler && !isService && !isReport && (doc.id?.startsWith('INV') || doc.type === 'Tax Invoice' || doc.documentType === 'Tax Invoice');
+  const isQuotation = !isPO && !isPI && !isEWB && !isCalibration && !isJobTraveler && !isService && !isReport && (doc.id?.startsWith('QTN') || doc.type === 'Quotation' || doc.documentType === 'Quotation' || !!doc.estimateNo);
+  const isInvoice = !isPO && !isPI && !isEWB && !isCalibration && !isJobTraveler && !isService && !isReport && !isQuotation && (doc.id?.startsWith('INV') || doc.type === 'Tax Invoice' || doc.documentType === 'Tax Invoice');
 
   // Customer or Supplier details
   const partyName = isPO 
@@ -171,6 +172,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
     if (isPI) return 'PROFORMA INVOICE';
     if (isEWB) return 'e-WAY BILL (PART-A & PART-B)';
     if (isInvoice) return 'TAX INVOICE';
+    if (isQuotation) return 'ESTIMATE';
     return 'COMMERCIAL ESTIMATE';
   };
 
@@ -223,70 +225,497 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         fontSize: '11.5px',
         lineHeight: 1.4
       }}>
-        {/* Document Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #7A1F3D', paddingBottom: '16px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-            <div style={{ 
-              width: '56px', 
-              height: '56px', 
-              border: '1px solid var(--border-color)', 
-              borderRadius: '6px', 
-              padding: '3px',
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              background: '#ffffff'
-            }}>
-              <img src="/logo.jpg" alt="GPS Spindle" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+        {/* Document Header (For non-quotations) */}
+        {!isQuotation && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #7A1F3D', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+              <div style={{ 
+                width: '56px', 
+                height: '56px', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '6px', 
+                padding: '3px',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: '#ffffff'
+              }}>
+                <img src="/logo.jpg" alt="GPS Spindle" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em', margin: 0 }}>
+                  GENERAL PRECISION SPINDLES PVT. LTD.
+                </h2>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Manufacturer of High-Precision Motorized & Belt-Driven Spindles • ISO 9001:2015 Certified
+                </div>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra, India
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#7A1F3D', fontWeight: 600 }}>
+                  GSTIN: 27AABCG1492K1Z8 • MSME: MH26A0189736 • sales@gpsspindle.com
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em', margin: 0 }}>
-                GENERAL PRECISION SPINDLES PVT. LTD.
-              </h2>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                Manufacturer of High-Precision Motorized & Belt-Driven Spindles • ISO 9001:2015 Certified
-              </div>
-              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra, India
-              </div>
-              <div style={{ fontSize: '10.5px', color: '#7A1F3D', fontWeight: 600 }}>
-                GSTIN: 27AABCG1492K1Z8 • MSME: MH26A0189736 • sales@gpsspindle.com
-              </div>
-            </div>
-          </div>
 
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ 
-              display: 'inline-block',
-              padding: '4px 10px', 
-              borderRadius: '4px', 
-              background: '#F5E8ED', 
-              color: '#7A1F3D', 
-              fontWeight: 800, 
-              fontSize: '12px',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase'
-            }}>
-              {getDocTitle()}
-            </div>
-            <div className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>
-              {docId}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Date: <strong className="mono" style={{ color: 'var(--text-main)' }}>{dateStr}</strong>
-            </div>
-            {isPI && doc.validUntil && (
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Valid Until: <strong className="mono" style={{ color: '#9A6700' }}>{doc.validUntil}</strong>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ 
+                display: 'inline-block',
+                padding: '4px 10px', 
+                borderRadius: '4px', 
+                background: '#F5E8ED', 
+                color: '#7A1F3D', 
+                fontWeight: 800, 
+                fontSize: '12px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}>
+                {getDocTitle()}
               </div>
-            )}
-            {isEWB && (
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Valid Until: <strong className="mono" style={{ color: '#7A1F3D' }}>{doc.validUntil || '10 Sep 2026'}</strong>
+              <div className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>
+                {docId}
               </div>
-            )}
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Date: <strong className="mono" style={{ color: 'var(--text-main)' }}>{dateStr}</strong>
+              </div>
+              {isPI && doc.validUntil && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Valid Until: <strong className="mono" style={{ color: '#9A6700' }}>{doc.validUntil}</strong>
+                </div>
+              )}
+              {isEWB && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Valid Until: <strong className="mono" style={{ color: '#7A1F3D' }}>{doc.validUntil || '10 Sep 2026'}</strong>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 0: OFFICIAL ESTIMATE / QUOTATION (100% REPLICA OF ESTIMATE PDF)      */}
+        {/* ========================================================================= */}
+        {isQuotation && (() => {
+          const calcSubtotal = (doc.items || items || []).reduce(
+            (sum, it) => sum + (Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0),
+            0
+          ) || subtotal || 575000;
+
+          const calcTax = Math.round(calcSubtotal * ((Number(doc.taxRate) || 18) / 100));
+          const calcTotal = calcSubtotal + calcTax;
+          const totalQty = (doc.items || items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+
+          const computeHsn = (itemList) => {
+            const map = {};
+            (itemList || []).forEach(it => {
+              const code = it.hsn ? String(it.hsn).trim() : '';
+              const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
+              if (!map[code]) {
+                map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+              }
+              map[code].taxable += amt;
+            });
+            return Object.values(map).map(entry => {
+              const tax = Math.round(entry.taxable * 0.18);
+              return {
+                hsn: entry.hsn,
+                taxable: entry.taxable,
+                rate: '18%',
+                igst: tax,
+                totalTax: tax
+              };
+            });
+          };
+
+          const hsnBreakdown = (doc.hsnSummary && doc.hsnSummary.length > 0)
+            ? doc.hsnSummary
+            : computeHsn(doc.items || items || []);
+
+          return (
+            <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: '#000000' }}>
+              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '8px', letterSpacing: '0.02em' }}>
+                Estimate
+              </div>
+
+              {/* Main Outer Box */}
+              <div style={{ border: '1px solid #000000', background: '#ffffff', boxSizing: 'border-box' }}>
+                {/* Header Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000' }}>
+                  <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <img 
+                      src="/logo.jpg" 
+                      alt="GPS General Precision Spindles" 
+                      style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
+                    />
+                    <div style={{ lineHeight: '1.25' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
+                        GENERAL PRECISION<br />
+                        SPINDLES
+                      </div>
+                      <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
+                        SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
+                        DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
+                        ☎+919764252188 /9764032929<br />
+                        Email: process@gpsspindles.net<br />
+                        GSTIN: 27AATFG1527D1ZF<br />
+                        State: 27-Maharashtra
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderLeft: '1px solid #000000', display: 'flex', flexDirection: 'column' }}>
+                    {/* Row 1: Estimate No. & Date */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #000000', flex: 1 }}>
+                      <div style={{ padding: '5px 8px' }}>
+                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate No.</div>
+                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                          {doc.estimateNo || docId}
+                        </div>
+                      </div>
+                      <div style={{ padding: '5px 8px', borderLeft: '1px solid #000000' }}>
+                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Date</div>
+                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                          {dateStr}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Place of supply & blank cell matching Image 2 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+                      <div style={{ padding: '5px 8px' }}>
+                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Place of supply</div>
+                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                          {placeOfSupply}
+                        </div>
+                      </div>
+                      <div style={{ borderLeft: '1px solid #000000' }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estimate For (Customer Box) - matching Image 3 spacing */}
+                <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                  <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
+                    Estimate For
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
+                    {partyName}
+                  </div>
+                  <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
+                    {partyAddress ? (
+                      partyAddress.includes('\n') ? (
+                        partyAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
+                      ) : partyAddress.includes('Industrial Area-3') ? (
+                        <>
+                          <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
+                          <div>Dewas, Madhya Pradesh-455001</div>
+                          <div>India</div>
+                        </>
+                      ) : (
+                        <div>{partyAddress}</div>
+                      )
+                    ) : (
+                      <>
+                        <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
+                        <div>Dewas, Madhya Pradesh-455001</div>
+                        <div>India</div>
+                      </>
+                    )}
+                  </div>
+                  {/* Generous line spacing exactly as seen in reference Image 3 */}
+                  <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                    Contact No. : {doc.contactNo || partyContact || '7773877714'}
+                  </div>
+                  <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                    GSTIN : {partyGstin || '23AACCL5351J1ZM'}
+                  </div>
+                  <div style={{ fontSize: '8px', color: '#000000' }}>
+                    State: {placeOfSupply}
+                  </div>
+                </div>
+
+                {/* Line Items Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '8px', color: '#000000' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 5px', width: '28px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>#</th>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '95px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
+                      <th style={{ borderBottom: '1px solid #000000', padding: '3.5px 6px', width: '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(doc.items || items || []).map((item, idx) => {
+                      const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0))) || 0;
+                      return (
+                        <tr key={item.id || idx}>
+                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 5px', textAlign: 'center' }}>
+                            {idx + 1}
+                          </td>
+                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', fontWeight: 700 }}>
+                            {item.name || item.desc}
+                          </td>
+                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'center' }}>
+                            {item.hsn || ''}
+                          </td>
+                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                            {item.qty}
+                          </td>
+                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                            ₹ {Number(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
+                            ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ fontWeight: 700 }}>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 5px' }}></td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'right' }}>
+                        {totalQty}
+                      </td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
+                      <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
+                        ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Middle Section: Words, Description & Amounts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000' }}>
+                  <div>
+                    <div style={{ padding: '5px 8px', borderBottom: '1px solid #000000' }}>
+                      <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate Amount in Words</div>
+                      <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                        {doc.amountInWords || numberToIndianWords(calcTotal)}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
+                      <div style={{ color: '#000000', fontWeight: 600 }}>Description</div>
+                      <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                        SERIAL NO. {doc.spindleSerial || 'HMMXXVI'}
+                      </div>
+                      <div style={{ fontWeight: 700 }}>
+                        CHALLAN NO. {doc.challanNo || 'N/A'}
+                      </div>
+                      <div style={{ fontWeight: 700 }}>
+                        INWORD DATE. {doc.inwardDate || '22-08-2026'}
+                      </div>
+                      <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                        SCOPE OF WORK :-
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.35' }}>
+                        {(() => {
+                          const rawScope = Array.isArray(doc.scopeOfWork)
+                            ? doc.scopeOfWork
+                            : (doc.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
+                          const half = Math.ceil(rawScope.length / 2);
+                          return (
+                            <>
+                              <div>
+                                {rawScope.slice(0, half).map((line, idx) => (
+                                  <div key={idx}>{line.trim()}</div>
+                                ))}
+                              </div>
+                              <div>
+                                {rawScope.slice(half).map((line, idx) => (
+                                  <div key={idx}>{line.trim()}</div>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                      <span>Sub Total</span>
+                      <span>₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                      <span>Tax ({doc.taxRate || 18}%)</span>
+                      <span>₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid #000000', margin: '4px 0' }} />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
+                      <span>Total</span>
+                      <span>₹ {calcTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* HSN/SAC Tax Summary Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '7.8px', color: '#000000' }}>
+                  <thead>
+                    <tr>
+                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
+                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
+                      <th colSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
+                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
+                    </tr>
+                    <tr>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
+                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 6px', textAlign: 'right', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hsnBreakdown.map((row, idx) => (
+                      <tr key={idx}>
+                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                          {row.hsn || ''}
+                        </td>
+                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                          ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                          {row.rate || '18%'}
+                        </td>
+                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                          ₹ {Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ borderBottom: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                          ₹ {Number(row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{ fontWeight: 700 }}>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}>Total</td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                        ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}></td>
+                      <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                        ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                        ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 1) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', minHeight: '145px' }}>
+                  {/* Col 1: Bank Details */}
+                  <div style={{ padding: '6px 8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Bank Details</div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '52px', flexShrink: 0 }}>
+                        <svg width="48" height="48" viewBox="0 0 25 25" style={{ display: 'block', shapeRendering: 'crispEdges' }}>
+                          <rect width="25" height="25" fill="#ffffff" />
+                          <rect x="0" y="0" width="7" height="7" fill="#000000" />
+                          <rect x="1" y="1" width="5" height="5" fill="#ffffff" />
+                          <rect x="2" y="2" width="3" height="3" fill="#000000" />
+                          <rect x="18" y="0" width="7" height="7" fill="#000000" />
+                          <rect x="19" y="1" width="5" height="5" fill="#ffffff" />
+                          <rect x="20" y="2" width="3" height="3" fill="#000000" />
+                          <rect x="0" y="18" width="7" height="7" fill="#000000" />
+                          <rect x="1" y="19" width="5" height="5" fill="#ffffff" />
+                          <rect x="2" y="20" width="3" height="3" fill="#000000" />
+                          <rect x="16" y="16" width="5" height="5" fill="#000000" />
+                          <rect x="17" y="17" width="3" height="3" fill="#ffffff" />
+                          <rect x="18" y="18" width="1" height="1" fill="#000000" />
+                          <rect x="6" y="8" width="1" height="1" fill="#000000" />
+                          <rect x="6" y="10" width="1" height="1" fill="#000000" />
+                          <rect x="6" y="12" width="1" height="1" fill="#000000" />
+                          <rect x="6" y="14" width="1" height="1" fill="#000000" />
+                          <rect x="6" y="16" width="1" height="1" fill="#000000" />
+                          <rect x="8" y="6" width="1" height="1" fill="#000000" />
+                          <rect x="10" y="6" width="1" height="1" fill="#000000" />
+                          <rect x="12" y="6" width="1" height="1" fill="#000000" />
+                          <rect x="14" y="6" width="1" height="1" fill="#000000" />
+                          <rect x="16" y="6" width="1" height="1" fill="#000000" />
+                          <rect x="8" y="2" width="1" height="2" fill="#000000" />
+                          <rect x="10" y="1" width="2" height="1" fill="#000000" />
+                          <rect x="13" y="2" width="1" height="1" fill="#000000" />
+                          <rect x="15" y="1" width="1" height="2" fill="#000000" />
+                          <rect x="8" y="9" width="2" height="1" fill="#000000" />
+                          <rect x="11" y="8" width="2" height="2" fill="#000000" />
+                          <rect x="14" y="9" width="1" height="2" fill="#000000" />
+                          <rect x="16" y="8" width="2" height="1" fill="#000000" />
+                          <rect x="9" y="12" width="1" height="2" fill="#000000" />
+                          <rect x="11" y="11" width="2" height="1" fill="#000000" />
+                          <rect x="13" y="13" width="2" height="2" fill="#000000" />
+                          <rect x="10" y="15" width="1" height="2" fill="#000000" />
+                          <rect x="12" y="16" width="2" height="1" fill="#000000" />
+                          <rect x="8" y="18" width="2" height="1" fill="#000000" />
+                          <rect x="8" y="20" width="1" height="2" fill="#000000" />
+                          <rect x="11" y="19" width="2" height="2" fill="#000000" />
+                          <rect x="14" y="18" width="1" height="2" fill="#000000" />
+                          <rect x="22" y="9" width="2" height="2" fill="#000000" />
+                          <rect x="19" y="11" width="2" height="1" fill="#000000" />
+                          <rect x="23" y="12" width="1" height="2" fill="#000000" />
+                          <rect x="22" y="22" width="2" height="2" fill="#000000" />
+                        </svg>
+                        <div style={{ background: '#16a34a', color: '#ffffff', fontSize: '5px', fontWeight: 700, padding: '1px 3px', borderRadius: '2px', marginTop: '2px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          UPI: SCAN TO PAY
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '7.2px', lineHeight: '1.3' }}>
+                        Name : ICICI BANK LIMITED, PUNE<br />
+                        NANDED CITY<br />
+                        Account No. : 349105000701<br />
+                        IFSC code : ICIC0003491<br />
+                        Account holder's name : GENERAL<br />
+                        PRECISION SPINDLES
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Col 2: Terms and conditions */}
+                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Terms and conditions</div>
+                    <div style={{ fontSize: '6.7px', lineHeight: '1.25' }}>
+                      We declare that this invoice shows the actual price of<br />
+                      the goods<br />
+                      described and that all particulars are true and<br />
+                      correct.<br />
+                      <div style={{ marginTop: '5px' }}>
+                        Bank Details:<br />
+                        ICICI Bank Ltd(Nanded City Branch)<br />
+                        A/c No : 349105000701<br />
+                        IFSC Code: ICIC0003491<br />
+                        MSME (UDYAM ADHAR) NO-MH26A0189736<br />
+                        TYPE OF ENTERPRISES: SPINDLE MANUFACTURING<br />
+                        AND REPAIRING<br />
+                        MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF<br />
+                        CNC,VMC,HMC,BELT<br />
+                        DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE<br />
+                        REPAIRING ,SPINDLE<br />
+                        MANUFACTURING.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Col 3: Signatory */}
+                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '7.5px', fontWeight: 600 }}>
+                      For : GENERAL PRECISION SPINDLES
+                    </div>
+                    <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8px', paddingBottom: '6px' }}>
+                      Authorized Signatory
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ========================================================================= */}
         {/* VIEW 1: ISO CALIBRATION & METROLOGY CERTIFICATE                           */}
@@ -524,9 +953,9 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         )}
 
         {/* ========================================================================= */}
-        {/* VIEW 5: COMMERCIAL INVOICE / PO / PI / E-WAY BILL / ESTIMATE              */}
+        {/* VIEW 5: COMMERCIAL INVOICE / PO / PI / E-WAY BILL                         */}
         {/* ========================================================================= */}
-        {!isCalibration && !isJobTraveler && !isService && !isReport && (
+        {!isCalibration && !isJobTraveler && !isService && !isReport && !isQuotation && (
           <div>
             {/* EWB Barcode Simulation */}
             {isEWB && (

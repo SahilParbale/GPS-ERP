@@ -2559,6 +2559,10 @@ select option:checked {
 
 /* Print Styles for Quotations, Proforma Invoices & Document Previews */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
   body * {
     visibility: hidden !important;
   }
@@ -2577,11 +2581,14 @@ select option:checked {
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
     margin: 0 !important;
-    padding: 10mm !important;
+    padding: 0 !important;
     background: #ffffff !important;
     box-shadow: none !important;
     border: none !important;
+    box-sizing: border-box !important;
   }
 }
 

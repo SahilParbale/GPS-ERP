@@ -3,15 +3,9 @@ import {
   Menu, Search, Bell, Plus, ChevronRight, User, 
   Layers, CheckSquare, Factory, PanelLeftClose, PanelLeftOpen,
   ArrowRight, FileText, ShoppingCart, Receipt, Truck,
-  LogOut, KeyRound, Shield, Check
+  LogOut, KeyRound, Shield, Check, X, Sparkles, CornerDownLeft, Filter
 } from 'lucide-react';
-import { 
-  PURCHASE_ORDERS, 
-  PROFORMA_INVOICES, 
-  E_WAY_BILLS, 
-  QUOTATIONS, 
-  INVOICES 
-} from '../../data/mockData';
+import { universalSearchService, SEARCH_CATEGORIES } from '../../services/universalSearchService';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/database/notificationService';
 import UserProfileModal from '../auth/UserProfileModal';
@@ -36,7 +30,10 @@ export default function Header({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [activeSearchCategory, setActiveSearchCategory] = useState('all');
+  const [selectedResultIndex, setSelectedResultIndex] = useState(-1);
   const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
   const userMenuRef = useRef(null);
 
   // Load notifications and subscribe to live alert events
@@ -113,129 +110,47 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Multi-document search results matching requirement 20
-  const searchResults = useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q || q.length < 2) return [];
-
-    const results = [];
-
-    // 1. Purchase Orders
-    PURCHASE_ORDERS.forEach(po => {
-      if (
-        po.poNumber.toLowerCase().includes(q) ||
-        po.supplier.toLowerCase().includes(q) ||
-        (po.items && po.items.some(it => (it.item || '').toLowerCase().includes(q)))
-      ) {
-        results.push({
-          id: po.id,
-          docType: 'Purchase Order',
-          docNumber: po.poNumber,
-          party: po.supplier,
-          amount: po.formattedTotal || `₹${Number(po.totalAmount).toLocaleString('en-IN')}`,
-          status: po.status,
-          targetScreen: 'purchase-orders',
-          icon: ShoppingCart,
-          badgeColor: '#7A1F3D'
-        });
-      }
-    });
-
-    // 2. Proforma Invoices
-    PROFORMA_INVOICES.forEach(pi => {
-      if (
-        pi.piNumber.toLowerCase().includes(q) ||
-        pi.customer.toLowerCase().includes(q) ||
-        pi.salesOrder.toLowerCase().includes(q)
-      ) {
-        results.push({
-          id: pi.id,
-          docType: 'Proforma Invoice',
-          docNumber: pi.piNumber,
-          party: pi.customer,
-          amount: pi.formattedTotal || `₹${Number(pi.totalAmount).toLocaleString('en-IN')}`,
-          status: pi.status,
-          targetScreen: 'proforma-invoices',
-          icon: Receipt,
-          badgeColor: '#2563eb'
-        });
-      }
-    });
-
-    // 3. E-Way Bills
-    E_WAY_BILLS.forEach(ewb => {
-      if (
-        ewb.ewbNumber.toLowerCase().includes(q) ||
-        ewb.customer.toLowerCase().includes(q) ||
-        ewb.vehicle.toLowerCase().includes(q) ||
-        ewb.invoice.toLowerCase().includes(q)
-      ) {
-        results.push({
-          id: ewb.id,
-          docType: 'E-Way Bill',
-          docNumber: ewb.ewbNumber,
-          party: `${ewb.customer} (${ewb.vehicle})`,
-          amount: ewb.formattedTotal || `₹${Number(ewb.totalInvoiceValue).toLocaleString('en-IN')}`,
-          status: ewb.status,
-          targetScreen: 'e-way-bills',
-          icon: Truck,
-          badgeColor: '#b45309'
-        });
-      }
-    });
-
-    // 4. Quotations
-    QUOTATIONS.forEach(qt => {
-      if (
-        qt.id.toLowerCase().includes(q) ||
-        qt.customer.toLowerCase().includes(q)
-      ) {
-        results.push({
-          id: qt.id,
-          docType: 'Quotation',
-          docNumber: qt.id,
-          party: qt.customer,
-          amount: qt.totalAmount ? `₹${qt.totalAmount.toLocaleString('en-IN')}` : '-',
-          status: qt.status,
-          targetScreen: 'sales',
-          icon: FileText,
-          badgeColor: '#4f46e5'
-        });
-      }
-    });
-
-    // 5. Invoices
-    INVOICES.forEach(inv => {
-      if (
-        inv.id.toLowerCase().includes(q) ||
-        inv.customer.toLowerCase().includes(q) ||
-        inv.refOrder.toLowerCase().includes(q)
-      ) {
-        results.push({
-          id: inv.id,
-          docType: 'Tax Invoice',
-          docNumber: inv.id,
-          party: inv.customer,
-          amount: inv.amount,
-          status: inv.status,
-          targetScreen: 'invoices',
-          icon: FileText,
-          badgeColor: '#059669'
-        });
-      }
-    });
-
-    return results.slice(0, 8);
-  }, [searchQuery]);
+  // Universal multi-module full-software search
+  const { results: searchResults, totalCount, isSuggestion, categoryCounts } = useMemo(() => {
+    return universalSearchService.search(searchQuery, activeSearchCategory, 30);
+  }, [searchQuery, activeSearchCategory]);
 
   const handleSelectResult = (res) => {
     if (onNavigate) {
-      onNavigate(res.targetScreen);
+      onNavigate(res.targetScreen, res);
     }
     if (onSearch) {
       onSearch('');
     }
     setIsSearchFocused(false);
+    setSelectedResultIndex(-1);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (!isSearchFocused) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (searchResults.length > 0) {
+        setSelectedResultIndex((prev) => (prev + 1) % searchResults.length);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (searchResults.length > 0) {
+        setSelectedResultIndex((prev) => (prev <= 0 ? searchResults.length - 1 : prev - 1));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const target = selectedResultIndex >= 0 ? searchResults[selectedResultIndex] : searchResults[0];
+      if (target) {
+        handleSelectResult(target);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsSearchFocused(false);
+      setSelectedResultIndex(-1);
+      if (searchInputRef.current) searchInputRef.current.blur();
+    }
   };
 
   return (
@@ -273,103 +188,337 @@ export default function Header({
       </div>
 
       <div className="header-right">
-        {/* Global Search with Live Multi-Module Results Popup */}
+        {/* Global Universal Search with Full-Software Multi-Module Popup */}
         <div className="global-search" ref={searchContainerRef} style={{ position: 'relative' }}>
           <Search size={15} className="global-search-icon" />
           <input 
+            ref={searchInputRef}
             type="text" 
-            placeholder="Search PO#, PI#, EWB#, Invoice, Serial..."
+            placeholder="Search full ERP (WOs, Quotes, Invoices, Spindles, POs, Spares...)"
             value={searchQuery || ''}
-            onChange={(e) => onSearch && onSearch(e.target.value)}
+            onChange={(e) => {
+              if (onSearch) onSearch(e.target.value);
+              setSelectedResultIndex(-1);
+            }}
             onFocus={() => setIsSearchFocused(true)}
+            onKeyDown={handleSearchKeyDown}
+            style={{ 
+              width: isSearchFocused ? 'clamp(260px, 32vw, 360px)' : '240px',
+              paddingRight: searchQuery ? '28px' : '36px'
+            }}
           />
-          <span className="search-shortcut">⌘K</span>
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onSearch) onSearch('');
+                setSelectedResultIndex(-1);
+                setActiveSearchCategory('all');
+                if (searchInputRef.current) searchInputRef.current.focus();
+              }}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                padding: '2px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Clear search"
+            >
+              <X size={13} />
+            </button>
+          ) : (
+            <span className="search-shortcut">⌘K</span>
+          )}
 
-          {/* Interactive Search Dropdown Results */}
-          {isSearchFocused && searchResults.length > 0 && (
+          {/* Interactive Universal Search Dropdown */}
+          {isSearchFocused && (
             <div 
               style={{
                 position: 'absolute',
                 top: '38px',
-                left: '0',
-                right: 'auto',
-                width: 'clamp(280px, 90vw, 420px)',
-                maxWidth: 'calc(100vw - 20px)',
+                right: '0',
+                width: 'clamp(360px, 92vw, 680px)',
+                maxHeight: 'min(580px, 80vh)',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
-                zIndex: 100,
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: '0 20px 45px -10px rgba(0,0,0,0.2), 0 8px 16px -6px rgba(0,0,0,0.1)',
+                zIndex: 1050,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                animation: 'fadeIn 0.15s ease-out'
+              }}
+            >
+              {/* Category Filter Pills Bar */}
+              <div style={{
+                padding: '8px 12px',
+                background: 'var(--bg-surface-subtle)',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                overflowX: 'auto',
+                scrollbarWidth: 'none'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setActiveSearchCategory('all'); setSelectedResultIndex(-1); }}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    border: '1px solid',
+                    borderColor: activeSearchCategory === 'all' ? 'var(--primary)' : 'var(--border-color)',
+                    background: activeSearchCategory === 'all' ? 'var(--primary)' : '#ffffff',
+                    color: activeSearchCategory === 'all' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.12s'
+                  }}
+                >
+                  All Modules ({totalCount})
+                </button>
+
+                {SEARCH_CATEGORIES.filter(c => c.id !== 'all').map(cat => {
+                  const count = categoryCounts[cat.id] || 0;
+                  if (!isSuggestion && count === 0 && activeSearchCategory !== cat.id) return null;
+                  const isActive = activeSearchCategory === cat.id;
+                  const CatIcon = cat.icon;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => { setActiveSearchCategory(cat.id); setSelectedResultIndex(-1); }}
+                      style={{
+                        padding: '3px 9px',
+                        borderRadius: '9999px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        border: '1px solid',
+                        borderColor: isActive ? cat.color : 'var(--border-color)',
+                        background: isActive ? cat.bg : '#ffffff',
+                        color: isActive ? cat.color : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.12s'
+                      }}
+                    >
+                      <CatIcon size={11} color={isActive ? cat.color : 'var(--text-muted)'} />
+                      <span>{cat.label}</span>
+                      {!isSuggestion && count > 0 && (
+                        <span style={{
+                          fontSize: '9.5px',
+                          background: isActive ? cat.color : 'var(--border-subtle)',
+                          color: isActive ? '#ffffff' : 'var(--text-muted)',
+                          padding: '0 4px',
+                          borderRadius: '8px',
+                          marginLeft: '2px'
+                        }}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Status Header */}
+              <div style={{
+                padding: '6px 14px',
+                background: '#fafafa',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '10.5px',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase'
+              }}>
+                <span>
+                  {isSuggestion 
+                    ? '⚡ Quick Shortcuts & Priority Software Records' 
+                    : `Matching ${searchResults.length} ${searchResults.length === 1 ? 'record' : 'records'} across software`}
+                </span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { onSearch && onSearch(''); setActiveSearchCategory('all'); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '10.5px', fontWeight: 600 }}
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+
+              {/* Scrollable Results List */}
+              <div style={{
+                overflowY: 'auto',
+                maxHeight: '380px',
                 padding: '6px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px'
-              }}
-            >
-              <div style={{ padding: '6px 8px', fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Matching Commercial & Operations Documents ({searchResults.length})
-              </div>
-
-              {searchResults.map((res) => {
-                const IconComponent = res.icon;
-                return (
-                  <div
-                    key={`${res.docType}-${res.id}`}
-                    onClick={() => handleSelectResult(res)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'background 0.12s ease',
-                      fontSize: '11.5px',
-                      background: '#ffffff'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#FAF0F3'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ 
-                        width: '26px', 
-                        height: '26px', 
-                        borderRadius: '4px', 
-                        background: '#F5E8ED', 
-                        color: res.badgeColor,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <IconComponent size={13} />
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                            {res.docNumber}
-                          </span>
-                          <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--status-neutral-bg)', color: 'var(--text-muted)' }}>
-                            {res.docType}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {res.party}
-                        </div>
-                      </div>
+                gap: '2px'
+              }}>
+                {searchResults.length === 0 ? (
+                  <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <Search size={28} style={{ margin: '0 auto 8px', color: '#94a3b8' }} />
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                      No matches found for "{searchQuery}"
                     </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="mono" style={{ fontWeight: 700, color: '#7A1F3D' }}>
-                        {res.amount}
-                      </div>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                        {res.status}
-                      </span>
+                    <div style={{ fontSize: '11px', maxWidth: '380px', margin: '0 auto', color: 'var(--text-muted)' }}>
+                      Try searching by Work Order # (WO-2026-104), Serial (GPS-0842), Quote (QTN-294), Customer (Linamar, Tata), Vendor (Schaeffler), or Item (HC7008).
                     </div>
                   </div>
-                );
-              })}
+                ) : (
+                  searchResults.map((res, idx) => {
+                    const IconComponent = res.icon || Factory;
+                    const isSelected = idx === selectedResultIndex;
+
+                    return (
+                      <div
+                        key={`${res.category}-${res.id}-${idx}`}
+                        onClick={() => handleSelectResult(res)}
+                        style={{
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          transition: 'all 0.12s ease',
+                          fontSize: '12px',
+                          background: isSelected ? '#FAF0F3' : '#ffffff',
+                          borderLeft: isSelected ? '3px solid var(--primary)' : '3px solid transparent'
+                        }}
+                        onMouseEnter={() => setSelectedResultIndex(idx)}
+                        onMouseLeave={() => {
+                          if (!isSelected) setSelectedResultIndex(-1);
+                        }}
+                      >
+                        {/* Left: Module Icon & Text details */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            background: res.badgeBg || '#F5E8ED',
+                            color: res.badgeColor || '#7A1F3D',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <IconComponent size={16} />
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
+                                {res.docNumber || res.id}
+                              </span>
+                              <span style={{
+                                fontSize: '9.5px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: res.badgeBg || 'var(--status-neutral-bg)',
+                                color: res.badgeColor || 'var(--text-muted)'
+                              }}>
+                                {res.docType}
+                              </span>
+                              {res.status && (
+                                <span style={{
+                                  fontSize: '9.5px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'var(--border-subtle)',
+                                  color: 'var(--text-secondary)'
+                                }}>
+                                  {res.status}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                              marginTop: '2px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {res.subtitle || res.title}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Key metrics & Jump Action */}
+                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div>
+                            {res.metaPrimary && (
+                              <div className="mono" style={{ fontWeight: 700, color: res.badgeColor || 'var(--text-main)', fontSize: '11.5px' }}>
+                                {res.metaPrimary}
+                              </div>
+                            )}
+                            {res.metaSecondary && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                {res.metaSecondary}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            background: isSelected ? 'var(--primary)' : 'var(--bg-surface-subtle)',
+                            color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.12s'
+                          }}>
+                            <ArrowRight size={12} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Keyboard shortcuts footer */}
+              <div style={{
+                padding: '6px 12px',
+                background: 'var(--bg-surface-subtle)',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '10px',
+                color: 'var(--text-muted)'
+              }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <span><kbd style={{ padding: '1px 4px', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '3px' }}>↑</kbd> <kbd style={{ padding: '1px 4px', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '3px' }}>↓</kbd> Navigate</span>
+                  <span><kbd style={{ padding: '1px 4px', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '3px' }}>↵</kbd> Select</span>
+                  <span><kbd style={{ padding: '1px 4px', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '3px' }}>Esc</kbd> Close</span>
+                </div>
+                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>Universal GPS ERP Search</span>
+              </div>
             </div>
           )}
         </div>

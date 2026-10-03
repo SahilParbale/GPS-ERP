@@ -2,66 +2,24 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import Tabs from '../components/common/Tabs';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
-import { workOrderService } from '../services/database/workOrderService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
-import { exportQuotationPdf, exportElementAsPdf } from '../utils/pdfGenerator';
+import { exportQuotationPdf, exportElementAsPdf, numberToIndianWords } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, CheckCircle, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
   MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
-  Factory, Wrench, Loader2, Play, Calendar, ShieldCheck
+  Loader2, Calendar, Clock, XCircle
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
-import EmailActivityTable from '../components/email/EmailActivityTable';
-import { INITIAL_EMAIL_ACTIVITY, fetchEmailActivityLive } from '../services/emailService';
 
-// Indian numbering format numbers to words converter
-export function numberToIndianWords(num) {
-  if (!num || isNaN(num) || num === 0) return 'Zero Rupees only';
-  
-  const a = [
-    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
-  ];
-  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-  const inWords = (n) => {
-    let str = '';
-    if (n > 19) {
-      str += b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
-    } else if (n > 0) {
-      str += a[n];
-    }
-    return str;
-  };
-
-  let n = Math.floor(Math.abs(num));
-  let crore = Math.floor(n / 10000000);
-  n %= 10000000;
-  let lakh = Math.floor(n / 100000);
-  n %= 100000;
-  let thousand = Math.floor(n / 1000);
-  n %= 1000;
-  let hundred = Math.floor(n / 100);
-  let rem = n % 100;
-
-  let res = [];
-  if (crore > 0) res.push(`${inWords(crore)} Crore`);
-  if (lakh > 0) res.push(`${inWords(lakh)} Lakh`);
-  if (thousand > 0) res.push(`${inWords(thousand)} Thousand`);
-  if (hundred > 0) res.push(`${inWords(hundred)} Hundred`);
-  if (rem > 0) res.push(inWords(rem));
-
-  return res.join(' ') + ' Rupees only';
-}
 
 const DEFAULT_LINAMAR_TEMPLATE = {
   estimateNo: 'QTN/2026-27/294',
   date: '07-09-2026',
+  status: 'Draft',
   placeOfSupply: '23-Madhya Pradesh',
   customer: 'LINAMAR INDIA PRIVATE LIMITED',
   customerAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001, India',
@@ -91,7 +49,7 @@ const DEFAULT_LINAMAR_TEMPLATE = {
   ]
 };
 
-export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotations' }) {
+export default function SalesScreen({ onNavigate, onNotify }) {
   const [quotations, setQuotations] = useState([]);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,42 +58,11 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  // Convert Quotation to Work Order State
-  const [isCreateWoOpen, setIsCreateWoOpen] = useState(false);
-  const [isSubmittingWo, setIsSubmittingWo] = useState(false);
-  const [lastCreatedWo, setLastCreatedWo] = useState(null);
-  const [launchedWoMap, setLaunchedWoMap] = useState(() => {
-    try {
-      const cached = localStorage.getItem('gps_quotation_work_orders');
-      return cached ? JSON.parse(cached) : {};
-    } catch (e) {
-      return {};
-    }
-  });
-  const [woForm, setWoForm] = useState({
-    workOrderNo: '',
-    customer: '',
-    customerId: null,
-    spindleModel: 'GPS-HSK-A63-24K',
-    serial: '',
-    orderType: 'Spindle Overhaul & Repair',
-    priority: 'High',
-    dueDate: '',
-    initialStage: 'material',
-    quantity: 1,
-    notes: '',
-    autoApproveQuote: true
-  });
 
   const loadQuotations = async () => {
     setIsLoading(true);
     setError(null);
-    const [res, woRes] = await Promise.all([
-      salesService.getQuotations(),
-      workOrderService.getWorkOrders()
-    ]);
+    const res = await salesService.getQuotations();
     if (res.error) {
       setError(res.error);
       setIsLoading(false);
@@ -143,40 +70,6 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     }
     const data = res.data || [];
     setQuotations(data);
-
-    // Synchronize launched WOs mapping from DB work orders, quotation notes, and localStorage
-    let localMap = {};
-    try {
-      const cached = localStorage.getItem('gps_quotation_work_orders');
-      if (cached) localMap = JSON.parse(cached);
-    } catch (e) {}
-
-    const dbWos = woRes?.data || [];
-    const mergedMap = { ...localMap };
-
-    dbWos.forEach(wo => {
-      const woNotes = wo.notes || '';
-      data.forEach(q => {
-        const matchesQuoteId = woNotes.includes(q.id) || (q.estimateNo && woNotes.includes(q.estimateNo));
-        const quoteNotesMatch = q.notes && (q.notes.includes(wo.workOrderNo) || q.notes.includes(wo.id));
-        if (matchesQuoteId || quoteNotesMatch) {
-          mergedMap[q.id] = {
-            woNo: wo.workOrderNo,
-            quoteId: q.id,
-            customer: wo.customer || q.customer,
-            serial: wo.spindleSerial || q.spindleSerial,
-            model: wo.spindleModel,
-            bay: wo.shopBay || 'Bay 1',
-            stage: wo.currentStage || 'machining'
-          };
-        }
-      });
-    });
-
-    setLaunchedWoMap(mergedMap);
-    try {
-      localStorage.setItem('gps_quotation_work_orders', JSON.stringify(mergedMap));
-    } catch (e) {}
 
     setSelectedQuote(prev => {
       if (prev) {
@@ -188,27 +81,9 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     setIsLoading(false);
   };
 
-  const [emailActivity, setEmailActivity] = useState([]);
-
-  const loadEmails = async () => {
-    try {
-      const res = await fetchEmailActivityLive();
-      if (res.data) {
-        setEmailActivity(res.data);
-      }
-    } catch (e) {
-      console.error('Failed to load live email activity:', e);
-    }
-  };
-
   useEffect(() => {
     loadQuotations();
-    loadEmails();
   }, []);
-
-  useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
-  }, [initialTab]);
 
   // Email state
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
@@ -219,23 +94,12 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     setIsEmailComposerOpen(true);
   };
 
-  const handleOpenDraftInComposer = (draftRecord) => {
-    const foundQuote = quotations.find(q => q.id === draftRecord.documentId);
-    setEmailDoc(foundQuote || {
-      id: draftRecord.documentId,
-      customer: draftRecord.customer,
-      amount: 842000,
-      spindleModel: draftRecord.subject.replace(/Quotation.*?—\s*/, '')
-    });
-    setIsEmailComposerOpen(true);
-  };
-
   const handleEmailSent = (record) => {
-    loadEmails();
+    if (onNotify) onNotify(`Quotation estimate email sent successfully`);
   };
 
   const handleEmailSaveDraft = (draftRecord) => {
-    loadEmails();
+    if (onNotify) onNotify('Draft quotation email saved');
   };
 
   // New Quotation Form State matching the PDF invoice
@@ -252,168 +116,52 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
     return { subtotal, taxAmount, totalAmount, totalQty, amountInWords };
   }, [formState.items, formState.taxRate]);
 
-  const woLaunchedCount = useMemo(() => {
-    return quotations.filter(q => !!launchedWoMap[q.id]).length;
-  }, [quotations, launchedWoMap]);
-
   const filteredQuotes = useMemo(() => {
     return quotations.filter((q) => {
-      const linkedWo = launchedWoMap[q.id];
       const matchesStatus = 
         statusFilter === 'all'
           ? true
-          : statusFilter === 'wo launched'
-            ? Boolean(linkedWo)
-            : q.status.toLowerCase() === statusFilter.toLowerCase();
+          : q.status?.toLowerCase() === statusFilter.toLowerCase();
 
       const query = searchQuery.toLowerCase();
       const matchesSearch = !query || 
-        q.id.toLowerCase().includes(query) ||
-        q.customer.toLowerCase().includes(query) ||
+        q.id?.toLowerCase().includes(query) ||
+        q.customer?.toLowerCase().includes(query) ||
         (q.spindleSerial && q.spindleSerial.toLowerCase().includes(query)) ||
-        (q.contactPerson && q.contactPerson.toLowerCase().includes(query)) ||
-        (linkedWo && linkedWo.woNo && linkedWo.woNo.toLowerCase().includes(query));
+        (q.contactPerson && q.contactPerson.toLowerCase().includes(query));
 
       return matchesStatus && matchesSearch;
     });
-  }, [quotations, launchedWoMap, statusFilter, searchQuery]);
+  }, [quotations, statusFilter, searchQuery]);
 
-  const handleApproveQuote = async (quoteId) => {
-    const res = await salesService.updateQuotationStatus(quoteId, 'Approved');
+  // Status update function handling Under Review, Approved, Draft, and Rejected
+  const handleUpdateStatus = async (quoteId, newStatus) => {
+    const targetQuote = quotations.find(q => q.id === quoteId || q.dbId === quoteId);
+    if (!targetQuote) return;
+
+    const idToUpdate = targetQuote.dbId || targetQuote.id;
+    const res = await salesService.updateQuotationStatus(idToUpdate, newStatus);
     if (res.error) {
-      onNotify(res.error.message || 'Failed to approve quotation.', 'error');
+      if (onNotify) onNotify(res.error.message || `Failed to update quotation to ${newStatus}`, 'error');
       return;
     }
-    onNotify(`Quotation ${quoteId} marked as Approved. Ready for Work Order creation.`);
-    await loadQuotations();
-  };
 
-  const detectSpindleModel = (quote) => {
-    if (!quote) return 'GPS-HSK-A63-24K';
-    const text = `${quote.spindleSerial || ''} ${(quote.items || []).map(i => i.name).join(' ')} ${Array.isArray(quote.scopeOfWork) ? quote.scopeOfWork.join(' ') : (quote.scopeOfWork || '')}`.toUpperCase();
-    if (text.includes('HSK-63') || text.includes('HSK-A63') || text.includes('KESSLAR')) return 'GPS-HSK-A63-24K';
-    if (text.includes('BT40') || text.includes('BT-40')) return 'GPS-BT40-15K';
-    if (text.includes('HF') || text.includes('60K')) return 'GPS-HF-60K';
-    if (text.includes('BT50') || text.includes('BT-50')) return 'GPS-BT50-10K';
-    if (text.includes('E25') || text.includes('42K')) return 'GPS-HSK-E25-42K';
-    return 'GPS-HSK-A63-24K';
-  };
+    setQuotations(prev => prev.map(q => {
+      if (q.id === targetQuote.id || q.dbId === targetQuote.dbId) {
+        return { ...q, status: newStatus, rawStatus: newStatus === 'Under Review' ? 'Sent' : newStatus };
+      }
+      return q;
+    }));
 
-  const handleOpenCreateWo = (quote = selectedQuote) => {
-    if (!quote) {
-      if (onNotify) onNotify('Please select a quotation first', 'warning');
-      return;
-    }
-    const detectedModel = detectSpindleModel(quote);
-    const isRepair = quote.items?.some(it => (it.name || '').toUpperCase().includes('REPAIR')) || 
-                     (Array.isArray(quote.scopeOfWork) && quote.scopeOfWork.some(s => s.toUpperCase().includes('DISMANTLE')));
-
-    const defaultNotes = [
-      `Generated from Quotation ${quote.id}`,
-      `Customer: ${quote.customer}`,
-      `Target Spindle Serial: ${quote.spindleSerial || 'N/A'}`,
-      quote.scopeOfWork && Array.isArray(quote.scopeOfWork) && quote.scopeOfWork.length > 0 
-        ? `Scope of Work:\n${quote.scopeOfWork.join('\n')}` 
-        : (quote.scopeOfWork || '')
-    ].filter(Boolean).join('\n\n');
-
-    setWoForm({
-      workOrderNo: `WO-2026-${Math.floor(100 + Math.random() * 900)}`,
-      customer: quote.customer || '',
-      customerId: quote.customerId || null,
-      spindleModel: detectedModel,
-      serial: quote.spindleSerial || `GPS-${Math.floor(1000 + Math.random() * 9000)}`,
-      orderType: isRepair ? 'Spindle Overhaul & Repair' : 'New Spindle Build',
-      priority: 'High',
-      dueDate: new Date(Date.now() + 21 * 86400000).toISOString().split('T')[0],
-      initialStage: 'material',
-      quantity: 1,
-      notes: defaultNotes,
-      autoApproveQuote: quote.status !== 'Approved'
+    setSelectedQuote(prev => {
+      if (prev && (prev.id === targetQuote.id || prev.dbId === targetQuote.dbId)) {
+        return { ...prev, status: newStatus, rawStatus: newStatus === 'Under Review' ? 'Sent' : newStatus };
+      }
+      return prev;
     });
-    setIsCreateWoOpen(true);
-  };
 
-  const handleExecuteCreateWo = async (e) => {
-    if (e) e.preventDefault();
-    if (!woForm.customer.trim()) {
-      if (onNotify) onNotify('Please enter a Customer Organization', 'warning');
-      return;
-    }
-    if (!woForm.serial.trim()) {
-      if (onNotify) onNotify('Please enter a Spindle Serial Number', 'warning');
-      return;
-    }
-
-    setIsSubmittingWo(true);
-    try {
-      const res = await workOrderService.createWorkOrder({
-        work_order_no: woForm.workOrderNo,
-        spindleModel: woForm.spindleModel,
-        customer: woForm.customer,
-        customer_id: woForm.customerId,
-        serial: woForm.serial,
-        order_type: woForm.orderType,
-        priority: woForm.priority,
-        dueDate: woForm.dueDate,
-        initialStage: woForm.initialStage,
-        quantity: Number(woForm.quantity) || 1,
-        notes: woForm.notes
-      });
-
-      if (res.error) {
-        if (onNotify) onNotify(`Failed to create work order: ${res.error.message || 'Database error'}`, 'error');
-        setIsSubmittingWo(false);
-        return;
-      }
-
-      // If autoApproveQuote is checked and quote isn't already Approved, update quote status in DB
-      if (woForm.autoApproveQuote && selectedQuote && selectedQuote.status !== 'Approved') {
-        await salesService.updateQuotationStatus(selectedQuote.dbId || selectedQuote.id, 'Approved');
-        setQuotations(prev => prev.map(q => q.id === selectedQuote.id ? { ...q, status: 'Approved', rawStatus: 'Approved' } : q));
-        setSelectedQuote(prev => prev ? { ...prev, status: 'Approved', rawStatus: 'Approved' } : prev);
-      }
-
-      setIsSubmittingWo(false);
-      setIsCreateWoOpen(false);
-
-      const generatedWoNo = res.data?.id || res.data?.work_order_no || woForm.workOrderNo;
-      const newLinkedWo = {
-        woNo: generatedWoNo,
-        quoteId: selectedQuote?.id,
-        customer: woForm.customer,
-        serial: woForm.serial,
-        model: woForm.spindleModel,
-        bay: 'Bay 1',
-        launchedAt: new Date().toISOString()
-      };
-
-      setLaunchedWoMap(prev => {
-        const next = { ...prev, [selectedQuote?.id]: newLinkedWo };
-        try {
-          localStorage.setItem('gps_quotation_work_orders', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-
-      setLastCreatedWo(newLinkedWo);
-
-      // Link work order directly in quotation database record
-      if (selectedQuote) {
-        try {
-          await salesService.linkWorkOrderToQuotation(selectedQuote.dbId || selectedQuote.id, generatedWoNo);
-        } catch (e) {
-          console.warn('Could not link work order in quotation table:', e);
-        }
-      }
-
-      if (onNotify) {
-        onNotify(`Work Order ${generatedWoNo} generated successfully for ${woForm.customer}! Routed to Bay 1.`, 'success');
-      }
-    } catch (err) {
-      console.error('Failed to create Work Order:', err);
-      if (onNotify) onNotify('An unexpected error occurred while launching work order', 'error');
-      setIsSubmittingWo(false);
+    if (onNotify) {
+      onNotify(`Quotation ${targetQuote.id} marked as "${newStatus}"`, 'success');
     }
   };
 
@@ -474,7 +222,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
       scopeOfWork: formState.scopeOfWork,
       subtotal: formCalculations.subtotal,
       totalAmount: formCalculations.totalAmount,
-      status: 'Sent',
+      status: formState.status || 'Draft',
       terms: formState.terms,
       items: formState.items
     });
@@ -492,20 +240,12 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
   const handlePrint = async () => {
     if (!selectedQuote) return;
     try {
-      const element = document.getElementById('printable-quotation');
-      let success = false;
-      const cleanId = String(selectedQuote.estimateNo || selectedQuote.id || 'QTN').replace(/[^a-zA-Z0-9_-]/g, '_');
-      if (element) {
-        success = await exportElementAsPdf(element, `GPS_Estimate_${cleanId}.pdf`);
-      }
-      if (!success) {
-        exportQuotationPdf(selectedQuote);
-      }
+      // Use jsPDF direct generator as primary (pixel-perfect 1:1 match to reference format)
+      exportQuotationPdf(selectedQuote);
       if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
     } catch (err) {
       console.error('Failed to export quotation PDF:', err);
-      exportQuotationPdf(selectedQuote);
-      if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
+      if (onNotify) onNotify('PDF export failed. Please try again.', 'error');
     }
   };
 
@@ -556,18 +296,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
       </PageHeader>
 
       <div className="content-body">
-        {/* Top Level Tabs: Quotations vs Email Activity */}
-      <Tabs 
-        tabs={[
-          { id: 'quotations', label: 'Commercial Quotations & Proposals', count: filteredQuotes.length },
-          { id: 'activity', label: 'Email Activity & Logs', count: emailActivity.length }
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
-
-      {/* Quotations Master-Detail View */}
-      {activeTab === 'quotations' && (
+        {/* Quotations Master-Detail View */}
         <div 
           className="grid-2col-sales" 
           style={{ 
@@ -604,10 +333,10 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                 style={{ width: '160px' }}
               >
                 <option value="all">All Statuses ({quotations.length})</option>
-                <option value="wo launched">WO Launched ({woLaunchedCount})</option>
-                <option value="under review">Under Review</option>
-                <option value="approved">Approved</option>
-                <option value="draft">Draft</option>
+                <option value="under review">Under Review ({quotations.filter(q => q.status?.toLowerCase() === 'under review').length})</option>
+                <option value="approved">Approved ({quotations.filter(q => q.status?.toLowerCase() === 'approved').length})</option>
+                <option value="draft">Draft ({quotations.filter(q => q.status?.toLowerCase() === 'draft').length})</option>
+                <option value="rejected">Rejected ({quotations.filter(q => q.status?.toLowerCase() === 'rejected').length})</option>
               </CustomSelect>
             </div>
 
@@ -620,7 +349,6 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
               ) : (
                 filteredQuotes.map((q) => {
                   const isSelected = selectedQuote?.id === q.id;
-                  const linkedWo = launchedWoMap[q.id];
                   return (
                     <div
                       key={q.id}
@@ -641,26 +369,7 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                         <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
                           {q.id}
                         </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {linkedWo && (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              fontSize: '9.5px',
-                              fontWeight: 700,
-                              padding: '1px 5px',
-                              borderRadius: '9999px',
-                              background: '#ecfdf5',
-                              color: '#065f46',
-                              border: '1px solid #6ee7b7'
-                            }}>
-                              <CheckCircle size={9} color="#059669" />
-                              <span>WO Launched</span>
-                            </span>
-                          )}
-                          <StatusBadge status={linkedWo ? 'Approved' : q.status} size="sm" />
-                        </div>
+                        <StatusBadge status={q.status} size="sm" />
                       </div>
 
                       <div style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -680,68 +389,11 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                         </div>
                       )}
 
-                      {/* Visual indexing strip for launched Work Order */}
-                      {linkedWo && (
-                        <div style={{
-                          marginTop: '4px',
-                          padding: '4px 8px',
-                          background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
-                          border: '1px solid #a7f3d0',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '11px',
-                          color: '#065f46'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <Factory size={11} color="#059669" />
-                            <span style={{ fontWeight: 600 }}>WO:</span>
-                            <span className="mono" style={{ fontWeight: 700, color: '#047857' }}>{linkedWo.woNo}</span>
-                          </div>
-                          <span style={{
-                            fontSize: '9px',
-                            background: '#10b981',
-                            color: '#ffffff',
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            fontWeight: 700,
-                            letterSpacing: '0.02em'
-                          }}>
-                            BAY 1
-                          </span>
-                        </div>
-                      )}
-
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                           {q.validUntil ? `Valid: ${q.validUntil}` : '30d Validity'}
                         </span>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          {linkedWo && onNavigate && (
-                            <button 
-                              type="button" 
-                              className="btn btn-sm"
-                              style={{
-                                height: '22px',
-                                padding: '0 6px',
-                                fontSize: '10px',
-                                gap: '3px',
-                                background: '#ecfdf5',
-                                border: '1px solid #a7f3d0',
-                                color: '#065f46',
-                                fontWeight: 600
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate('production');
-                              }}
-                              title={`Open ${linkedWo.woNo} in Production`}
-                            >
-                              <Factory size={9} color="#059669" />
-                              <span>{linkedWo.woNo}</span>
-                            </button>
-                          )}
                           <button 
                             type="button" 
                             className="btn btn-secondary btn-sm"
@@ -780,10 +432,9 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
 
         {/* Right Column: Authentic PDF Invoice Document View */}
         {selectedQuote && (() => {
-          const selectedLinkedWo = launchedWoMap[selectedQuote.id];
           return (
-            <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0 }}>
-              {/* Top Action Header */}
+            <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              {/* Top Action Header with Under Review, Approved, Draft, and Rejected Functions */}
               <div style={{ 
                 padding: '10px 14px', 
                 background: 'var(--bg-surface-subtle)', 
@@ -796,38 +447,135 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
-                  <StatusBadge status={selectedLinkedWo ? 'Approved' : selectedQuote.status} size="sm" />
-                  {selectedLinkedWo && (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '9999px',
-                      background: '#ecfdf5',
-                      color: '#065f46',
-                      border: '1px solid #6ee7b7'
-                    }}>
-                      <CheckCircle size={12} color="#059669" />
-                      <span>WO Launched:</span>
-                      <span className="mono">{selectedLinkedWo.woNo}</span>
-                    </span>
-                  )}
+                  <StatusBadge status={selectedQuote.status} size="sm" />
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Status Options Selector: Under Review, Approved, Draft, Rejected */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '2px 8px',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Status:</span>
+                    <select
+                      value={selectedQuote.status}
+                      onChange={(e) => handleUpdateStatus(selectedQuote.id, e.target.value)}
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-surface-subtle)',
+                        color: 'var(--text-main)',
+                        cursor: 'pointer'
+                      }}
+                      title="Update Quotation Status"
+                    >
+                      <option value="Under Review">Under Review</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  {/* 1-Click Status Transition Buttons */}
+                  {selectedQuote.status !== 'Approved' && (
+                    <button 
+                      type="button" 
+                      className="btn btn-sm"
+                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Approved')}
+                      title="Approve this quotation"
+                      style={{
+                        height: '28px',
+                        fontSize: '11px',
+                        padding: '0 8px',
+                        gap: '4px',
+                        background: '#ecfdf5',
+                        border: '1px solid #10b981',
+                        color: '#065f46',
+                        fontWeight: 600
+                      }}
+                    >
+                      <CheckCircle size={12} color="#059669" />
+                      <span>Approve</span>
+                    </button>
+                  )}
+
+                  {selectedQuote.status !== 'Under Review' && (
+                    <button 
+                      type="button" 
+                      className="btn btn-sm"
+                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Under Review')}
+                      title="Mark as Under Review"
+                      style={{
+                        height: '28px',
+                        fontSize: '11px',
+                        padding: '0 8px',
+                        gap: '4px',
+                        background: '#fffbeb',
+                        border: '1px solid #f59e0b',
+                        color: '#92400e',
+                        fontWeight: 600
+                      }}
+                    >
+                      <Clock size={12} color="#d97706" />
+                      <span>Under Review</span>
+                    </button>
+                  )}
+
+                  {selectedQuote.status !== 'Rejected' && (
+                    <button 
+                      type="button" 
+                      className="btn btn-sm"
+                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Rejected')}
+                      title="Reject this quotation"
+                      style={{
+                        height: '28px',
+                        fontSize: '11px',
+                        padding: '0 8px',
+                        gap: '4px',
+                        background: '#fef2f2',
+                        border: '1px solid #f87171',
+                        color: '#991b1b',
+                        fontWeight: 600
+                      }}
+                    >
+                      <XCircle size={12} color="#dc2626" />
+                      <span>Reject</span>
+                    </button>
+                  )}
+
+                  {selectedQuote.status !== 'Draft' && (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Draft')}
+                      title="Revert quotation to Draft"
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                    >
+                      <FileText size={12} />
+                      <span>Draft</span>
+                    </button>
+                  )}
+
+                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
-                    onClick={() => setIsDocExpanded(!isDocExpanded)}
-                    title={isDocExpanded ? "Split view" : "Full screen preview"}
-                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                    onClick={() => handleOpenEmailForQuote(selectedQuote)}
+                    title="Send quotation via Outlook-style email composer"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                   >
-                    {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                    <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                    <Mail size={12} color="var(--primary)" />
+                    <span>Send Email</span>
                   </button>
 
                   <button 
@@ -841,394 +589,492 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                     <span>Print PDF</span>
                   </button>
 
-                  {!selectedLinkedWo && selectedQuote.status !== 'Approved' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleApproveQuote(selectedQuote.id)}
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
-                    >
-                      <CheckCircle size={12} />
-                      <span>Approve</span>
-                    </button>
-                  )}
-
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
-                    onClick={() => handleOpenEmailForQuote(selectedQuote)}
-                    title="Send quotation via Outlook-style email composer"
-                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                    onClick={() => setIsDocExpanded(!isDocExpanded)}
+                    title={isDocExpanded ? "Split view" : "Full screen preview"}
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
                   >
-                    <Mail size={12} color="var(--primary)" />
-                    <span>Send Email</span>
+                    {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                    <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
                   </button>
-
-                  {selectedLinkedWo ? (
-                    <>
-                      <button 
-                        type="button" 
-                        className="btn btn-sm"
-                        onClick={() => onNavigate && onNavigate('production')}
-                        title={`View Work Order ${selectedLinkedWo.woNo} in Production Board`}
-                        style={{
-                          height: '28px',
-                          fontSize: '11px',
-                          padding: '0 10px',
-                          gap: '5px',
-                          background: '#ecfdf5',
-                          border: '1px solid #10b981',
-                          color: '#065f46',
-                          fontWeight: 600
-                        }}
-                      >
-                        <Factory size={12} color="#059669" />
-                        <span>WO: {selectedLinkedWo.woNo}</span>
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleOpenCreateWo(selectedQuote)}
-                        title="Launch an additional Work Order for this Quotation"
-                        style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                      >
-                        <Plus size={12} />
-                        <span>New WO</span>
-                      </button>
-                    </>
-                  ) : (
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleOpenCreateWo(selectedQuote)}
-                      title="Convert Quotation to Shop Floor Work Order"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                    >
-                      <Factory size={12} color="var(--primary)" />
-                      <span>Create WO</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* Work Order Launched Confirmation & Indexing Banner */}
-              {selectedLinkedWo && (
-                <div style={{
-                  margin: '10px 14px 0 14px',
-                  padding: '10px 14px',
-                  background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
-                  border: '1px solid #6ee7b7',
-                  borderRadius: 'var(--radius-md)',
+            {/* Document Body — A4 Page Preview */}
+            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto', flex: 1, minHeight: '0' }}>
+              <div 
+                id="printable-quotation" 
+                style={{ 
+                  width: '794px',
+                  minWidth: '794px',
+                  minHeight: '1123px',
+                  height: '1123px',
+                  background: '#ffffff', 
+                  padding: '24px 28px', 
+                  color: '#000000', 
+                  fontFamily: 'Arial, Helvetica, sans-serif',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                  boxSizing: 'border-box',
+                  position: 'relative',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: '#10b981',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      flexShrink: 0,
-                      boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)'
-                    }}>
-                      <Factory size={16} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>Work Order <span className="mono" style={{ textDecoration: 'underline' }}>{selectedLinkedWo.woNo}</span> Launched & Indexed</span>
-                        <span style={{ fontSize: '10px', background: '#10b981', color: '#fff', padding: '1px 6px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}>IN PRODUCTION</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#047857', marginTop: '1px' }}>
-                        Model: {selectedLinkedWo.model || detectSpindleModel(selectedQuote)} • Serial: <span className="mono">{selectedLinkedWo.serial || selectedQuote.spindleSerial || 'N/A'}</span> • Routed to Shop Floor Bay 1
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {onNavigate && (
-                      <button 
-                        type="button" 
-                        className="btn btn-primary btn-sm"
-                        onClick={() => onNavigate('production')}
-                        style={{ height: '26px', fontSize: '11px', padding: '0 10px', gap: '4px', background: '#059669', borderColor: '#047857' }}
-                        title="Open Production Board to view traveler sheet"
-                      >
-                        <Factory size={12} />
-                        <span>Open in Production</span>
-                        <ArrowRight size={12} />
-                      </button>
-                    )}
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleOpenCreateWo(selectedQuote)}
-                      style={{ height: '26px', fontSize: '10.5px', padding: '0 8px', gap: '3px' }}
-                      title="Launch another Work Order from this Quotation"
-                    >
-                      <Plus size={11} />
-                      <span>Launch Another WO</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            {/* Document Body (Matching Estimate_QTN 2026-27 294 PDF) */}
-            <div id="printable-quotation" style={{ padding: '14px 16px', background: '#ffffff', color: '#0f172a', fontSize: '11px', lineHeight: '1.35' }}>
-              
-              {/* Document Title Banner */}
-              <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '15px', letterSpacing: '0.04em', borderBottom: '2px solid #0f172a', paddingBottom: '3px', marginBottom: '8px' }}>
-                Estimate
-              </div>
-
-              {/* Company Header & Metadata Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
-                {/* Seller Brand & Address */}
-                <div style={{ padding: '8px 10px', borderRight: '1px solid #cbd5e1', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '3px', padding: '2px', height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img src="/logo.jpg" alt="General Precision Spindles" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '13px', letterSpacing: '0.02em', color: '#0f172a' }}>
-                      GENERAL PRECISION SPINDLES
-                    </div>
-                    <div style={{ fontSize: '9.5px', color: '#475569' }}>
-                      SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041
-                    </div>
-                    <div style={{ fontSize: '9.5px', color: '#475569' }}>
-                      ☎ +919764252188 / 9764032929 • Email: process@gpsspindles.net
-                    </div>
-                    <div style={{ fontSize: '9.5px', fontWeight: 600, color: '#0f172a' }}>
-                      GSTIN: 27AATFG1527D1ZF • State: 27-Maharashtra
-                    </div>
-                  </div>
+                  flexDirection: 'column'
+                }}
+              >
+                {/* Document Title Banner */}
+                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
+                  Estimate
                 </div>
 
-                {/* Estimate Meta Fields */}
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #cbd5e1' }}>
-                    <div style={{ padding: '6px 8px', borderRight: '1px solid #cbd5e1' }}>
-                      <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>Estimate No.</div>
-                      <div className="mono" style={{ fontWeight: 800, fontSize: '11px' }}>
-                        {selectedQuote.estimateNo || selectedQuote.id}
+                {/* Outer Document Border Box */}
+                <div style={{ border: '1px solid #000000', background: '#ffffff', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+
+                  {/* Company Header & Metadata Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                    {/* Left: Company Logo & Details */}
+                    <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <img 
+                        src="/logo.jpg" 
+                        alt="GPS General Precision Spindles" 
+                        style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
+                      />
+                      <div style={{ lineHeight: '1.25' }}>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
+                          GENERAL PRECISION<br />
+                          SPINDLES
+                        </div>
+                        <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
+                          SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
+                          DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
+                          ☎+919764252188 /9764032929<br />
+                          Email: process@gpsspindles.net<br />
+                          GSTIN: 27AATFG1527D1ZF<br />
+                          State: 27-Maharashtra
+                        </div>
                       </div>
                     </div>
-                    <div style={{ padding: '6px 8px' }}>
-                      <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>Date</div>
-                      <div className="mono" style={{ fontWeight: 700, fontSize: '11px' }}>
-                        {selectedQuote.date}
+
+                    {/* Right: Metadata Grid (2x2 grid with continuous vertical border matching Image 2) */}
+                    <div style={{ borderLeft: '1px solid #000000', display: 'flex', flexDirection: 'column' }}>
+                      {/* Row 1: Estimate No. & Date */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #000000', flex: 1 }}>
+                        <div style={{ padding: '5px 8px' }}>
+                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate No.</div>
+                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                            {selectedQuote.estimateNo || selectedQuote.id || 'QTN/2026-27/294'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '5px 8px', borderLeft: '1px solid #000000' }}>
+                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Date</div>
+                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                            {selectedQuote.date || '07-09-2026'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Place of supply & blank cell matching Image 2 */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+                        <div style={{ padding: '5px 8px' }}>
+                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Place of supply</div>
+                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                            {selectedQuote.placeOfSupply || selectedQuote.state || '23-Madhya Pradesh'}
+                          </div>
+                        </div>
+                        <div style={{ borderLeft: '1px solid #000000' }}></div>
                       </div>
                     </div>
                   </div>
-                  <div style={{ padding: '6px 8px' }}>
-                    <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>Place of supply</div>
-                    <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--primary)' }}>
-                      {selectedQuote.placeOfSupply || selectedQuote.state || '23-Madhya Pradesh'}
+
+                  {/* Estimate For (Customer Box) - matching Image 3 spacing */}
+                  <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                    <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
+                      Estimate For
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
+                      {selectedQuote.customer || 'LINAMAR INDIA PRIVATE LIMITED'}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
+                      {selectedQuote.customerAddress ? (
+                        selectedQuote.customerAddress.includes('\n') ? (
+                          selectedQuote.customerAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
+                        ) : selectedQuote.customerAddress.includes('Industrial Area-3') ? (
+                          <>
+                            <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
+                            <div>Dewas, Madhya Pradesh-455001</div>
+                            <div>India</div>
+                          </>
+                        ) : (
+                          <div>{selectedQuote.customerAddress}</div>
+                        )
+                      ) : (
+                        <>
+                          <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
+                          <div>Dewas, Madhya Pradesh-455001</div>
+                          <div>India</div>
+                        </>
+                      )}
+                    </div>
+                    {/* Generous line spacing exactly as seen in reference Image 3 */}
+                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                      Contact No. : {selectedQuote.contactNo || '7773877714'}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                      GSTIN : {selectedQuote.gstin || '23AACCL5351J1ZM'}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000' }}>
+                      State: {selectedQuote.state || selectedQuote.placeOfSupply || '23-Madhya Pradesh'}
                     </div>
                   </div>
+
+                  {/* Line Items Table */}
+                  {(() => {
+                    const calculatedSubtotal = (selectedQuote.items || []).reduce(
+                      (sum, it) => sum + (Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0),
+                      0
+                    ) || selectedQuote.subtotal || 575000;
+
+                    const calculatedTax = Math.round(calculatedSubtotal * ((Number(selectedQuote.taxRate) || 18) / 100));
+                    const calculatedTotal = calculatedSubtotal + calculatedTax;
+                    const totalQuantity = (selectedQuote.items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+
+                    // Dynamic HSN breakdown matching PDF format
+                    const computeHsnBreakdown = (items) => {
+                      const map = {};
+                      (items || []).forEach(it => {
+                        const code = it.hsn ? String(it.hsn).trim() : '';
+                        const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
+                        if (!map[code]) {
+                          map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+                        }
+                        map[code].taxable += amt;
+                      });
+                      return Object.values(map).map(entry => {
+                        const tax = Math.round(entry.taxable * 0.18);
+                        return {
+                          hsn: entry.hsn,
+                          taxable: entry.taxable,
+                          rate: '18%',
+                          igst: tax,
+                          totalTax: tax
+                        };
+                      });
+                    };
+
+                    const hsnBreakdown = (selectedQuote.hsnSummary && selectedQuote.hsnSummary.length > 0)
+                      ? selectedQuote.hsnSummary
+                      : computeHsnBreakdown(selectedQuote.items);
+
+                    return (
+                      <>
+                        {/* Line Items Table Container - flex: 1 to absorb vertical height so table & borders fill page */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderBottom: '1px solid #000000', minHeight: '160px' }}>
+                          <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', fontSize: '8px', color: '#000000' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 5px', width: '28px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>#</th>
+                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
+                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '95px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
+                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
+                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
+                                <th style={{ borderBottom: '1px solid #000000', padding: '3.5px 6px', width: '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(selectedQuote.items || []).map((item, idx) => {
+                                const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0))) || 0;
+                                return (
+                                  <tr key={item.id || idx}>
+                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 5px', textAlign: 'center' }}>
+                                      {idx + 1}
+                                    </td>
+                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', fontWeight: 700 }}>
+                                      {item.name || item.desc}
+                                    </td>
+                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'center' }}>
+                                      {item.hsn || ''}
+                                    </td>
+                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                                      {item.qty}
+                                    </td>
+                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                                       ₹ {Number(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
+                                       ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {/* Empty filler row to stretch column lines down if table has few items */}
+                              <tr style={{ height: '100%' }}>
+                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
+                                <td style={{ padding: 0 }}></td>
+                              </tr>
+                              {/* Table Total Row */}
+                              <tr style={{ fontWeight: 700, borderTop: '1px solid #000000' }}>
+                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 5px' }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
+                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
+                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'right' }}>
+                                  {totalQuantity}
+                                </td>
+                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
+                                <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
+                                  ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Middle Section: Words, Description & Amounts */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                          {/* Left: Words + Description */}
+                          <div>
+                            {/* Estimate Amount in Words */}
+                            <div style={{ padding: '5px 8px', borderBottom: '1px solid #000000' }}>
+                              <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate Amount in Words</div>
+                              <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                                {selectedQuote.amountInWords || numberToIndianWords(calculatedTotal)}
+                              </div>
+                            </div>
+
+                            {/* Description */}
+                            <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
+                              <div style={{ color: '#000000', fontWeight: 600 }}>Description</div>
+                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                SERIAL NO. {selectedQuote.spindleSerial || 'HMMXXVI'}
+                              </div>
+                              <div style={{ fontWeight: 700 }}>
+                                CHALLAN NO. {selectedQuote.challanNo || 'N/A'}
+                              </div>
+                              <div style={{ fontWeight: 700 }}>
+                                INWORD DATE. {selectedQuote.inwardDate || '22-08-2026'}
+                              </div>
+                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                SCOPE OF WORK :-
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.35' }}>
+                                {(() => {
+                                  const rawScope = Array.isArray(selectedQuote.scopeOfWork)
+                                    ? selectedQuote.scopeOfWork
+                                    : (selectedQuote.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
+                                  const half = Math.ceil(rawScope.length / 2);
+                                  return (
+                                    <>
+                                      <div>
+                                        {rawScope.slice(0, half).map((line, idx) => (
+                                          <div key={idx}>{line.trim()}</div>
+                                        ))}
+                                      </div>
+                                      <div>
+                                        {rawScope.slice(half).map((line, idx) => (
+                                          <div key={idx}>{line.trim()}</div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Amounts */}
+                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                              <span>Sub Total</span>
+                              <span>₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                              <span>Tax ({selectedQuote.taxRate || 18}%)</span>
+                              <span>₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #000000', margin: '4px 0' }} />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
+                              <span>Total</span>
+                              <span>₹ {calculatedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* HSN/SAC Tax Summary Table */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
+                          <thead>
+                            <tr>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
+                              <th colSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
+                            </tr>
+                            <tr>
+                              <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
+                              <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 6px', textAlign: 'right', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {hsnBreakdown.map((row, idx) => (
+                              <tr key={idx}>
+                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                                  {row.hsn || ''}
+                                </td>
+                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                  ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                                  {row.rate || '18%'}
+                                </td>
+                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                  ₹ {Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td style={{ borderBottom: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                  ₹ {Number(row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                            {/* HSN Table Total */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}></td>
+                              <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 1) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flexShrink: 0, minHeight: '145px' }}>
+                          {/* Col 1: Bank Details */}
+                          <div style={{ padding: '6px 8px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Bank Details</div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              {/* QR Code */}
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '52px', flexShrink: 0 }}>
+                                <svg width="48" height="48" viewBox="0 0 25 25" style={{ display: 'block', shapeRendering: 'crispEdges' }}>
+                                  <rect width="25" height="25" fill="#ffffff" />
+                                  <rect x="0" y="0" width="7" height="7" fill="#000000" />
+                                  <rect x="1" y="1" width="5" height="5" fill="#ffffff" />
+                                  <rect x="2" y="2" width="3" height="3" fill="#000000" />
+                                  <rect x="18" y="0" width="7" height="7" fill="#000000" />
+                                  <rect x="19" y="1" width="5" height="5" fill="#ffffff" />
+                                  <rect x="20" y="2" width="3" height="3" fill="#000000" />
+                                  <rect x="0" y="18" width="7" height="7" fill="#000000" />
+                                  <rect x="1" y="19" width="5" height="5" fill="#ffffff" />
+                                  <rect x="2" y="20" width="3" height="3" fill="#000000" />
+                                  <rect x="16" y="16" width="5" height="5" fill="#000000" />
+                                  <rect x="17" y="17" width="3" height="3" fill="#ffffff" />
+                                  <rect x="18" y="18" width="1" height="1" fill="#000000" />
+                                  <rect x="6" y="8" width="1" height="1" fill="#000000" />
+                                  <rect x="6" y="10" width="1" height="1" fill="#000000" />
+                                  <rect x="6" y="12" width="1" height="1" fill="#000000" />
+                                  <rect x="6" y="14" width="1" height="1" fill="#000000" />
+                                  <rect x="6" y="16" width="1" height="1" fill="#000000" />
+                                  <rect x="8" y="6" width="1" height="1" fill="#000000" />
+                                  <rect x="10" y="6" width="1" height="1" fill="#000000" />
+                                  <rect x="12" y="6" width="1" height="1" fill="#000000" />
+                                  <rect x="14" y="6" width="1" height="1" fill="#000000" />
+                                  <rect x="16" y="6" width="1" height="1" fill="#000000" />
+                                  <rect x="8" y="2" width="1" height="2" fill="#000000" />
+                                  <rect x="10" y="1" width="2" height="1" fill="#000000" />
+                                  <rect x="13" y="2" width="1" height="1" fill="#000000" />
+                                  <rect x="15" y="1" width="1" height="2" fill="#000000" />
+                                  <rect x="8" y="9" width="2" height="1" fill="#000000" />
+                                  <rect x="11" y="8" width="2" height="2" fill="#000000" />
+                                  <rect x="14" y="9" width="1" height="2" fill="#000000" />
+                                  <rect x="16" y="8" width="2" height="1" fill="#000000" />
+                                  <rect x="9" y="12" width="1" height="2" fill="#000000" />
+                                  <rect x="11" y="11" width="2" height="1" fill="#000000" />
+                                  <rect x="13" y="13" width="2" height="2" fill="#000000" />
+                                  <rect x="10" y="15" width="1" height="2" fill="#000000" />
+                                  <rect x="12" y="16" width="2" height="1" fill="#000000" />
+                                  <rect x="8" y="18" width="2" height="1" fill="#000000" />
+                                  <rect x="8" y="20" width="1" height="2" fill="#000000" />
+                                  <rect x="11" y="19" width="2" height="2" fill="#000000" />
+                                  <rect x="14" y="18" width="1" height="2" fill="#000000" />
+                                  <rect x="22" y="9" width="2" height="2" fill="#000000" />
+                                  <rect x="19" y="11" width="2" height="1" fill="#000000" />
+                                  <rect x="23" y="12" width="1" height="2" fill="#000000" />
+                                  <rect x="22" y="22" width="2" height="2" fill="#000000" />
+                                </svg>
+                                <div style={{ background: '#16a34a', color: '#ffffff', fontSize: '5px', fontWeight: 700, padding: '1px 3px', borderRadius: '2px', marginTop: '2px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  UPI: SCAN TO PAY
+                                </div>
+                              </div>
+
+                              {/* Bank Details Text */}
+                              <div style={{ fontSize: '7.2px', lineHeight: '1.3' }}>
+                                Name : ICICI BANK LIMITED, PUNE<br />
+                                NANDED CITY<br />
+                                Account No. : 349105000701<br />
+                                IFSC code : ICIC0003491<br />
+                                Account holder's name : GENERAL<br />
+                                PRECISION SPINDLES
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Col 2: Terms and conditions */}
+                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Terms and conditions</div>
+                            <div style={{ fontSize: '6.7px', lineHeight: '1.25' }}>
+                              We declare that this invoice shows the actual price of<br />
+                              the goods<br />
+                              described and that all particulars are true and<br />
+                              correct.<br />
+                              <div style={{ marginTop: '5px' }}>
+                                Bank Details:<br />
+                                ICICI Bank Ltd(Nanded City Branch)<br />
+                                A/c No : 349105000701<br />
+                                IFSC Code: ICIC0003491<br />
+                                MSME (UDYAM ADHAR) NO-MH26A0189736<br />
+                                TYPE OF ENTERPRISES: SPINDLE MANUFACTURING<br />
+                                AND REPAIRING<br />
+                                MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF<br />
+                                CNC,VMC,HMC,BELT<br />
+                                DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE<br />
+                                REPAIRING ,SPINDLE<br />
+                                MANUFACTURING.
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Col 3: Signatory */}
+                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div style={{ fontSize: '7.5px', fontWeight: 600 }}>
+                              For : GENERAL PRECISION SPINDLES
+                            </div>
+                            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8px', paddingBottom: '6px' }}>
+                              Authorized Signatory
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
                 </div>
               </div>
-
-              {/* Estimate For (Customer Box) */}
-              <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', padding: '8px 10px', marginBottom: '8px', background: '#f8fafc' }}>
-                <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Estimate For</div>
-                <div style={{ fontWeight: 800, fontSize: '12.5px', color: '#0f172a', marginTop: '1px' }}>
-                  {selectedQuote.customer}
-                </div>
-                <div style={{ fontSize: '9.5px', color: '#334155', marginTop: '1px' }}>
-                  {selectedQuote.customerAddress || 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001 India'}
-                </div>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '9.5px', marginTop: '3px', flexWrap: 'wrap' }}>
-                  <span>Contact No. : <strong>{selectedQuote.contactNo || '7773877714'}</strong></span>
-                  <span>GSTIN : <strong className="mono">{selectedQuote.gstin || '23AACCL5351J1ZM'}</strong></span>
-                  <span>State: <strong>{selectedQuote.state || selectedQuote.placeOfSupply || '23-Madhya Pradesh'}</strong></span>
-                </div>
-              </div>
-
-              {/* Line Items Table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', marginBottom: '6px', fontSize: '9.5px' }}>
-                <thead>
-                  <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 3px', width: '24px', textAlign: 'center' }}>#</th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'left' }}>Item name</th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 3px', width: '70px', textAlign: 'center' }}>HSN/ SAC</th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 3px', width: '40px', textAlign: 'center' }}>Qty</th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '85px', textAlign: 'right' }}>Price/ Unit</th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '90px', textAlign: 'right' }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedQuote.items || []).map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '4px 3px', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', fontWeight: 600 }}>{item.name || item.desc}</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 3px', textAlign: 'center', color: '#475569' }}>{item.hsn || '—'}</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 3px', textAlign: 'center' }}>{item.qty}</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>₹ {item.unitPrice?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>₹ {(item.total || (item.qty * item.unitPrice))?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr style={{ background: '#f8fafc', fontWeight: 700, borderTop: '2px solid #cbd5e1' }}>
-                    <td colSpan="3" style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>Total</td>
-                    <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 3px', textAlign: 'center' }}>
-                      {(selectedQuote.items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0)}
-                    </td>
-                    <td style={{ border: '1px solid #cbd5e1' }}></td>
-                    <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>
-                      ₹ {selectedQuote.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Estimate Amount in Words */}
-              <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', padding: '5px 8px', background: '#f8fafc', marginBottom: '8px' }}>
-                <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>Estimate Amount in Words</div>
-                <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#0f172a', fontStyle: 'italic' }}>
-                  {selectedQuote.amountInWords || numberToIndianWords(selectedQuote.totalAmount)}
-                </div>
-              </div>
-
-              {/* Grid: Description / Scope of Work & Amounts Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                {/* Description & Scope of Work */}
-                <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', padding: '6px 8px' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px', marginBottom: '4px' }}>
-                    Description
-                  </div>
-                  <div style={{ fontSize: '9px', display: 'flex', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                    <span>SERIAL NO: <strong className="mono">{selectedQuote.spindleSerial || 'HMMXXVI'}</strong></span>
-                    <span>CHALLAN NO: <strong className="mono">{selectedQuote.challanNo || 'N/A'}</strong></span>
-                    <span>INWORD DATE: <strong className="mono">{selectedQuote.inwardDate || selectedQuote.date}</strong></span>
-                  </div>
-                  <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#334155' }}>SCOPE OF WORK :-</div>
-                  <div style={{ fontSize: '8.5px', color: '#475569', lineHeight: '1.25', marginTop: '1px', whiteSpace: 'pre-line' }}>
-                    {Array.isArray(selectedQuote.scopeOfWork) ? selectedQuote.scopeOfWork.join('\n') : (selectedQuote.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.')}
-                  </div>
-                </div>
-
-                {/* Amounts Breakdown */}
-                <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px', marginBottom: '4px' }}>
-                    Amounts
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '9.5px' }}>
-                    <span>Sub Total</span>
-                    <span className="mono" style={{ fontWeight: 600 }}>₹ {selectedQuote.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '9.5px', color: '#475569' }}>
-                    <span>Tax (18% IGST)</span>
-                    <span className="mono" style={{ fontWeight: 600 }}>₹ {selectedQuote.gstAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '11px', fontWeight: 800, borderTop: '2px solid #0f172a', color: 'var(--primary)' }}>
-                    <span>Total</span>
-                    <span className="mono">₹ {selectedQuote.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* HSN/SAC Tax Summary Table */}
-              <div style={{ marginBottom: '8px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '8.5px' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-                      <th rowSpan="2" style={{ border: '1px solid #cbd5e1', padding: '3px' }}>HSN/ SAC</th>
-                      <th rowSpan="2" style={{ border: '1px solid #cbd5e1', padding: '3px', textAlign: 'right' }}>Taxable amount</th>
-                      <th colSpan="2" style={{ border: '1px solid #cbd5e1', padding: '3px', textAlign: 'center' }}>IGST</th>
-                      <th rowSpan="2" style={{ border: '1px solid #cbd5e1', padding: '3px', textAlign: 'right' }}>Total Tax Amount</th>
-                    </tr>
-                    <tr style={{ background: '#f8fafc' }}>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '2px', textAlign: 'center' }}>Rate</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '2px', textAlign: 'right' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedQuote.hsnSummary ? (
-                      selectedQuote.hsnSummary.map((h, i) => (
-                        <tr key={i}>
-                          <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'center' }}>{h.hsn}</td>
-                          <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {h.taxable?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'center' }}>{h.rate}</td>
-                          <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {h.igst?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                          <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {h.totalTax?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'center' }}>84669390</td>
-                        <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {selectedQuote.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'center' }}>18%</td>
-                        <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {selectedQuote.gstAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '2px 4px', textAlign: 'right' }}>₹ {selectedQuote.gstAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    )}
-                    <tr style={{ background: '#f1f5f9', fontWeight: 700 }}>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '3px', textAlign: 'center' }}>Total</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '3px 4px', textAlign: 'right' }}>₹ {selectedQuote.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={{ border: '1px solid #cbd5e1' }}></td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '3px 4px', textAlign: 'right' }}>₹ {selectedQuote.gstAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td className="mono" style={{ border: '1px solid #cbd5e1', padding: '3px 4px', textAlign: 'right' }}>₹ {selectedQuote.gstAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Bottom: Bank Details, Terms, and Signatory */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1fr', border: '1px solid #cbd5e1', borderRadius: '3px', padding: '6px 8px', gap: '8px', fontSize: '8.5px' }}>
-                {/* Bank Details */}
-                <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '6px' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '1px' }}>Bank Details</div>
-                  <div style={{ color: '#475569', lineHeight: '1.25' }}>
-                    Name : ICICI BANK LIMITED, PUNE NANDED CITY<br/>
-                    Account No. : <strong className="mono">349105000701</strong><br/>
-                    IFSC code : <strong className="mono">ICIC0003491</strong><br/>
-                    Account holder's name : <strong>GENERAL PRECISION SPINDLES</strong>
-                  </div>
-                </div>
-
-                {/* Terms and Conditions */}
-                <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '6px' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '1px' }}>Terms and conditions</div>
-                  <div style={{ color: '#475569', lineHeight: '1.2', fontSize: '8px' }}>
-                    We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.<br/>
-                    <strong>MSME (UDYAM ADHAR) NO-MH26A0189736</strong><br/>
-                    TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING<br/>
-                    MAJOR ACTIVITIES: ALL TYPES OF CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE REPAIRING ,SPINDLE MANUFACTURING.
-                  </div>
-                </div>
-
-                {/* Authorized Signatory */}
-                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '2px' }}>
-                  <div style={{ fontWeight: 700, fontSize: '8.5px' }}>For : GENERAL PRECISION SPINDLES</div>
-                  <div style={{ borderTop: '1px dashed #94a3b8', paddingTop: '2px', marginTop: '22px', fontWeight: 700, color: '#334155' }}>
-                    Authorized Signatory
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         );
       })()}
       </div>
-      )}
-
-      {/* Email Activity History Tab */}
-      {activeTab === 'activity' && (
-        <EmailActivityTable 
-          emailList={emailActivity}
-          onOpenComposerForDraft={handleOpenDraftInComposer}
-          onNotify={onNotify}
-        />
-      )}
 
       {/* NEW QUOTATION MODAL - COMPACT & MATCHING THE PDF INVOICE FIELDS EXACTLY */}
       <Modal
@@ -1314,6 +1160,21 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
                   style={{ height: '28px', fontSize: '11px' }}
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '10px' }}>Initial Status</label>
+                <select 
+                  className="form-control" 
+                  value={formState.status || 'Draft'}
+                  onChange={(e) => setFormState({ ...formState, status: e.target.value })}
+                  style={{ height: '28px', fontSize: '11px', fontWeight: 600 }}
+                >
+                  <option value="Draft">Draft</option>
+                  <option value="Under Review">Under Review</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1601,234 +1462,6 @@ export default function SalesScreen({ onNavigate, onNotify, initialTab = 'quotat
           onNotify={onNotify}
         />
       )}
-
-      {/* Convert Quotation to Production Work Order Modal */}
-      <Modal
-        isOpen={isCreateWoOpen}
-        onClose={() => { if (!isSubmittingWo) setIsCreateWoOpen(false); }}
-        title="Convert Quotation to Production Work Order"
-        maxWidth="680px"
-        footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldCheck size={14} color="#059669" />
-              <span>Seeds 8-stage traveler routing automatically</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => setIsCreateWoOpen(false)}
-                disabled={isSubmittingWo}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={handleExecuteCreateWo}
-                disabled={isSubmittingWo}
-                style={{ gap: '6px' }}
-              >
-                {isSubmittingWo ? (
-                  <>
-                    <Loader2 size={14} className="spin" />
-                    <span>Launching Work Order...</span>
-                  </>
-                ) : (
-                  <>
-                    <Factory size={14} />
-                    <span>Launch Work Order</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <form onSubmit={handleExecuteCreateWo}>
-          {/* Source Quotation Context Banner */}
-          {selectedQuote && (
-            <div style={{
-              padding: '10px 14px',
-              background: 'linear-gradient(135deg, rgba(122, 31, 61, 0.06) 0%, rgba(122, 31, 61, 0.02) 100%)',
-              border: '1px solid rgba(122, 31, 61, 0.2)',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '10px'
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <FileText size={14} color="#7A1F3D" />
-                  <span style={{ fontWeight: 700, fontSize: '13px', color: '#7A1F3D' }}>Source Quotation:</span>
-                  <span className="mono" style={{ fontWeight: 700, fontSize: '13px' }}>{selectedQuote.id}</span>
-                  <StatusBadge status={selectedQuote.status} size="sm" />
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                  Customer: <strong>{selectedQuote.customer}</strong>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>Commercial Value</span>
-                <span className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>
-                  ₹{Number(selectedQuote.totalAmount || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Work Order Number *</label>
-              <input 
-                type="text" 
-                className="form-control mono"
-                value={woForm.workOrderNo}
-                onChange={(e) => setWoForm({ ...woForm, workOrderNo: e.target.value })}
-                placeholder="e.g. WO-2026-0850"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Customer Organization *</label>
-              <input 
-                type="text" 
-                className="form-control"
-                value={woForm.customer}
-                onChange={(e) => setWoForm({ ...woForm, customer: e.target.value })}
-                placeholder="e.g. Linamar India Pvt Ltd"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Spindle Model Family *</label>
-              <CustomSelect 
-                value={woForm.spindleModel}
-                onChange={(e) => setWoForm({ ...woForm, spindleModel: e.target.value })}
-                options={[
-                  { value: 'GPS-HSK-A63-24K', label: 'GPS-HSK-A63-24K (Motorized 24k)' },
-                  { value: 'GPS-BT40-15K', label: 'GPS-BT40-15K (Belt Milling 15k)' },
-                  { value: 'GPS-HF-60K', label: 'GPS-HF-60K (High Frequency 60k)' },
-                  { value: 'GPS-BT50-10K', label: 'GPS-BT50-10K (Heavy Geared 10k)' },
-                  { value: 'GPS-HSK-E25-42K', label: 'GPS-HSK-E25-42K (Micro High Speed)' },
-                  { value: 'KESSLAR HSK-63', label: 'KESSLAR HSK-63 (Client Spindle Rebuild)' },
-                  { value: 'Custom Precision Spindle', label: 'Custom Precision Spindle' }
-                ]}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Spindle Serial Number *</label>
-              <input 
-                type="text" 
-                className="form-control mono"
-                value={woForm.serial}
-                onChange={(e) => setWoForm({ ...woForm, serial: e.target.value })}
-                placeholder="e.g. HMMXXVI or GPS-2026-0850"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Order Classification</label>
-              <CustomSelect 
-                value={woForm.orderType}
-                onChange={(e) => setWoForm({ ...woForm, orderType: e.target.value })}
-                options={[
-                  { value: 'Spindle Overhaul & Repair', label: 'Spindle Overhaul & Repair' },
-                  { value: 'New Spindle Build', label: 'New Spindle Build' },
-                  { value: 'Spindle Retrofit & Re-engineering', label: 'Spindle Retrofit & Re-engineering' },
-                  { value: 'Urgent Breakdown Restoration', label: 'Urgent Breakdown Restoration' }
-                ]}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Shop Floor Priority</label>
-              <CustomSelect 
-                value={woForm.priority}
-                onChange={(e) => setWoForm({ ...woForm, priority: e.target.value })}
-                options={[
-                  { value: 'Critical', label: 'Critical (Line-Down Emergency)' },
-                  { value: 'High', label: 'High Priority (Standard Production)' },
-                  { value: 'Medium', label: 'Medium / Normal Schedule' },
-                  { value: 'Low', label: 'Low / Stock Build' }
-                ]}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Initial Stage / Shop Bay</label>
-              <CustomSelect 
-                value={woForm.initialStage}
-                onChange={(e) => setWoForm({ ...woForm, initialStage: e.target.value })}
-                options={[
-                  { value: 'material', label: 'Stage 1: Raw Stock Cutting & Teardown (Bay 1)' },
-                  { value: 'machining', label: 'Stage 2: CNC Rough Turning & Gun Drilling (Bay 2)' },
-                  { value: 'heat_treat', label: 'Stage 3: Case Carburizing & Tempering (Bay 3)' },
-                  { value: 'grinding', label: 'Stage 4: Cylindrical Journal Grinding (Bay 4)' },
-                  { value: 'assembly', label: 'Stage 5: Cleanroom Bearing Assembly (Bay 5)' }
-                ]}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '11px' }}>Target Dispatch Date</label>
-              <input 
-                type="date" 
-                className="form-control mono"
-                value={woForm.dueDate}
-                onChange={(e) => setWoForm({ ...woForm, dueDate: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group" style={{ marginTop: '12px' }}>
-            <label className="form-label" style={{ fontSize: '11px' }}>
-              Scope of Work & Production Job Traveler Notes
-            </label>
-            <textarea 
-              className="form-control" 
-              rows={4}
-              value={woForm.notes}
-              onChange={(e) => setWoForm({ ...woForm, notes: e.target.value })}
-              placeholder="Engineering instructions, disassembly notes, and traveler specifications..."
-              style={{ fontSize: '11.5px', lineHeight: '1.4', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {selectedQuote && selectedQuote.status !== 'Approved' && (
-            <div style={{
-              marginTop: '12px',
-              padding: '10px 12px',
-              background: 'var(--bg-surface-subtle)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <input 
-                type="checkbox" 
-                id="autoApproveCheck"
-                checked={woForm.autoApproveQuote}
-                onChange={(e) => setWoForm({ ...woForm, autoApproveQuote: e.target.checked })}
-                style={{ width: '15px', height: '15px', cursor: 'pointer' }}
-              />
-              <label htmlFor="autoApproveCheck" style={{ fontSize: '12px', cursor: 'pointer', userSelect: 'none', color: 'var(--text-main)' }}>
-                Mark Quotation <strong>{selectedQuote.id}</strong> as <strong>Approved</strong> in Commercial Register upon Work Order launch
-              </label>
-            </div>
-          )}
-        </form>
-      </Modal>
       </div>
     </div>
   );

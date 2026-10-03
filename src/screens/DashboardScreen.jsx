@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import MetricCard from '../components/common/MetricCard';
 import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
@@ -18,8 +18,10 @@ import {
 import { 
   ArrowUpRight, AlertTriangle, Clock, Eye, 
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
-  AlertCircle, ShoppingCart, ExternalLink, ShieldCheck, Truck
+  AlertCircle, ShoppingCart, ExternalLink, ShieldCheck, Truck,
+  Search, X, Factory, FileText, Receipt, Package, Building2, Wrench, ArrowRight
 } from 'lucide-react';
+import { universalSearchService, SEARCH_CATEGORIES } from '../services/universalSearchService';
 
 const PRESET_SUPPLIERS = [
   {
@@ -81,6 +83,37 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [error, setError] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Universal Software Search Bar State on Dashboard
+  const [dashSearchQuery, setDashSearchQuery] = useState('');
+  const [dashActiveCategory, setDashActiveCategory] = useState('all');
+  const [isDashSearchOpen, setIsDashSearchOpen] = useState(false);
+  const dashSearchContainerRef = React.useRef(null);
+
+  const { results: dashSearchResults, totalCount: dashTotalCount, isSuggestion: isDashSuggestion, categoryCounts: dashCategoryCounts } = useMemo(() => {
+    return universalSearchService.search(dashSearchQuery, dashActiveCategory, 18);
+  }, [dashSearchQuery, dashActiveCategory]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dashSearchContainerRef.current && !dashSearchContainerRef.current.contains(e.target)) {
+        setIsDashSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const handleSelectDashSearchResult = (res) => {
+    if (onNavigate) {
+      onNavigate(res.targetScreen);
+    }
+    if (onNotify) {
+      onNotify(`Opened ${res.docType || 'record'}: ${res.docNumber || res.title}`);
+    }
+    setIsDashSearchOpen(false);
+    setDashSearchQuery('');
+  };
 
   // Raise PO Modal State
   const [selectedMaterialForPo, setSelectedMaterialForPo] = useState(null);
@@ -412,6 +445,376 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       </PageHeader>
 
       <div className="content-body">
+        {/* Universal Software Search Bar on Dashboard */}
+        <div 
+          ref={dashSearchContainerRef}
+          className="section-card dashboard-search-omnibar"
+          style={{
+            padding: '14px 18px',
+            marginBottom: '16px',
+            background: 'linear-gradient(135deg, #ffffff 0%, #fafbfc 100%)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            borderRadius: 'var(--radius-lg)',
+            position: 'relative'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: '#F5E8ED',
+                color: '#7A1F3D',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Search size={14} />
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
+                Universal Software Search
+              </span>
+              <span style={{ fontSize: '10px', background: 'var(--bg-surface-subtle)', color: 'var(--text-muted)', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 600 }}>
+                Full Software Index
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Search across Work Orders, Quotations, Invoices, Spindles, Customers & POs
+            </span>
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
+            <input 
+              type="text" 
+              className="form-control"
+              placeholder="Search anything across entire software (e.g. WO-2026-104, Linamar, HC7008, Schaeffler, GPS-0842, Invoices...)"
+              value={dashSearchQuery}
+              onChange={(e) => {
+                setDashSearchQuery(e.target.value);
+                setIsDashSearchOpen(true);
+              }}
+              onFocus={() => setIsDashSearchOpen(true)}
+              style={{
+                height: '40px',
+                fontSize: '12.5px',
+                paddingLeft: '38px',
+                paddingRight: dashSearchQuery ? '36px' : '40px',
+                background: '#ffffff',
+                border: '1.5px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: isDashSearchOpen ? '0 0 0 3px rgba(122, 31, 61, 0.12)' : 'none',
+                borderColor: isDashSearchOpen ? 'var(--primary)' : 'var(--border-color)'
+              }}
+            />
+            {dashSearchQuery ? (
+              <button 
+                type="button" 
+                onClick={() => { setDashSearchQuery(''); setIsDashSearchOpen(false); }}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '4px'
+                }}
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            ) : (
+              <span className="search-shortcut" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>⌘K</span>
+            )}
+          </div>
+
+          {/* Quick jump tags below search bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Quick Jump:</span>
+            {[
+              { label: 'WO-2026-104 (Tata TASL)', query: 'WO-2026-104' },
+              { label: 'Linamar Quotation', query: 'Linamar' },
+              { label: 'Schaeffler Bearings PO', query: 'Schaeffler' },
+              { label: 'Ceramic Bearings (HC7008)', query: 'HC7008' },
+              { label: 'Spindle Twin (0842)', query: 'GPS-2026-0842' },
+              { label: 'Tax Invoices', query: 'INV-2026' }
+            ].map((tag, tIdx) => (
+              <button
+                key={tIdx}
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setDashSearchQuery(tag.query);
+                  setIsDashSearchOpen(true);
+                }}
+                style={{ height: '22px', fontSize: '10.5px', padding: '0 8px', borderRadius: '4px' }}
+              >
+                {tag.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Live Full-Software Search Results Panel on Dashboard */}
+          {isDashSearchOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: '0',
+              right: '0',
+              background: '#ffffff',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 16px 36px -4px rgba(0,0,0,0.18), 0 6px 16px -4px rgba(0,0,0,0.1)',
+              zIndex: 1050,
+              marginTop: '6px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Category Filter Pills Bar */}
+              <div style={{
+                padding: '8px 12px',
+                background: 'var(--bg-surface-subtle)',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                overflowX: 'auto',
+                scrollbarWidth: 'none'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setDashActiveCategory('all')}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    border: '1px solid',
+                    borderColor: dashActiveCategory === 'all' ? 'var(--primary)' : 'var(--border-color)',
+                    background: dashActiveCategory === 'all' ? 'var(--primary)' : '#ffffff',
+                    color: dashActiveCategory === 'all' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  All ({dashTotalCount})
+                </button>
+
+                {SEARCH_CATEGORIES.filter(c => c.id !== 'all').map(cat => {
+                  const count = dashCategoryCounts[cat.id] || 0;
+                  if (!isDashSuggestion && count === 0 && dashActiveCategory !== cat.id) return null;
+                  const isActive = dashActiveCategory === cat.id;
+                  const CatIcon = cat.icon;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setDashActiveCategory(cat.id)}
+                      style={{
+                        padding: '3px 9px',
+                        borderRadius: '9999px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        border: '1px solid',
+                        borderColor: isActive ? cat.color : 'var(--border-color)',
+                        background: isActive ? cat.bg : '#ffffff',
+                        color: isActive ? cat.color : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <CatIcon size={11} color={isActive ? cat.color : 'var(--text-muted)'} />
+                      <span>{cat.label}</span>
+                      {!isDashSuggestion && count > 0 && (
+                        <span style={{
+                          fontSize: '9.5px',
+                          background: isActive ? cat.color : 'var(--border-subtle)',
+                          color: isActive ? '#ffffff' : 'var(--text-muted)',
+                          padding: '0 4px',
+                          borderRadius: '8px',
+                          marginLeft: '2px'
+                        }}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Status Header */}
+              <div style={{
+                padding: '6px 14px',
+                background: '#fafafa',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '10.5px',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase'
+              }}>
+                <span>
+                  {isDashSuggestion 
+                    ? '⚡ Priority Shortcuts & Active Records' 
+                    : `Found ${dashSearchResults.length} matching records across ERP software`}
+                </span>
+                {dashSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setDashSearchQuery(''); setDashActiveCategory('all'); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '10.5px', fontWeight: 600 }}
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+
+              {/* Scrollable Results List */}
+              <div style={{
+                overflowY: 'auto',
+                maxHeight: '360px',
+                padding: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}>
+                {dashSearchResults.length === 0 ? (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <Search size={28} style={{ margin: '0 auto 8px', color: '#94a3b8' }} />
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                      No matches found for "{dashSearchQuery}"
+                    </div>
+                    <div style={{ fontSize: '11px', maxWidth: '420px', margin: '0 auto' }}>
+                      Try searching by Work Order # (WO-2026-104), Spindle Serial (GPS-0842), Quote (QTN-294), Customer (Linamar, Tata), Vendor (Schaeffler), or Bearing (HC7008).
+                    </div>
+                  </div>
+                ) : (
+                  dashSearchResults.map((res, idx) => {
+                    const IconComponent = res.icon || Factory;
+
+                    return (
+                      <div
+                        key={`${res.category}-${res.id}-${idx}`}
+                        onClick={() => handleSelectDashSearchResult(res)}
+                        style={{
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          transition: 'all 0.12s ease',
+                          fontSize: '12px',
+                          background: '#ffffff'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#FAF0F3'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            background: res.badgeBg || '#F5E8ED',
+                            color: res.badgeColor || '#7A1F3D',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <IconComponent size={16} />
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
+                                {res.docNumber || res.id}
+                              </span>
+                              <span style={{
+                                fontSize: '9.5px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: res.badgeBg || 'var(--status-neutral-bg)',
+                                color: res.badgeColor || 'var(--text-muted)'
+                              }}>
+                                {res.docType}
+                              </span>
+                              {res.status && (
+                                <span style={{
+                                  fontSize: '9.5px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'var(--border-subtle)',
+                                  color: 'var(--text-secondary)'
+                                }}>
+                                  {res.status}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                              marginTop: '2px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {res.subtitle || res.title}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div>
+                            {res.metaPrimary && (
+                              <div className="mono" style={{ fontWeight: 700, color: res.badgeColor || 'var(--text-main)', fontSize: '11.5px' }}>
+                                {res.metaPrimary}
+                              </div>
+                            )}
+                            {res.metaSecondary && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                {res.metaSecondary}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            background: 'var(--bg-surface-subtle)',
+                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <ArrowRight size={12} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* KPI Cards Grid */}
       <div className="metrics-grid">
         {metrics.map((metric) => (
