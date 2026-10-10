@@ -495,19 +495,22 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
   };
 
   // Print & PDF exports
-  const handlePrint = () => {
+  const handlePrint = async () => {
     try {
-      window.print();
-      if (onNotify) onNotify(`Print dialog opened for Tax Invoice ${selectedInvoice?.invoiceNumber || selectedInvoice?.id}`);
+      if (selectedInvoice) {
+        await exportTaxInvoicePdf(selectedInvoice, 'print');
+        if (onNotify) onNotify(`Opening Tax Invoice ${selectedInvoice.invoiceNumber || selectedInvoice.id} for printing`);
+      }
     } catch (err) {
       console.error('Failed to print Tax Invoice:', err);
+      if (onNotify) onNotify('Failed to print Tax Invoice', 'error');
     }
   };
 
   const handleDownloadPdf = async () => {
     try {
       if (selectedInvoice) {
-        await exportTaxInvoicePdf(selectedInvoice);
+        await exportTaxInvoicePdf(selectedInvoice, 'download');
         if (onNotify) onNotify(`Tax Invoice ${selectedInvoice.invoiceNumber || selectedInvoice.id} downloaded (PDF)`);
       }
     } catch (err) {
@@ -889,10 +892,10 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                       className="btn btn-secondary btn-sm"
                       onClick={handlePrint}
                       title="Print official Tax Invoice"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
                       <Printer size={12} />
-                      <span>Print PDF</span>
+                      <span>Print</span>
                     </button>
 
                     {/* Download PDF */}
@@ -933,14 +936,15 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                 </div>
 
                 {/* Printable Document Paper Sheet Container */}
-                <div style={{ padding: '24px', background: '#f8fafc', overflowX: 'auto', minHeight: 'calc(100vh - 360px)' }}>
+                <div style={{ padding: '16px 0', background: 'transparent', overflowX: 'auto', minHeight: 'calc(100vh - 360px)' }}>
                   <div 
                     id="printable-tax-invoice"
                     style={{
                       maxWidth: '780px',
                       margin: '0 auto',
                       background: '#ffffff',
-                      boxShadow: '0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03)',
+                      boxShadow: 'none',
+                      border: '1px solid var(--border-color)',
                       fontFamily: 'Arial, Helvetica, sans-serif',
                       color: '#000000',
                       padding: '20px 24px',

@@ -74,6 +74,15 @@ export const salesService = {
         total: Number(it.total_amount || 0)
       }));
 
+      let currentStatus = q.status === 'Sent' ? 'Under Review' : q.status;
+      try {
+        const overrides = JSON.parse(localStorage.getItem('gps_quotation_status_overrides') || '{}');
+        const key = q.id || q.quotation_number;
+        if (overrides[key]) currentStatus = overrides[key];
+        else if (q.quotation_number && overrides[q.quotation_number]) currentStatus = overrides[q.quotation_number];
+        else if (q.id && overrides[q.id]) currentStatus = overrides[q.id];
+      } catch (_e) {}
+
       return {
         id: q.quotation_number || q.id,
         dbId: q.id,
@@ -91,8 +100,8 @@ export const salesService = {
         challanNo: 'N/A',
         inwardDate: q.quotation_date || '2026-08-22',
         scopeOfWork: scopeLines.length > 0 ? scopeLines : ['1. DISMANTLE', '2. CLEANING', '3. INSPECTION', '4. ASSEMBLY', '5. DYNAMIC TEST'],
-        status: q.status === 'Sent' ? 'Under Review' : q.status,
-        rawStatus: q.status,
+        status: currentStatus,
+        rawStatus: currentStatus === 'Under Review' ? 'Sent' : currentStatus,
         subtotal: Number(q.subtotal || 0),
         taxRate: 18,
         gstAmount: Number(q.total_amount || 0) - Number(q.subtotal || 0),
@@ -277,11 +286,36 @@ export const salesService = {
    */
   async updateQuotationStatus(id, newStatus) {
     const dbStatus = newStatus === 'Under Review' ? 'Sent' : newStatus;
-    const filterField = id.includes('-') && id.length === 36 ? 'id' : 'quotation_number';
-    return await baseService.update('quotations', { [filterField]: id }, {
+
+    // Persist to local overrides cache for 100% offline & session durability
+    try {
+      const overrides = JSON.parse(localStorage.getItem('gps_quotation_status_overrides') || '{}');
+      overrides[String(id)] = newStatus;
+      localStorage.setItem('gps_quotation_status_overrides', JSON.stringify(overrides));
+    } catch (_e) {}
+
+    const isUuid = typeof id === 'string' && id.includes('-') && id.length === 36;
+    const filterField = isUuid ? 'id' : 'quotation_number';
+
+    let res = await baseService.update('quotations', { [filterField]: id }, {
       status: dbStatus,
       updated_at: new Date().toISOString()
     });
+
+    // If update by quotation_number failed or had an error, try finding UUID and update
+    if (res && res.error && !isUuid) {
+      try {
+        const q = await this.getQuotationById(id);
+        if (q.data && q.data.id) {
+          res = await baseService.update('quotations', { id: q.data.id }, {
+            status: dbStatus,
+            updated_at: new Date().toISOString()
+          });
+        }
+      } catch (_e) {}
+    }
+
+    return res || { data: { status: dbStatus }, error: null };
   },
 
   /**

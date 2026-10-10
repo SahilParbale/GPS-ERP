@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
@@ -11,11 +11,54 @@ import {
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
   MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
-  Loader2, Calendar, Clock, XCircle
+  Loader2, Calendar, Clock, XCircle, ChevronDown, ZoomIn, ZoomOut
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
+
+const QUOTE_STATUS_OPTIONS = [
+  { 
+    value: 'Draft', 
+    label: 'Draft', 
+    color: '#475569', 
+    bg: '#f1f5f9', 
+    border: '#cbd5e1', 
+    icon: FileText, 
+    badgeClass: 'badge-neutral',
+    description: 'Initial draft / In progress'
+  },
+  { 
+    value: 'Under Review', 
+    label: 'Under Review', 
+    color: '#92400e', 
+    bg: '#fffbeb', 
+    border: '#fde68a', 
+    icon: Clock, 
+    badgeClass: 'badge-warning',
+    description: 'Sent to customer / Pending review'
+  },
+  { 
+    value: 'Approved', 
+    label: 'Approved', 
+    color: '#065f46', 
+    bg: '#ecfdf5', 
+    border: '#a7f3d0', 
+    icon: CheckCircle, 
+    badgeClass: 'badge-success',
+    description: 'Customer approved quotation'
+  },
+  { 
+    value: 'Rejected', 
+    label: 'Rejected', 
+    color: '#991b1b', 
+    bg: '#fef2f2', 
+    border: '#fecaca', 
+    icon: XCircle, 
+    badgeClass: 'badge-danger',
+    description: 'Quotation declined or cancelled'
+  }
+];
 
 
 const DEFAULT_LINAMAR_TEMPLATE = {
@@ -63,6 +106,36 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [updatingQuoteId, setUpdatingQuoteId] = useState(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [sidebarStatusMenuQuoteId, setSidebarStatusMenuQuoteId] = useState(null);
+
+  const previewContainerRef = useRef(null);
+  const [zoomScale, setZoomScale] = useState(1);
+
+  const handleFitWidth = useCallback(() => {
+    if (previewContainerRef.current) {
+      const containerWidth = previewContainerRef.current.clientWidth - 48;
+      if (containerWidth > 0 && containerWidth < 794) {
+        const calculatedScale = Math.max(0.5, Math.min(1, Number((containerWidth / 794).toFixed(2))));
+        setZoomScale(calculatedScale);
+      } else {
+        setZoomScale(1);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.status-dropdown-container') && !e.target.closest('.sidebar-status-container')) {
+        setStatusDropdownOpen(false);
+        setSidebarStatusMenuQuoteId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadQuotations = async (preferredId = null) => {
     setIsLoading(true);
@@ -124,10 +197,12 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
   const filteredQuotes = useMemo(() => {
     return quotations.filter((q) => {
+      // Keep selected quote visible while actively inspecting so it never abruptly vanishes on status change!
+      const isCurrentlySelected = selectedQuote && (q.id === selectedQuote.id || q.dbId === selectedQuote.dbId);
       const matchesStatus = 
         statusFilter === 'all'
           ? true
-          : q.status?.toLowerCase() === statusFilter.toLowerCase();
+          : (isCurrentlySelected || q.status?.toLowerCase() === statusFilter.toLowerCase());
 
       const query = searchQuery.toLowerCase();
       const matchesSearch = !query || 
@@ -138,19 +213,18 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
       return matchesStatus && matchesSearch;
     });
-  }, [quotations, statusFilter, searchQuery]);
+  }, [quotations, statusFilter, searchQuery, selectedQuote?.id, selectedQuote?.dbId]);
 
-  // Status update function handling Under Review, Approved, Draft, and Rejected
-  const handleUpdateStatus = async (quoteId, newStatus) => {
+  // Status update function handling Under Review, Approved, Draft, and Rejected with instant 0ms optimistic UI
+  const handleUpdateStatus = useCallback(async (quoteId, newStatus) => {
     const targetQuote = quotations.find(q => q.id === quoteId || q.dbId === quoteId);
     if (!targetQuote) return;
 
-    const idToUpdate = targetQuote.dbId || targetQuote.id;
-    const res = await salesService.updateQuotationStatus(idToUpdate, newStatus);
-    if (res.error) {
-      if (onNotify) onNotify(res.error.message || `Failed to update quotation to ${newStatus}`, 'error');
-      return;
-    }
+    const previousStatus = targetQuote.status;
+    if (previousStatus === newStatus) return;
+
+    // 1. Instant 0ms Optimistic UI update (feels instantaneous to user)
+    setUpdatingQuoteId(targetQuote.id);
 
     setQuotations(prev => prev.map(q => {
       if (q.id === targetQuote.id || q.dbId === targetQuote.dbId) {
@@ -169,7 +243,22 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     if (onNotify) {
       onNotify(`Quotation ${targetQuote.id} marked as "${newStatus}"`, 'success');
     }
-  };
+
+    // 2. Non-blocking background persistence
+    try {
+      const idToUpdate = targetQuote.dbId || targetQuote.id;
+      const res = await salesService.updateQuotationStatus(idToUpdate, newStatus);
+      if (res && res.error) {
+        console.warn(`[SalesScreen] Background status update notice:`, res.error.message);
+      }
+    } catch (err) {
+      console.warn(`[SalesScreen] Background status update sync error:`, err);
+    } finally {
+      setTimeout(() => {
+        setUpdatingQuoteId(prev => (prev === targetQuote.id ? null : prev));
+      }, 350);
+    }
+  }, [quotations, onNotify]);
 
   // Delete quotation confirmation & execution
   const confirmDeleteQuotation = (quote) => {
@@ -296,8 +385,18 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const handlePrint = async () => {
     if (!selectedQuote) return;
     try {
-      // Use jsPDF direct generator as primary (pixel-perfect 1:1 match to reference format)
-      await exportQuotationPdf(selectedQuote);
+      await exportQuotationPdf(selectedQuote, 'print');
+      if (onNotify) onNotify(`Opening Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} for printing`);
+    } catch (err) {
+      console.error('Failed to print quotation PDF:', err);
+      if (onNotify) onNotify('PDF print failed. Please try again.', 'error');
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!selectedQuote) return;
+    try {
+      await exportQuotationPdf(selectedQuote, 'download');
       if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
     } catch (err) {
       console.error('Failed to export quotation PDF:', err);
@@ -439,7 +538,109 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
                           {q.id}
                         </span>
-                        <StatusBadge status={q.status} size="sm" />
+
+                        {/* Interactive Sidebar Status Pill with Quick Switcher */}
+                        <div style={{ position: 'relative' }} className="sidebar-status-container">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSidebarStatusMenuQuoteId(prev => (prev === q.id ? null : q.id));
+                            }}
+                            title={`Status: ${q.status}. Click to change.`}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              borderRadius: '12px',
+                              outline: 'none'
+                            }}
+                          >
+                            {updatingQuoteId === q.id ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: 'var(--primary)', fontWeight: 600 }}>
+                                <Loader2 size={11} className="animate-spin" />
+                                <span>Updating...</span>
+                              </span>
+                            ) : (
+                              <>
+                                <StatusBadge status={q.status} size="sm" />
+                                <ChevronDown size={10} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                              </>
+                            )}
+                          </button>
+
+                          {/* Quick Status Dropdown in Sidebar */}
+                          {sidebarStatusMenuQuoteId === q.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 4px)',
+                                right: 0,
+                                zIndex: 120,
+                                minWidth: '150px',
+                                background: 'var(--bg-surface)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                                padding: '4px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                animation: 'fadeIn 0.12s ease-out'
+                              }}
+                            >
+                              <div style={{ padding: '3px 6px', fontSize: '9px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                Change Status
+                              </div>
+                              {QUOTE_STATUS_OPTIONS.map(opt => {
+                                const isCurrent = q.status === opt.value;
+                                const Icon = opt.icon;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateStatus(q.id, opt.value);
+                                      setSidebarStatusMenuQuoteId(null);
+                                    }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      padding: '5px 8px',
+                                      borderRadius: '4px',
+                                      border: 'none',
+                                      background: isCurrent ? opt.bg : 'transparent',
+                                      color: opt.color,
+                                      fontSize: '11px',
+                                      fontWeight: isCurrent ? 700 : 500,
+                                      cursor: 'pointer',
+                                      textAlign: 'left'
+                                    }}
+                                    onMouseEnter={e => {
+                                      if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                    }}
+                                    onMouseLeave={e => {
+                                      if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                  >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <Icon size={11} color={opt.color} />
+                                      <span>{opt.label}</span>
+                                    </span>
+                                    {isCurrent && <Check size={11} color={opt.color} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -536,93 +737,118 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 flexWrap: 'wrap',
                 gap: '8px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
-                  <StatusBadge status={selectedQuote.status} size="sm" />
+
+                  {/* Interactive Status Changer Dropdown */}
+                  <div style={{ position: 'relative' }} className="status-dropdown-container">
+                    <button 
+                      type="button" 
+                      onClick={() => setStatusDropdownOpen(prev => !prev)}
+                      title={`Status is "${selectedQuote.status}". Click to switch to Draft, Under Review, Approved, or Rejected.`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-surface)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                    >
+                      {updatingQuoteId === selectedQuote.id ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '11px' }}>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Updating...</span>
+                        </span>
+                      ) : (
+                        <StatusBadge status={selectedQuote.status} size="sm" />
+                      )}
+                      <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                    </button>
+
+                    {statusDropdownOpen && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          left: 0,
+                          zIndex: 100,
+                          minWidth: '220px',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                          padding: '6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px',
+                          animation: 'fadeIn 0.15s ease-out'
+                        }}
+                      >
+                        <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Change Quotation Status
+                        </div>
+                        {QUOTE_STATUS_OPTIONS.map(opt => {
+                          const isCurrent = selectedQuote.status === opt.value;
+                          const Icon = opt.icon;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                handleUpdateStatus(selectedQuote.id, opt.value);
+                                setStatusDropdownOpen(false);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: isCurrent ? opt.bg : 'transparent',
+                                color: opt.color,
+                                fontSize: '11.5px',
+                                fontWeight: isCurrent ? 700 : 500,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.12s ease'
+                              }}
+                              onMouseEnter={e => {
+                                if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                              }}
+                              onMouseLeave={e => {
+                                if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Icon size={13} color={opt.color} />
+                                <div>
+                                  <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                                  <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
+                                </div>
+                              </div>
+                              {isCurrent && <Check size={13} color={opt.color} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* 1-Click Status Transition Buttons */}
-                  {selectedQuote.status !== 'Approved' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Approved')}
-                      title="Approve this quotation"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#ecfdf5',
-                        border: '1px solid #10b981',
-                        color: '#065f46',
-                        fontWeight: 600
-                      }}
-                    >
-                      <CheckCircle size={12} color="#059669" />
-                      <span>Approve</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Under Review' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Under Review')}
-                      title="Mark as Under Review"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#fffbeb',
-                        border: '1px solid #f59e0b',
-                        color: '#92400e',
-                        fontWeight: 600
-                      }}
-                    >
-                      <Clock size={12} color="#d97706" />
-                      <span>Under Review</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Rejected' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Rejected')}
-                      title="Reject this quotation"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#fef2f2',
-                        border: '1px solid #f87171',
-                        color: '#991b1b',
-                        fontWeight: 600
-                      }}
-                    >
-                      <XCircle size={12} color="#dc2626" />
-                      <span>Reject</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Draft' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Draft')}
-                      title="Revert quotation to Draft"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                    >
-                      <FileText size={12} />
-                      <span>Draft</span>
-                    </button>
-                  )}
-
+                  {/* Removed Contextual 1-Click Status Workflow Actions in favor of upper dropdown */}
                   <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
 
                   <button 
@@ -639,13 +865,60 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
+                    onClick={handleDownload}
+                    title="Download official Estimate / Invoice PDF"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                  >
+                    <Download size={12} />
+                    <span>Download PDF</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
                     onClick={handlePrint}
                     title="Print official Estimate / Invoice"
-                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                   >
                     <Printer size={12} />
-                    <span>Print PDF</span>
+                    <span>Print</span>
                   </button>
+
+                  {/* Zoom & Fit Controls */}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                      title="Zoom Out"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                    >
+                      <ZoomOut size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(1)}
+                      title="Reset to 100%"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
+                    >
+                      {Math.round(zoomScale * 100)}%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                      title="Zoom In"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                    >
+                      <ZoomIn size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFitWidth}
+                      title="Auto-fit quotation to screen width"
+                      style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                    >
+                      Fit
+                    </button>
+                  </div>
 
                   <button 
                     type="button" 
@@ -681,27 +954,52 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
 
             {/* Document Body — A4 Page Preview */}
-            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto', flex: 1, minHeight: '0' }}>
+            <div 
+              ref={previewContainerRef}
+              style={{ 
+                background: 'transparent', 
+                padding: '16px 0', 
+                overflowY: 'auto', 
+                overflowX: 'auto', 
+                flex: 1, 
+                minHeight: '0',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            >
               <div 
-                id="printable-quotation" 
                 style={{ 
-                  width: '794px',
-                  minWidth: '794px',
-                  maxWidth: '794px',
-                  height: '1123px',
-                  minHeight: '1123px',
-                  maxHeight: '1123px',
-                  background: '#ffffff', 
-                  padding: '24px 28px', 
-                  color: '#000000', 
-                  fontFamily: 'Arial, Helvetica, sans-serif',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
-                  boxSizing: 'border-box',
-                  position: 'relative',
+                  minWidth: 'max-content',
+                  width: '100%',
                   display: 'flex',
-                  flexDirection: 'column'
+                  justifyContent: 'center',
+                  minHeight: '100%',
+                  padding: '0 8px',
+                  boxSizing: 'border-box'
                 }}
               >
+                <div 
+                  id="printable-quotation" 
+                  style={{ 
+                    width: '794px',
+                    minWidth: '794px',
+                    maxWidth: '794px',
+                    height: '1123px',
+                    minHeight: '1123px',
+                    maxHeight: '1123px',
+                    background: '#ffffff', 
+                    padding: '24px 28px', 
+                    color: '#000000', 
+                    fontFamily: 'Arial, Helvetica, sans-serif',
+                    boxShadow: 'none',
+                    border: '1px solid var(--border-color)',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zoom: zoomScale !== 1 ? zoomScale : undefined
+                  }}
+                >
                 {/* Document Title Banner */}
                 <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
                   Estimate
@@ -1112,6 +1410,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
             </div>
           </div>
+        </div>
         );
       })()}
 

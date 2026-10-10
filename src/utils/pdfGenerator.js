@@ -344,7 +344,7 @@ const drawSignatory = (doc, startY, leftLabel = 'Prepared & Verified By', rightL
 // ==========================================
 // 1. TAX INVOICE GENERATOR (1:1 Replica of Tax Invoice_INV2026-27 265_PS MAINTENANCE.pdf)
 // ==========================================
-export const exportTaxInvoicePdf = async (inv = {}) => {
+export const exportTaxInvoicePdf = async (inv = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const marginX = 14;
@@ -925,9 +925,15 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(inv.invoiceNumber || inv.id || 'INV2026-27_265').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Tax_Invoice_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Tax_Invoice_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================
@@ -1596,7 +1602,7 @@ export const exportPurchaseOrderRegisterPdf = (orders = []) => {
 // ==========================================
 // 5. PROFORMA INVOICE (PI) PDF (EXACT 1:1 REPLICA OF PROFORMA INVOICE_27_TTB.PDF)
 // ==========================================
-export const exportProformaInvoicePdf = async (pi = {}) => {
+export const exportProformaInvoicePdf = async (pi = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
@@ -2207,9 +2213,15 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(pi.piNumber || pi.id || 'PI_27').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Proforma_Invoice_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Proforma_Invoice_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================
@@ -3039,7 +3051,7 @@ export const exportJobTravelerPdf = (wo, operations = []) => {
 // ==========================================
 // 15. OFFICIAL ESTIMATE / QUOTATION PDF (100% EXACT 1:1 REPLICA OF ESTIMATE_QTN 2026-27 294 PDF)
 // ==========================================
-export const exportQuotationPdf = async (quote = {}) => {
+export const exportQuotationPdf = async (quote = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
@@ -3573,9 +3585,15 @@ export const exportQuotationPdf = async (quote = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + actualBottomH - 4.5, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(quote.estimateNo || quote.id || 'QTN-2026').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Estimate_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Estimate_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================

@@ -440,18 +440,12 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
     }
   };
 
-  // Status updates (Ready to Send, Sent)
+  // Status updates (Ready to Send, Sent) with instant 0ms optimistic UI
   const handleUpdateStatus = async (piId, newStatus) => {
     const targetPI = proformaInvoices.find(p => p.id === piId || p.dbId === piId);
     if (!targetPI) return;
 
-    const idToUpdate = targetPI.dbId || targetPI.id;
-    const res = await proformaInvoiceService.updateProformaInvoiceStatus(idToUpdate, newStatus);
-    if (res.error) {
-      if (onNotify) onNotify(res.error.message || `Failed to update Proforma Invoice to ${newStatus}`, 'error');
-      return;
-    }
-
+    // 1. Instant 0ms optimistic UI update
     setProformaInvoices(prev => prev.map(p => {
       if (p.id === targetPI.id || p.dbId === targetPI.dbId) {
         return { ...p, status: newStatus, rawStatus: newStatus };
@@ -466,7 +460,18 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
       return prev;
     });
 
-    if (onNotify) onNotify(`Proforma Invoice status updated to ${newStatus}`);
+    if (onNotify) onNotify(`Proforma Invoice status updated to ${newStatus}`, 'success');
+
+    // 2. Non-blocking background sync
+    try {
+      const idToUpdate = targetPI.dbId || targetPI.id;
+      const res = await proformaInvoiceService.updateProformaInvoiceStatus(idToUpdate, newStatus);
+      if (res && res.error) {
+        console.warn(`[ProformaInvoiceScreen] Status sync notice:`, res.error.message);
+      }
+    } catch (err) {
+      console.warn(`[ProformaInvoiceScreen] Background status sync error:`, err);
+    }
   };
 
   // Delete Proforma Invoice with confirmation
@@ -493,19 +498,22 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   };
 
   // Print & PDF exports
-  const handlePrint = () => {
+  const handlePrint = async () => {
     try {
-      window.print();
-      if (onNotify) onNotify(`Print dialog opened for Proforma Invoice ${selectedPI?.piNumber || selectedPI?.id}`);
+      if (selectedPI) {
+        await exportProformaInvoicePdf(selectedPI, 'print');
+        if (onNotify) onNotify(`Opening Proforma Invoice ${selectedPI.piNumber || selectedPI.id} for printing`);
+      }
     } catch (err) {
       console.error('Failed to print PI:', err);
+      if (onNotify) onNotify('Failed to print PI', 'error');
     }
   };
 
   const handleDownloadPdf = async () => {
     try {
       if (selectedPI) {
-        await exportProformaInvoicePdf(selectedPI);
+        await exportProformaInvoicePdf(selectedPI, 'download');
         if (onNotify) onNotify(`Proforma Invoice ${selectedPI.piNumber || selectedPI.id} downloaded (PDF)`);
       }
     } catch (err) {
@@ -990,10 +998,10 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       className="btn btn-secondary btn-sm"
                       onClick={handlePrint}
                       title="Print official Proforma Invoice"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
                       <Printer size={12} />
-                      <span>Print PDF</span>
+                      <span>Print</span>
                     </button>
 
                     <button 
@@ -1042,18 +1050,26 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
                 {/* Document Body — Authentic 1:1 A4 Page Preview matching Proforma Invoice_27_TTB.pdf */}
                 <div style={{ 
-                  background: '#525659', 
-                  padding: '24px 16px', 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'flex-start', 
+                  background: 'transparent', 
+                  padding: '16px 0', 
                   overflowY: 'auto', 
                   overflowX: 'auto', 
                   flex: 1, 
-                  minHeight: '0' 
+                  minHeight: '0',
+                  width: '100%',
+                  boxSizing: 'border-box'
                 }}>
-                  <div 
-                    id="printable-proforma" 
+                  <div style={{
+                    minWidth: 'max-content',
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    minHeight: '100%',
+                    padding: '0 8px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <div 
+                      id="printable-proforma" 
                     style={{ 
                       width: '794px',
                       minWidth: '794px',
@@ -1065,7 +1081,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       padding: '24px 28px', 
                       color: '#000000', 
                       fontFamily: 'Arial, Helvetica, sans-serif',
-                      boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                      boxShadow: 'none',
+                      border: '1px solid var(--border-color)',
                       boxSizing: 'border-box',
                       position: 'relative',
                       display: 'flex',
@@ -1489,6 +1506,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   </div>
                 </div>
               </div>
+            </div>
             );
           })()}
         </div>

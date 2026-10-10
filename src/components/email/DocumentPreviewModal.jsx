@@ -158,15 +158,22 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     try {
-      window.print();
-      if (onNotify) {
-        onNotify(`Print dialog opened for official ${docId}`);
-      }
+      if (isPO) await exportPurchaseOrderPdf(doc, 'print');
+      else if (isPI) await exportProformaInvoicePdf(doc, 'print');
+      else if (isInvoice) await exportTaxInvoicePdf(doc, 'print');
+      else if (isEWB) await exportEWayBillPdf(doc, 'print');
+      else if (isReport) { window.print(); }
+      else if (isCalibration) await exportCalibrationCertificatePdf(doc, 'print');
+      else if (isJobTraveler) await exportJobTravelerPdf(doc, operations, 'print');
+      else if (isService) await exportServiceJobReportPdf(doc, 'print');
+      else await exportQuotationPdf(doc, 'print');
+      
+      if (onNotify) onNotify(`Opening official ${docId} for printing`);
     } catch (err) {
       console.error('Failed to prepare document for printing:', err);
-      window.print();
+      if (onNotify) onNotify('Failed to print document', 'error');
     }
   };
 
@@ -354,7 +361,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
             : computeHsn(piItems);
 
           return (
-            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto' }}>
+            <div style={{ background: 'transparent', padding: '16px 0', overflowY: 'auto', overflowX: 'auto', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', justifyContent: 'center', minHeight: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
               <div 
                 style={{ 
                   width: '794px',
@@ -367,7 +375,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                   padding: '24px 28px', 
                   color: '#000000', 
                   fontFamily: 'Arial, Helvetica, sans-serif',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                  boxShadow: 'none',
+                  border: '1px solid var(--border-color)',
                   boxSizing: 'border-box',
                   position: 'relative',
                   display: 'flex',
@@ -775,6 +784,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                 </div>
               </div>
             </div>
+          </div>
           );
         })()}
 
@@ -815,7 +825,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
           const suppAddress = doc.supplierAddress || partyAddress || 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad\nPune, Maharashtra-411019\nIndia';
 
           return (
-            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto' }}>
+            <div style={{ background: 'transparent', padding: '16px 0', overflowY: 'auto', overflowX: 'auto', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', justifyContent: 'center', minHeight: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
               <div 
                 style={{ 
                   width: '794px',
@@ -828,7 +839,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                   padding: '24px 28px', 
                   color: '#000000', 
                   fontFamily: 'Arial, Helvetica, sans-serif',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                  boxShadow: 'none',
+                  border: '1px solid var(--border-color)',
                   boxSizing: 'border-box',
                   position: 'relative',
                   display: 'flex',
@@ -1157,6 +1169,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                 </div>
               </div>
             </div>
+          </div>
           );
         })()}
 
