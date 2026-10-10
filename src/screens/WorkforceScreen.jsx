@@ -19,12 +19,14 @@ import {
 import { workforceService } from '../services/database/workforceService';
 import { leaveService } from '../services/database/leaveService';
 import { manufacturingService } from '../services/database/manufacturingService';
+import { serviceService } from '../services/database/serviceService';
+import { SERVICE_JOBS } from '../data/mockData';
 import { exportWorkLogPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import {
   Search, Filter, Plus, Users, Clock, AlertTriangle,
   CheckCircle2, AlertCircle, ArrowRight, Eye, UserCheck,
-  Briefcase, Activity, Shield, Cpu, ChevronRight, X,
+  Briefcase, Activity, Shield, Cpu, ChevronRight, X, Cog,
   Calendar, CheckSquare, Layers, Wrench, RefreshCw,
   Download, Play, Pause, Check, Edit3, MessageSquare,
   FileText, TrendingUp, BarChart2, Info, ChevronDown, CornerDownRight, XCircle
@@ -51,6 +53,34 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [activityFeed, setActivityFeed] = useState(INITIAL_ACTIVITY_FEED);
   const [bayAllocations, setBayAllocations] = useState([]);
   const [availableWorkOrders, setAvailableWorkOrders] = useState([]);
+  const [availableJobs, setAvailableJobs] = useState([]);
+
+  // Active Jobs Tab State
+  const [jobTypeFilter, setJobTypeFilter] = useState('all');
+  const [jobPriorityFilter, setJobPriorityFilter] = useState('all');
+  const [jobStatusFilter, setJobStatusFilter] = useState('all');
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [jobSortBy, setJobSortBy] = useState('priority');
+  const [isAssignJobModalOpen, setIsAssignJobModalOpen] = useState(false);
+  const [assignJobTarget, setAssignJobTarget] = useState(null);
+  const [assignJobForm, setAssignJobForm] = useState({
+    employeeId: '',
+    task: '',
+    expectedDuration: '2h 00m',
+    remarks: ''
+  });
+
+  // Shift & Takeover State
+  const [shiftSummary, setShiftSummary] = useState(INITIAL_SHIFT_SUMMARY);
+  const [isTakeoverModalOpen, setIsTakeoverModalOpen] = useState(false);
+  const [takeoverForm, setTakeoverForm] = useState({
+    targetShift: 'Second Shift',
+    incomingSupervisor: 'Santosh Shinde (Shift Lead B)',
+    handoverNotes: 'All machine bays checked. Bay 2 Studer S33 grinding journal at 75%. Service Bay spindle test complete.',
+    checklistSafety: true,
+    checklistBays: true,
+    checklistWIP: true
+  });
 
   // Phase 8: Daily Attendance & Leave Management State
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -79,13 +109,14 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     setIsLoadingStaff(true);
     setStaffError(null);
     try {
-      const [staffRes, logsRes, baysRes, wosRes, attendanceRes, leavesRes] = await Promise.all([
+      const [staffRes, logsRes, baysRes, wosRes, attendanceRes, leavesRes, serviceRes] = await Promise.all([
         workforceService.getStaffList().catch(err => ({ error: err })),
         workforceService.getWorkLogs().catch(err => ({ error: err })),
         manufacturingService.getBayAssignments().catch(err => ({ error: err })),
         workOrderService.getWorkOrders().catch(err => ({ error: err })),
         workforceService.getAttendance().catch(err => ({ error: err })),
-        leaveService.getLeaveRequests().catch(err => ({ error: err }))
+        leaveService.getLeaveRequests().catch(err => ({ error: err })),
+        serviceService.getServiceJobs().catch(err => ({ error: err }))
       ]);
 
       if (staffRes?.error) {
@@ -117,7 +148,34 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       setStaffList(mergedStaff);
       if (logsRes?.data) setWorkLogs(logsRes.data);
       if (baysRes?.data) setBayAllocations(baysRes.data);
-      if (wosRes?.data) setAvailableWorkOrders(wosRes.data);
+      
+      const wos = wosRes?.data || [];
+      setAvailableWorkOrders(wos);
+
+      const prodJobs = wos.map(wo => ({
+        id: wo.id || wo.workOrderNo,
+        type: 'production',
+        typeLabel: 'Production',
+        serial: wo.spindleSerial || wo.serial || 'Spindle',
+        model: wo.spindleModel || 'Motorized Spindle',
+        customer: wo.customer || 'Customer',
+        defaultBay: wo.shopBay || 'Bay 1 - Machining Floor',
+        defaultMachine: 'Okuma CNC Lathe'
+      }));
+
+      const servList = (serviceRes?.data && serviceRes.data.length > 0) ? serviceRes.data : SERVICE_JOBS;
+      const srvJobs = servList.map(srv => ({
+        id: srv.id || srv.srNumber,
+        type: 'service',
+        typeLabel: 'Service Repair',
+        serial: srv.spindleSerial || 'Spindle',
+        model: srv.spindleModel || 'Rebuild Spindle',
+        customer: srv.customer || 'Customer',
+        defaultBay: 'Service Bay',
+        defaultMachine: 'Service Teardown & Balancing Rig'
+      }));
+
+      setAvailableJobs([...prodJobs, ...srvJobs]);
 
       if (attendanceRes?.error) {
         setAttendanceError(attendanceRes.error);
@@ -832,6 +890,48 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
   };
 
   // ==========================================
+  // ACTION: DAILY SHIFT TAKEOVER & HANDOVER
+  // ==========================================
+  const handleSaveShiftTakeover = (e) => {
+    e.preventDefault();
+    const newShift = takeoverForm.targetShift;
+    const newSup = takeoverForm.incomingSupervisor;
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setShiftSummary(prev => ({
+      ...prev,
+      shiftName: newShift,
+      timing: newShift === 'Second Shift' ? '02:30 PM - 11:00 PM' : '06:00 AM - 02:30 PM',
+      supervisor: newSup,
+      staffWorking: Math.floor(prev.staffScheduled * 0.85)
+    }));
+
+    setActivityFeed(prev => [
+      {
+        id: `act-${Date.now()}`,
+        time: nowTime,
+        timestamp: new Date().toISOString(),
+        employeeName: newSup,
+        employeeId: 'GPS-SUP-02',
+        action: 'completed',
+        task: `Daily Shift Takeover: ${newShift}`,
+        workOrder: 'PLANT-OPS',
+        spindle: '—',
+        machine: 'All Bays',
+        bay: 'Shop Floor Central',
+        status: 'Working',
+        detail: `Daily shift takeover completed by ${newSup}. Handover notes: "${takeoverForm.handoverNotes}"`
+      },
+      ...prev
+    ]);
+
+    setIsTakeoverModalOpen(false);
+    if (onNotify) {
+      onNotify(`Daily Shift Takeover executed successfully: ${newShift} under ${newSup}.`);
+    }
+  };
+
+  // ==========================================
   // ACTION: ATTENDANCE CLOCK-IN / CLOCK-OUT
   // ==========================================
   const handleOpenClockIn = () => {
@@ -999,7 +1099,32 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           </span>
         }
       >
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {onNavigate && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => onNavigate('production')}
+                title="Go to Production Management"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+              >
+                <Cog size={13} />
+                <span>Production</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => onNavigate('service')}
+                title="Go to Service & Repair"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+              >
+                <Wrench size={13} />
+                <span>Service</span>
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             className="btn btn-secondary"
@@ -1023,6 +1148,16 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           <button
             type="button"
             className="btn btn-primary"
+            onClick={() => setActiveTab('jobs')}
+            title="Open Active Jobs Command Center"
+          >
+            <Briefcase size={14} />
+            <span>Active Jobs</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={() => handleOpenAddLog(null)}
             title="Record an employee work log entry"
           >
@@ -1110,13 +1245,14 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       {/* 4. MAIN WORKFORCE NAVIGATION TABS */}
       <Tabs
         tabs={[
-          { id: 'live', label: "Who's Working Now (Table)", count: staffList.filter(s => s.status === 'Working' || s.status === 'Overtime').length },
-          { id: 'attendance', label: 'Daily Attendance & Time-Clock', count: attendanceRecords.length },
-          { id: 'leaves', label: 'Leave Requests & Balances', count: leaveRequests.length },
-          { id: 'bays', label: 'Shop Floor Bays & Machines', count: bayAllocations.length },
-          { id: 'workload', label: 'Department Workload', count: INITIAL_DEPARTMENTS_WORKLOAD.length },
-          { id: 'logs', label: 'All Work Logs (History)', count: workLogs.length },
-          { id: 'shift', label: 'Shift Summary & Alerts', count: INITIAL_WORKFORCE_ALERTS.length }
+          { id: 'live', label: "Who's Working Now", count: staffList.filter(s => s.status === 'Working' || s.status === 'Overtime').length },
+          { id: 'jobs', label: '🎯 Active Jobs & Assign', count: availableJobs.length },
+          { id: 'attendance', label: 'Attendance & Time-Clock', count: attendanceRecords.length },
+          { id: 'leaves', label: 'Leave Requests', count: leaveRequests.length },
+          { id: 'bays', label: 'Shop Floor Bays', count: bayAllocations.length },
+          { id: 'workload', label: 'Dept Workload', count: INITIAL_DEPARTMENTS_WORKLOAD.length },
+          { id: 'logs', label: 'Work Logs (History)', count: workLogs.length },
+          { id: 'shift', label: 'Shift Summary', count: INITIAL_WORKFORCE_ALERTS.length }
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -2155,6 +2291,494 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       )}
 
       {/* ========================================================================= */}
+      {/* TAB: ACTIVE JOBS & PRIORITY ASSIGNMENT COMMAND CENTER                     */}
+      {/* ========================================================================= */}
+      {activeTab === 'jobs' && (() => {
+        const PRIORITY_ORDER = { 'Critical': 0, 'High': 1, 'Normal': 2, 'Low': 3 };
+        const PRIORITY_COLORS = {
+          Critical: { bg: '#fef2f2', border: '#fca5a5', badge: '#dc2626', text: '#991b1b' },
+          High:     { bg: '#fff7ed', border: '#fdba74', badge: '#ea580c', text: '#9a3412' },
+          Normal:   { bg: '#eff6ff', border: '#93c5fd', badge: '#2563eb', text: '#1d4ed8' },
+          Low:      { bg: '#f0fdf4', border: '#86efac', badge: '#16a34a', text: '#15803d' }
+        };
+        const STATUS_COLORS = {
+          'In Progress':      { bg: '#eff6ff', color: '#1d4ed8' },
+          'Active':           { bg: '#eff6ff', color: '#1d4ed8' },
+          'QC Pending':       { bg: '#fef9c3', color: '#92400e' },
+          'Under Diagnosis':  { bg: '#fdf4ff', color: '#7e22ce' },
+          'Under Inspection': { bg: '#fdf4ff', color: '#7e22ce' },
+          'Dispatch Ready':   { bg: '#f0fdf4', color: '#15803d' },
+          'Completed':        { bg: '#f0fdf4', color: '#15803d' },
+          'Paused':           { bg: '#fafafa', color: '#6b7280' },
+          'On Hold':          { bg: '#fafafa', color: '#6b7280' },
+        };
+
+        const productionJobs = availableWorkOrders.map(wo => ({
+          id: wo.id || wo.workOrderNo || `WO-${Math.random().toString(36).slice(2,8)}`,
+          type: 'production',
+          typeLabel: 'Production',
+          serial: wo.spindleSerial || wo.serial || 'Spindle',
+          model: wo.spindleModel || 'Motorized Spindle',
+          customer: wo.customer || 'Customer',
+          priority: wo.priority || 'Normal',
+          status: wo.status || 'In Progress',
+          currentStage: wo.currentStage || 'Machining',
+          dueDate: wo.dueDate || '—',
+          assignedTo: wo.assignedTo || staffList.find(s => s.workOrder === (wo.id || wo.workOrderNo))?.name || null,
+          bay: wo.shopBay || 'Bay 1 - Machining',
+          progress: wo.progress || 0,
+        }));
+
+        const serviceJobsAll = (SERVICE_JOBS || []).map(sr => ({
+          id: sr.id,
+          type: 'service',
+          typeLabel: 'Service Repair',
+          serial: sr.spindleSerial,
+          model: sr.spindleModel,
+          customer: sr.customer,
+          priority: sr.priority || 'Normal',
+          status: sr.status || 'In Progress',
+          currentStage: sr.currentStage || sr.lifecycle?.find(l => l.active)?.name || 'Inspection',
+          dueDate: sr.targetDate || '—',
+          assignedTo: staffList.find(s => s.workOrder === sr.id)?.name || sr.technician || null,
+          bay: 'Service Bay',
+          progress: sr.stageIndex ? Math.round((sr.stageIndex / 9) * 100) : 30,
+          complaint: sr.complaint
+        }));
+
+        let allJobs = [...productionJobs, ...serviceJobsAll];
+
+        // Filters
+        if (jobTypeFilter !== 'all') allJobs = allJobs.filter(j => j.type === jobTypeFilter);
+        if (jobPriorityFilter !== 'all') allJobs = allJobs.filter(j => (j.priority || '').toLowerCase() === jobPriorityFilter.toLowerCase());
+        if (jobStatusFilter !== 'all') allJobs = allJobs.filter(j => j.status.toLowerCase().includes(jobStatusFilter.toLowerCase()));
+        if (jobSearchQuery.trim()) {
+          const q = jobSearchQuery.toLowerCase().trim();
+          allJobs = allJobs.filter(j =>
+            j.id.toLowerCase().includes(q) ||
+            j.serial.toLowerCase().includes(q) ||
+            j.customer.toLowerCase().includes(q) ||
+            j.model.toLowerCase().includes(q) ||
+            (j.assignedTo || '').toLowerCase().includes(q)
+          );
+        }
+
+        // Sort
+        if (jobSortBy === 'priority') {
+          allJobs.sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4));
+        } else if (jobSortBy === 'due') {
+          allJobs.sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+        } else if (jobSortBy === 'progress_asc') {
+          allJobs.sort((a, b) => a.progress - b.progress);
+        } else if (jobSortBy === 'type') {
+          allJobs.sort((a, b) => a.type.localeCompare(b.type));
+        }
+
+        const criticalCount = allJobs.filter(j => j.priority === 'Critical').length;
+        const highCount = allJobs.filter(j => j.priority === 'High').length;
+        const unassignedCount = allJobs.filter(j => !j.assignedTo).length;
+        const prodCount = allJobs.filter(j => j.type === 'production').length;
+        const srvCount = allJobs.filter(j => j.type === 'service').length;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Jobs KPI Summary Strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+              {[
+                { label: 'Total Active Jobs', value: allJobs.length, color: '#7A1F3D', icon: '📋' },
+                { label: 'Production (WOs)', value: prodCount, color: '#0284c7', icon: '🔩' },
+                { label: 'Service Repairs', value: srvCount, color: '#7c3aed', icon: '🔧' },
+                { label: 'Critical Priority', value: criticalCount, color: '#dc2626', icon: '🚨' },
+                { label: 'High Priority', value: highCount, color: '#ea580c', icon: '⚠️' },
+                { label: 'Unassigned Jobs', value: unassignedCount, color: unassignedCount > 0 ? '#dc2626' : '#16a34a', icon: unassignedCount > 0 ? '❌' : '✅' },
+              ].map((kpi, i) => (
+                <div key={i} className="metric-card" style={{ borderTop: `3px solid ${kpi.color}` }}>
+                  <div className="metric-top">
+                    <span className="metric-label">{kpi.label}</span>
+                    <span style={{ fontSize: '18px' }}>{kpi.icon}</span>
+                  </div>
+                  <div className="metric-value" style={{ color: kpi.color, fontSize: '22px' }}>{kpi.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter + Search Bar */}
+            <div className="section-card" style={{ padding: '12px 16px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: '1 1 180px', minWidth: '150px' }}>
+                  <Search size={13} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search job ID, serial, customer..."
+                    value={jobSearchQuery}
+                    onChange={e => setJobSearchQuery(e.target.value)}
+                    style={{ paddingLeft: '30px', height: '32px', fontSize: '12px' }}
+                  />
+                </div>
+                <CustomSelect
+                  value={jobTypeFilter}
+                  onChange={e => setJobTypeFilter(e.target.value)}
+                  style={{ minWidth: '140px' }}
+                  options={[
+                    { value: 'all', label: 'All Types' },
+                    { value: 'production', label: '🔩 Production (WO)' },
+                    { value: 'service', label: '🔧 Service Repair (SR)' }
+                  ]}
+                />
+                <CustomSelect
+                  value={jobPriorityFilter}
+                  onChange={e => setJobPriorityFilter(e.target.value)}
+                  style={{ minWidth: '130px' }}
+                  options={[
+                    { value: 'all', label: 'All Priorities' },
+                    { value: 'critical', label: '🚨 Critical' },
+                    { value: 'high', label: '⚠️ High' },
+                    { value: 'normal', label: '✅ Normal' },
+                    { value: 'low', label: '🔵 Low' }
+                  ]}
+                />
+                <CustomSelect
+                  value={jobStatusFilter}
+                  onChange={e => setJobStatusFilter(e.target.value)}
+                  style={{ minWidth: '150px' }}
+                  options={[
+                    { value: 'all', label: 'All Statuses' },
+                    { value: 'progress', label: 'In Progress' },
+                    { value: 'qc', label: 'QC Pending' },
+                    { value: 'diagnosis', label: 'Under Diagnosis' },
+                    { value: 'dispatch', label: 'Dispatch Ready' }
+                  ]}
+                />
+                <CustomSelect
+                  value={jobSortBy}
+                  onChange={e => setJobSortBy(e.target.value)}
+                  style={{ minWidth: '145px' }}
+                  options={[
+                    { value: 'priority', label: 'Sort: Priority' },
+                    { value: 'due', label: 'Sort: Due Date' },
+                    { value: 'progress_asc', label: 'Sort: Progress ↑' },
+                    { value: 'type', label: 'Sort: Type' }
+                  ]}
+                />
+                <div style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  Showing <strong>{allJobs.length}</strong> jobs
+                </div>
+              </div>
+            </div>
+
+            {/* Jobs Board */}
+            {allJobs.length === 0 ? (
+              <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Briefcase size={32} style={{ marginBottom: '12px', opacity: 0.4 }} />
+                <div style={{ fontWeight: 600, fontSize: '14px' }}>No jobs match your filters</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>Try resetting filters or check if data is loaded from the database.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '12px' }}>
+                {allJobs.map(job => {
+                  const pc = PRIORITY_COLORS[job.priority] || PRIORITY_COLORS.Normal;
+                  const sc = STATUS_COLORS[job.status] || { bg: '#f8fafc', color: '#64748b' };
+                  const assignedStaff = staffList.find(s => s.name === job.assignedTo);
+
+                  return (
+                    <div
+                      key={job.id}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border: `1px solid ${pc.border}`,
+                        borderRadius: 'var(--radius-md)',
+                        borderLeft: `4px solid ${pc.badge}`,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+                      }}
+                    >
+                      {/* Job Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                            <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
+                              {job.id}
+                            </span>
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '3px',
+                              background: job.type === 'production' ? '#dbeafe' : '#ede9fe',
+                              color: job.type === 'production' ? '#1d4ed8' : '#6d28d9',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.3px'
+                            }}>
+                              {job.type === 'production' ? '🔩 PROD' : '🔧 SERVICE'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {job.model} · <span className="mono" style={{ fontSize: '11px' }}>{job.serial}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: pc.bg,
+                            color: pc.text,
+                            border: `1px solid ${pc.border}`
+                          }}>
+                            {job.priority}
+                          </span>
+                          <span style={{
+                            fontSize: '10.5px',
+                            padding: '1px 7px',
+                            borderRadius: '3px',
+                            background: sc.bg,
+                            color: sc.color,
+                            fontWeight: 600
+                          }}>
+                            {job.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Job Meta Row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11.5px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '1px' }}>Customer</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{job.customer}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '1px' }}>Current Stage</div>
+                          <div style={{ fontWeight: 600, color: '#334155' }}>{job.currentStage}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '1px' }}>Bay / Location</div>
+                          <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{job.bay}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '1px' }}>Due Date</div>
+                          <div className="mono" style={{ fontWeight: 600, color: '#b45309' }}>{job.dueDate}</div>
+                        </div>
+                      </div>
+
+                      {/* Progress */}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Overall Progress</span>
+                          <span className="mono" style={{ fontWeight: 700, color: pc.badge }}>{job.progress}%</span>
+                        </div>
+                        <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${job.progress}%`,
+                            background: `linear-gradient(90deg, ${pc.badge}, ${pc.text})`,
+                            borderRadius: '3px',
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                      </div>
+
+                      {/* Assigned Worker */}
+                      <div style={{
+                        padding: '8px 10px',
+                        background: job.assignedTo ? '#f0fdf4' : '#fef2f2',
+                        border: `1px solid ${job.assignedTo ? '#86efac' : '#fca5a5'}`,
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ fontSize: '11.5px' }}>
+                          {job.assignedTo ? (
+                            <>
+                              <div style={{ fontSize: '10px', color: '#15803d', fontWeight: 600, marginBottom: '1px' }}>ASSIGNED WORKER</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {assignedStaff && (
+                                  <div style={{
+                                    width: '22px', height: '22px', borderRadius: '50%',
+                                    background: assignedStaff.avatarColor || '#7A1F3D',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '9px', fontWeight: 700, color: '#fff'
+                                  }}>
+                                    {assignedStaff.initials || job.assignedTo.split(' ').map(n=>n[0]).join('')}
+                                  </div>
+                                )}
+                                <div>
+                                  <div style={{ fontWeight: 700, color: '#166534' }}>{job.assignedTo}</div>
+                                  {assignedStaff && (
+                                    <div style={{ fontSize: '10px', color: '#15803d' }}>{assignedStaff.role}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700, marginBottom: '1px' }}>⚠ UNASSIGNED</div>
+                              <div style={{ color: '#991b1b', fontSize: '11px' }}>No technician assigned</div>
+                            </>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '11px', padding: '3px 9px' }}
+                            onClick={() => {
+                              setAssignJobTarget(job);
+                              const defaultTask = job.type === 'production'
+                                ? job.currentStage + ' Operation'
+                                : job.currentStage + ' — Service';
+                              setAssignJobForm({
+                                employeeId: assignedStaff?.id || '',
+                                task: defaultTask,
+                                expectedDuration: '2h 00m',
+                                remarks: `Assigned to ${job.id} (${job.customer}).`
+                              });
+                              setIsAssignJobModalOpen(true);
+                            }}
+                            title="Assign or reassign a worker to this job"
+                          >
+                            <UserCheck size={12} />
+                            <span>{job.assignedTo ? 'Reassign' : 'Assign Worker'}</span>
+                          </button>
+                          {onNavigate && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '11px', padding: '3px 9px' }}
+                              onClick={() => {
+                                if (job.type === 'production') {
+                                  const wo = availableWorkOrders.find(w => w.id === job.id || w.workOrderNo === job.id);
+                                  if (wo && onSelectWorkOrder) { onSelectWorkOrder(wo); onNavigate('work-order-detail'); }
+                                  else onNavigate('production');
+                                } else {
+                                  onNavigate('service');
+                                }
+                              }}
+                            >
+                              <Eye size={12} />
+                              <span>View Job</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Service Complaint Snippet */}
+                      {job.type === 'service' && job.complaint && (
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '6px' }}>
+                          📋 {job.complaint.length > 80 ? job.complaint.slice(0, 80) + '…' : job.complaint}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Available Workers Pool */}
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Users size={15} color="#7A1F3D" />
+                  <span>Available Workers Pool — Ready to Deploy</span>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {staffList.filter(s => s.status === 'Available' || s.status === 'Idle').length} technicians available
+                </span>
+              </div>
+              <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {staffList.filter(s => s.status === 'Available' || s.status === 'Idle').length === 0 ? (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '16px 0' }}>
+                    No workers currently available. All deployed on active tasks.
+                  </div>
+                ) : (
+                  staffList.filter(s => s.status === 'Available' || s.status === 'Idle').map(emp => (
+                    <div
+                      key={emp.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        background: '#f0fdf4',
+                        border: '1px solid #86efac',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setAssignJobForm(prev => ({ ...prev, employeeId: emp.id }));
+                        setIsAssignJobModalOpen(true);
+                        setAssignJobTarget(null);
+                      }}
+                      title={`Click to assign ${emp.name} to a job`}
+                    >
+                      <div style={{
+                        width: '28px', height: '28px', borderRadius: '50%',
+                        background: emp.avatarColor || '#7A1F3D',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', fontWeight: 700, color: '#fff'
+                      }}>
+                        {emp.initials}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '12px', color: '#166534' }}>{emp.name}</div>
+                        <div style={{ fontSize: '10px', color: '#15803d' }}>{emp.role} · {emp.bay}</div>
+                      </div>
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        background: '#dcfce7',
+                        color: '#15803d',
+                        fontWeight: 700
+                      }}>AVAILABLE</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Quick Navigation Links */}
+            <div className="section-card" style={{ padding: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowRight size={14} color="#7A1F3D" />
+                Quick Navigation — Jump to Related Modules
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {[
+                  { label: 'Production Management', screen: 'production', icon: '🔩', desc: 'Work Orders & Machine Bays' },
+                  { label: 'Service & Repairs', screen: 'service', icon: '🔧', desc: 'Customer RMA & Overhaul' },
+                  { label: 'Quality Control', screen: 'quality', icon: '📐', desc: 'Inspection & Metrology' },
+                  { label: 'Inventory & Stores', screen: 'inventory', icon: '📦', desc: 'Parts & Components' },
+                  { label: 'Dashboard', screen: 'dashboard', icon: '📊', desc: 'Plant Overview' },
+                ].map(link => (
+                  onNavigate && (
+                    <button
+                      key={link.screen}
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '10px 14px', gap: '2px', minWidth: '160px', textAlign: 'left' }}
+                      onClick={() => onNavigate(link.screen)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '12px' }}>
+                        <span style={{ fontSize: '15px' }}>{link.icon}</span>
+                        {link.label}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '22px' }}>{link.desc}</div>
+                    </button>
+                  )
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
       {/* TAB 5: SHIFT SUMMARY & ALERTS                                             */}
       {/* ========================================================================= */}
       {activeTab === 'shift' && (
@@ -2164,43 +2788,43 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             <div className="card-header" style={{ padding: '10px 16px' }}>
               <div className="card-title" style={{ fontSize: '13px' }}>
                 <Clock size={15} color="#7A1F3D" />
-                <span>Shift Summary • {INITIAL_SHIFT_SUMMARY.shiftName}</span>
+                <span>Shift Summary • {shiftSummary.shiftName}</span>
               </div>
               <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                {INITIAL_SHIFT_SUMMARY.timing}
+                {shiftSummary.timing}
               </span>
             </div>
             <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', textAlign: 'center' }}>
                 <div style={{ padding: '8px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Scheduled</div>
-                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>{INITIAL_SHIFT_SUMMARY.staffScheduled}</div>
+                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>{shiftSummary.staffScheduled}</div>
                 </div>
                 <div style={{ padding: '8px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Present</div>
-                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: '#059669' }}>{INITIAL_SHIFT_SUMMARY.staffPresent}</div>
+                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: '#059669' }}>{shiftSummary.staffPresent}</div>
                 </div>
                 <div style={{ padding: '8px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working</div>
-                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary)' }}>{INITIAL_SHIFT_SUMMARY.staffWorking}</div>
+                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary)' }}>{shiftSummary.staffWorking}</div>
                 </div>
                 <div style={{ padding: '8px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Completed</div>
-                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: '#d97706' }}>{INITIAL_SHIFT_SUMMARY.completedTasks}</div>
+                  <div className="mono" style={{ fontSize: '16px', fontWeight: 700, color: '#d97706' }}>{shiftSummary.completedTasks}</div>
                 </div>
               </div>
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Shift Operations Target Progress</span>
-                  <span className="mono" style={{ fontWeight: 600 }}>{INITIAL_SHIFT_SUMMARY.progressPercentage}% Complete</span>
+                  <span className="mono" style={{ fontWeight: 600 }}>{shiftSummary.progressPercentage}% Complete</span>
                 </div>
-                <ProgressBar progress={INITIAL_SHIFT_SUMMARY.progressPercentage} height={7} />
+                <ProgressBar progress={shiftSummary.progressPercentage} height={7} />
               </div>
 
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '8px' }}>
-                <span>Shift Supervisor: <strong>{INITIAL_SHIFT_SUMMARY.supervisor}</strong></span>
-                <span className="mono" style={{ color: 'var(--primary)' }}>{INITIAL_SHIFT_SUMMARY.openTasks} Open Work Items</span>
+                <span>Shift Supervisor: <strong>{shiftSummary.supervisor}</strong></span>
+                <span className="mono" style={{ color: 'var(--primary)' }}>{shiftSummary.openTasks} Open Work Items</span>
               </div>
             </div>
           </div>
@@ -2239,6 +2863,55 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Daily Shift Takeover & Handover Station */}
+          <div className="section-card" style={{ gridColumn: '1 / -1' }}>
+            <div className="card-header" style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="card-title" style={{ fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RefreshCw size={15} color="var(--primary)" />
+                <span>Daily Shift Takeover & Machine Bay Handover Station</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setIsTakeoverModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <ArrowRight size={13} />
+                <span>Execute Daily Shift Takeover</span>
+              </button>
+            </div>
+            <div style={{ padding: '16px 18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+                <div style={{ padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Active Plant Shift</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary)', marginTop: '4px' }}>
+                    {shiftSummary.shiftName} ({shiftSummary.timing})
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Active Lead Supervisor: <strong>{shiftSummary.supervisor}</strong>
+                  </div>
+                </div>
+
+                <div style={{ padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Live Work in Progress (WIP)</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                    {bayAllocations.length} Machine Bays • {availableJobs.length} Jobs Active
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
+                    ✓ Production Machining & Service Restoration Online
+                  </div>
+                </div>
+
+                <div style={{ padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Latest Supervisor Handover Notes</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-main)', marginTop: '4px', lineHeight: 1.4, fontStyle: 'italic' }}>
+                    "{takeoverForm.handoverNotes}"
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2993,24 +3666,35 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
             {/* Work Order */}
             <div className="form-group">
-              <label className="form-label">Work Order Reference</label>
+              <label className="form-label">Job Reference (Production or Service)</label>
               <select
                 className="form-control mono"
                 value={addLogForm.workOrder}
                 onChange={(e) => {
-                  const wo = availableWorkOrders.find(w => w.id === e.target.value);
+                  const job = availableJobs.find(w => w.id === e.target.value);
                   setAddLogForm(prev => ({
                     ...prev,
                     workOrder: e.target.value,
-                    spindle: wo ? wo.spindleSerial : prev.spindle
+                    spindle: job ? job.serial : prev.spindle,
+                    machine: job ? job.defaultMachine : prev.machine,
+                    bay: job ? job.defaultBay : prev.bay
                   }));
                 }}
               >
-                {availableWorkOrders.map((wo) => (
-                  <option key={wo.id} value={wo.id}>
-                    {wo.id} ({wo.customer?.split(' ')[0]} - {wo.spindleModel})
-                  </option>
-                ))}
+                <optgroup label="Production Work Orders (New Builds)">
+                  {availableJobs.filter(j => j.type === 'production').map((wo) => (
+                    <option key={wo.id} value={wo.id}>
+                      {wo.id} — {wo.customer?.split(' ')[0]} ({wo.model} / {wo.serial})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Service & Repair Jobs (Overhauls)">
+                  {availableJobs.filter(j => j.type === 'service').map((srv) => (
+                    <option key={srv.id} value={srv.id}>
+                      {srv.id} — {srv.customer?.split(' ')[0]} ({srv.model} / {srv.serial})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
@@ -3251,26 +3935,39 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 </select>
               </div>
 
-              {/* Work Order */}
+              {/* Job Assignment */}
               <div className="form-group">
-                <label className="form-label">Work Order</label>
+                <label className="form-label">Job Assignment (Production or Service)</label>
                 <select
                   className="form-control mono"
                   value={startTaskForm.workOrder}
                   onChange={(e) => {
-                    const wo = availableWorkOrders.find(w => w.id === e.target.value);
+                    const job = availableJobs.find(w => w.id === e.target.value);
+                    const isSrv = job?.type === 'service';
                     setStartTaskForm(prev => ({
                       ...prev,
                       workOrder: e.target.value,
-                      spindle: wo ? wo.spindleSerial : prev.spindle
+                      spindle: job ? job.serial : prev.spindle,
+                      machine: job ? job.defaultMachine : prev.machine,
+                      bay: job ? job.defaultBay : prev.bay,
+                      task: isSrv ? 'Taper Re-grind & Bearing Overhaul' : (prev.task || 'CNC Machining')
                     }));
                   }}
                 >
-                  {availableWorkOrders.map((wo) => (
-                    <option key={wo.id} value={wo.id}>
-                      {wo.id} ({wo.customer?.split(' ')[0]} - {wo.spindleModel})
-                    </option>
-                  ))}
+                  <optgroup label="Production Work Orders (New Spindles)">
+                    {availableJobs.filter(j => j.type === 'production').map((wo) => (
+                      <option key={wo.id} value={wo.id}>
+                        {wo.id} — {wo.customer?.split(' ')[0]} ({wo.model || 'Spindle'} • {wo.serial})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Service & Repair Jobs (Customer Repairs)">
+                    {availableJobs.filter(j => j.type === 'service').map((srv) => (
+                      <option key={srv.id} value={srv.id}>
+                        {srv.id} — {srv.customer?.split(' ')[0]} ({srv.model || 'Repair'} • {srv.serial})
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
@@ -3716,6 +4413,316 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 placeholder="Reason for leave..."
                 required
               />
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ASSIGN WORKER TO JOB                                             */}
+      {/* ========================================================================= */}
+      {isAssignJobModalOpen && (
+        <Modal
+          isOpen={isAssignJobModalOpen}
+          onClose={() => setIsAssignJobModalOpen(false)}
+          title={assignJobTarget ? `Assign Worker — ${assignJobTarget.id}` : 'Assign Worker to Job'}
+          maxWidth="520px"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsAssignJobModalOpen(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const emp = staffList.find(s => s.id === assignJobForm.employeeId);
+                  if (!emp) { if (onNotify) onNotify('Please select a worker.', 'warning'); return; }
+                  if (!assignJobTarget && !assignJobForm.task) { if (onNotify) onNotify('Please provide a task.', 'warning'); return; }
+
+                  const jobId = assignJobTarget?.id || '—';
+                  const jobBay = assignJobTarget?.bay || emp.bay || 'Bay 1 - Machining';
+                  const jobMachine = emp.machine !== '—' ? emp.machine : (assignJobTarget?.type === 'service' ? 'Service Bay Rig' : 'CNC Machine');
+
+                  // Update staff status
+                  setStaffList(prev => prev.map(s => {
+                    if (s.id === emp.id) {
+                      return {
+                        ...s,
+                        status: 'Working',
+                        workOrder: jobId,
+                        currentTask: assignJobForm.task || (assignJobTarget?.currentStage + ' Operation'),
+                        bay: jobBay,
+                        machine: jobMachine,
+                        started: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        duration: '0m',
+                        durationMinutes: 0,
+                        progress: 5
+                      };
+                    }
+                    return s;
+                  }));
+
+                  // Update job's assignedTo in availableWorkOrders if production
+                  if (assignJobTarget?.type === 'production') {
+                    setAvailableWorkOrders(prev => prev.map(wo => {
+                      if (wo.id === assignJobTarget.id || wo.workOrderNo === assignJobTarget.id) {
+                        return { ...wo, assignedTo: emp.name };
+                      }
+                      return wo;
+                    }));
+                  }
+
+                  const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  setActivityFeed(prev => [
+                    {
+                      id: `act-${Date.now()}`,
+                      time: nowTime,
+                      timestamp: new Date().toISOString(),
+                      employeeName: emp.name,
+                      employeeId: emp.id,
+                      action: 'started',
+                      task: assignJobForm.task || 'Job Assignment',
+                      workOrder: jobId,
+                      spindle: assignJobTarget?.serial || '—',
+                      machine: jobMachine,
+                      bay: jobBay,
+                      progressBefore: 0,
+                      progressAfter: 5,
+                      status: 'Working',
+                      detail: `${emp.name} assigned to ${jobId} (${assignJobTarget?.customer || 'Customer'}) — ${assignJobForm.task || 'Job Operation'}.`
+                    },
+                    ...prev
+                  ]);
+
+                  workforceService.startWorkLog({
+                    employeeId: emp.id,
+                    task: assignJobForm.task,
+                    workOrder: jobId,
+                    spindle: assignJobTarget?.serial || '',
+                    machine: jobMachine,
+                    bay: jobBay,
+                    remarks: assignJobForm.remarks || `Assigned to ${jobId}`
+                  }).catch(err => console.error('Failed to persist job assignment:', err));
+
+                  setIsAssignJobModalOpen(false);
+                  if (onNotify) onNotify(`${emp.name} assigned to ${jobId} successfully. Status updated to Working.`);
+                }}
+              >
+                <Check size={14} />
+                <span>Confirm Assignment</span>
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {assignJobTarget && (
+              <div style={{
+                padding: '10px 14px',
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="mono">{assignJobTarget.id}</span>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: assignJobTarget.type === 'production' ? '#dbeafe' : '#ede9fe', color: assignJobTarget.type === 'production' ? '#1d4ed8' : '#6d28d9', fontWeight: 700 }}>
+                    {assignJobTarget.typeLabel}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  {assignJobTarget.model} · {assignJobTarget.serial}
+                </div>
+                <div style={{ marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span>Customer: <strong style={{ color: 'var(--text-main)' }}>{assignJobTarget.customer}</strong></span>
+                  <span>Stage: <strong style={{ color: 'var(--text-main)' }}>{assignJobTarget.currentStage}</strong></span>
+                  <span>Bay: <strong style={{ color: 'var(--text-main)' }}>{assignJobTarget.bay}</strong></span>
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label">Select Technician / Worker *</label>
+              <select
+                className="form-control"
+                value={assignJobForm.employeeId}
+                onChange={e => setAssignJobForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                required
+              >
+                <option value="">-- Choose Worker --</option>
+                <optgroup label="✅ Available">
+                  {staffList.filter(s => s.status === 'Available' || s.status === 'Idle').map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.id}) — {emp.role} · {emp.department}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="🔵 Working (Reassign)">
+                  {staffList.filter(s => s.status === 'Working' || s.status === 'Overtime').map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.id}) — {emp.role} · Currently on {emp.workOrder}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Task / Operation Description *</label>
+              <input
+                type="text"
+                className="form-control"
+                value={assignJobForm.task}
+                onChange={e => setAssignJobForm(prev => ({ ...prev, task: e.target.value }))}
+                placeholder={assignJobTarget ? `${assignJobTarget.currentStage} Operation` : 'Enter task description...'}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Expected Duration</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={assignJobForm.expectedDuration}
+                  onChange={e => setAssignJobForm(prev => ({ ...prev, expectedDuration: e.target.value }))}
+                  placeholder="e.g. 2h 30m"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Priority</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={assignJobTarget?.priority || 'Normal'}
+                  readOnly
+                  style={{ background: 'var(--bg-surface-subtle)', cursor: 'not-allowed' }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Assignment Remarks / Instructions</label>
+              <textarea
+                className="form-control"
+                rows={2}
+                value={assignJobForm.remarks}
+                onChange={e => setAssignJobForm(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Specific instructions, tolerance requirements, safety notes..."
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal 12: Daily Shift Takeover & Machine Bay Handover Station */}
+      {isTakeoverModalOpen && (
+        <Modal
+          isOpen={isTakeoverModalOpen}
+          onClose={() => setIsTakeoverModalOpen(false)}
+          title="Daily Shift Takeover & Machine Bay Handover"
+          footer={
+            <>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsTakeoverModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleSaveShiftTakeover}
+                disabled={!takeoverForm.checklistSafety || !takeoverForm.checklistBays || !takeoverForm.checklistWIP}
+              >
+                <Check size={14} />
+                <span>Confirm Shift Takeover</span>
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={handleSaveShiftTakeover} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={14} style={{ color: '#7A1F3D' }} />
+                <span>Current Active Shift: {shiftSummary.shiftName} ({shiftSummary.timing})</span>
+              </div>
+              <div style={{ color: '#64748b' }}>
+                Outgoing Supervisor: <strong style={{ color: '#334155' }}>{shiftSummary.supervisor}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Incoming Shift *</label>
+                <select
+                  className="form-control"
+                  value={takeoverForm.targetShift}
+                  onChange={(e) => setTakeoverForm(prev => ({ ...prev, targetShift: e.target.value }))}
+                  required
+                >
+                  <option value="First Shift">First Shift (06:00 AM - 02:30 PM)</option>
+                  <option value="Second Shift">Second Shift (02:30 PM - 11:00 PM)</option>
+                  <option value="Night Shift">Night Shift (11:00 PM - 06:00 AM)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Incoming Shift Supervisor *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={takeoverForm.incomingSupervisor}
+                  onChange={(e) => setTakeoverForm(prev => ({ ...prev, incomingSupervisor: e.target.value }))}
+                  placeholder="Supervisor name & ID"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Machine Bay Status & Handover Briefing *</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={takeoverForm.handoverNotes}
+                onChange={(e) => setTakeoverForm(prev => ({ ...prev, handoverNotes: e.target.value }))}
+                placeholder="Detail current spindle fixtures, grinding tolerances, WIP jobs, and tool offsets..."
+                required
+              />
+            </div>
+
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '8px', padding: '12px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a3412', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckSquare size={14} />
+                <span>Shop Floor Shift Handover Checklist (Mandatory)</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#431407' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={takeoverForm.checklistBays}
+                    onChange={(e) => setTakeoverForm(prev => ({ ...prev, checklistBays: e.target.checked }))}
+                  />
+                  <span>All 7 Machining & Service bays inspected (fixtures clamped, coolant levels verified)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={takeoverForm.checklistWIP}
+                    onChange={(e) => setTakeoverForm(prev => ({ ...prev, checklistWIP: e.target.checked }))}
+                  />
+                  <span>Active Production (WOs) & Service (SR) jobs verified against digital traveler status</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={takeoverForm.checklistSafety}
+                    onChange={(e) => setTakeoverForm(prev => ({ ...prev, checklistSafety: e.target.checked }))}
+                  />
+                  <span>Safety interlocks, e-stops, and PPE compliance confirmed by incoming lead</span>
+                </label>
+              </div>
             </div>
           </form>
         </Modal>

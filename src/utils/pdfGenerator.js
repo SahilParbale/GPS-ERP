@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { generateUpiQrDataUrl, getActiveUpiId, DEFAULT_BANK_DETAILS } from './upiQrGenerator';
 
 // Export DOM element directly to PDF (Exact Mirror Image of on-screen document)
 export const exportElementAsPdf = async (element, filename = 'document.pdf') => {
@@ -138,6 +139,103 @@ export function numberToIndianWords(num) {
   return res.join(' ') + ' Rupees only';
 }
 
+// Generator for classic solid black telephone icon (☎) matching exact reference image
+let cachedPhoneIconData = null;
+export const getBlackPhoneIconData = () => {
+  if (cachedPhoneIconData) return cachedPhoneIconData;
+  if (typeof document === 'undefined') return null;
+  try {
+    const rawCanvas = document.createElement('canvas');
+    rawCanvas.width = 128;
+    rawCanvas.height = 128;
+    const ctx = rawCanvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Draw the exact solid black classic telephone icon
+    // 1. Handset (receiver) with arched bridge and angled cups
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(18, 30);
+    ctx.bezierCurveTo(36, 14, 92, 14, 110, 30);
+    ctx.bezierCurveTo(120, 38, 122, 54, 112, 58);
+    ctx.bezierCurveTo(102, 62, 94, 52, 94, 42);
+    ctx.bezierCurveTo(80, 32, 48, 32, 34, 42);
+    ctx.bezierCurveTo(34, 52, 26, 62, 16, 58);
+    ctx.bezierCurveTo(6, 54, 8, 38, 18, 30);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Base body of telephone
+    ctx.beginPath();
+    ctx.moveTo(36, 44);
+    ctx.lineTo(42, 54);
+    ctx.lineTo(86, 54);
+    ctx.lineTo(92, 44);
+    ctx.lineTo(98, 50);
+    ctx.lineTo(88, 60);
+    ctx.lineTo(108, 104);
+    ctx.bezierCurveTo(110, 112, 106, 116, 98, 116);
+    ctx.lineTo(30, 116);
+    ctx.bezierCurveTo(22, 116, 18, 112, 20, 104);
+    ctx.lineTo(40, 60);
+    ctx.lineTo(30, 50);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. Central rotary dial - crisp white outer ring
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(64, 86, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Central hub - solid black center dot
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(64, 86, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crop to tight bounding box so there is ZERO transparent padding
+    const imgData = ctx.getImageData(0, 0, 128, 128);
+    let minX = 128, minY = 128, maxX = 0, maxY = 0;
+    for (let y = 0; y < 128; y++) {
+      for (let x = 0; x < 128; x++) {
+        const alpha = imgData.data[(y * 128 + x) * 4 + 3];
+        if (alpha > 20) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) return null;
+
+    const cropW = maxX - minX + 1;
+    const cropH = maxY - minY + 1;
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const cropCtx = cropCanvas.getContext('2d');
+    cropCtx.drawImage(rawCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+    cachedPhoneIconData = {
+      dataUrl: cropCanvas.toDataURL('image/png'),
+      w: cropW,
+      h: cropH,
+      aspectRatio: cropW / cropH
+    };
+    return cachedPhoneIconData;
+  } catch (_e) {
+    return null;
+  }
+};
+
+export const getBlackPhoneIconDataUrl = () => {
+  const d = getBlackPhoneIconData();
+  return d ? d.dataUrl : null;
+};
+
 // Universal Letterhead Header
 const drawCorporateHeader = (doc, title, docNo = '', subtitle = '') => {
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -244,181 +342,592 @@ const drawSignatory = (doc, startY, leftLabel = 'Prepared & Verified By', rightL
 };
 
 // ==========================================
-// 1. TAX INVOICE GENERATOR
+// 1. TAX INVOICE GENERATOR (1:1 Replica of Tax Invoice_INV2026-27 265_PS MAINTENANCE.pdf)
 // ==========================================
-export const exportTaxInvoicePdf = (inv) => {
+export const exportTaxInvoicePdf = async (inv = {}) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = drawCorporateHeader(doc, 'TAX INVOICE', inv.id || 'INV-2026-001');
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const marginX = 14;
+  const contentWidth = pageWidth - (marginX * 2); // 182mm
 
-  // Bill To & Invoice Meta Two-Column Card
-  doc.setFillColor(...THEME.surface);
-  doc.roundedRect(14, y, pageWidth - 28, 30, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(14, y, pageWidth - 28, 30, 1.5, 1.5, 'S');
-
-  // Left: Bill To
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...THEME.primary);
-  doc.text('BILLED TO (BUYER):', 18, y + 6);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...THEME.textMain);
-  doc.text(inv.customer || 'Client Industrial Corporation', 18, y + 11);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMuted);
-  doc.text(inv.customerAddress || 'Industrial Estate, Sector 12, Bhosari MIDC, Pune - 411026', 18, y + 15.5);
-  doc.text(`GSTIN: ${inv.customerGstin || '27AAACB1829D1Z2'} | State: 27-Maharashtra`, 18, y + 19.5);
-  doc.text(`Contact: ${inv.contactPerson || 'Procurement Dept'} • ${inv.customerPhone || '+91 98220 12345'}`, 18, y + 23.5);
-
-  // Right: Invoice Meta
-  const colRight = pageWidth - 80;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...THEME.primary);
-  doc.text('INVOICE DETAILS:', colRight, y + 6);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMain);
-  doc.text(`Invoice No: ${inv.id || 'INV-2026-001'}`, colRight, y + 11);
-  doc.text(`Invoice Date: ${formatDate(inv.date)}`, colRight, y + 15.5);
-  doc.text(`Due Date: ${formatDate(inv.dueDate || '2026-03-15')}`, colRight, y + 19.5);
-  doc.text(`Payment Status: ${inv.status || 'Payment Pending'}`, colRight, y + 23.5);
-
-  y += 34;
-
-  // Table Line Items
   const items = (inv.items && inv.items.length > 0) ? inv.items : [
-    {
-      description: inv.spindleModel ? `${inv.spindleModel} Precision Spindle Overhaul` : 'Precision Machine Tool Spindle Assembly (HSN 84669390)',
-      hsn: '84669390',
-      qty: 1,
-      unit: 'Set',
-      rate: inv.amount ? parseFloat(String(inv.amount).replace(/[^0-9.-]+/g, '')) * 0.847 : 350000,
-      taxable: inv.amount ? parseFloat(String(inv.amount).replace(/[^0-9.-]+/g, '')) * 0.847 : 350000
-    }
+    { id: 1, name: 'REPAIR MAKINO (S-33)', hsn: '84669390', qty: 1, unitPrice: 55000, rate: 55000, total: 55000 },
+    { id: 2, name: 'SHAFT SLEEVING', hsn: '998717', qty: 1, unitPrice: 25000, rate: 25000, total: 25000 }
   ];
 
+  const subtotal = Number(inv.subtotal) || items.reduce((sum, it) => sum + (Number(it.qty != null ? it.qty : (it.quantity || 1)) * Number(it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0))), 0);
+  const taxRate = Number(inv.taxRate) || 18;
+  const gstAmount = Number(inv.gstAmount) || Number(inv.taxAmount) || Math.round(subtotal * (taxRate / 100));
+  const totalAmount = Number(inv.totalAmount || inv.amountNum) || (subtotal + gstAmount);
+  const receivedAmount = Number(inv.receivedAmount || inv.paidAmountNum || inv.paid_amount || 0);
+  const balanceAmount = Math.max(0, totalAmount - receivedAmount);
+  const totalQty = items.reduce((s, it) => s + (Number(it.qty != null ? it.qty : (it.quantity || 1)) || 0), 0);
+
+  const formatRupee = (num) => 'Rs. ' + Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subtotalFormatted = formatRupee(subtotal);
+  const gstFormatted = formatRupee(gstAmount);
+  const totalFormatted = formatRupee(totalAmount);
+  const receivedFormatted = formatRupee(receivedAmount);
+  const balanceFormatted = formatRupee(balanceAmount);
+
+  // 1. Document Title: "Tax Invoice" centered at top, and "ORIGINAL FOR RECIPIENT" right-aligned
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Tax Invoice', pageWidth / 2, 12.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text('ORIGINAL FOR RECIPIENT', marginX + contentWidth, 12.5, { align: 'right' });
+
+  // 2. Main Outer Top Header Grid (X = marginX, Y = 15.5)
+  const headerBoxY = 15.5;
+  const headerBoxH = 27;
+  const splitColX = 124;
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, headerBoxY, contentWidth, headerBoxH, 'S');
+
+  // Vertical dividing line between left company details and right metadata
+  doc.line(splitColX, headerBoxY, splitColX, headerBoxY + headerBoxH);
+
+  // Company details on Left — with GPS logo
+  let logoDataUrl = null;
+  try {
+    const resp = await fetch('/logo.jpg');
+    const blob = await resp.blob();
+    logoDataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(blob);
+    });
+  } catch(_e) { logoDataUrl = null; }
+
+  const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'JPEG', marginX + 2.5, headerBoxY + 6.5, 27, 13.5);
+  }
+
+  // Company title: 2 lines
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('GENERAL PRECISION', textX, headerBoxY + 4.2);
+  doc.text('SPINDLES', textX, headerBoxY + 7.6);
+
+  // Address lines
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', textX, headerBoxY + 11.0);
+  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', textX, headerBoxY + 13.8);
+  const taxPhoneData = getBlackPhoneIconData();
+  if (taxPhoneData) {
+    try {
+      const iconH = 1.9;
+      const iconW = iconH * (taxPhoneData.aspectRatio || 1.08);
+      doc.addImage(taxPhoneData.dataUrl, 'PNG', textX, headerBoxY + 14.7, iconW, iconH);
+      doc.text('+919764252188 /9764032929', textX + iconW + 0.35, headerBoxY + 16.6);
+    } catch (_e) {
+      doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+    }
+  } else {
+    doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+  }
+  doc.text('Email: process@gpsspindles.net', textX, headerBoxY + 19.4);
+  doc.text('GSTIN: 27AATFG1527D1ZF', textX, headerBoxY + 22.2);
+  doc.text('State: 27-Maharashtra', textX, headerBoxY + 25.0);
+
+  // Right side: Metadata (2x2 grid)
+  const rightW = (marginX + contentWidth) - splitColX;
+  const midMetaX = splitColX + (rightW / 2);
+
+  // Horizontal line separates row 1 from row 2
+  doc.line(splitColX, headerBoxY + 13.5, marginX + contentWidth, headerBoxY + 13.5);
+
+  // Vertical line dividing left and right in BOTH rows
+  doc.line(midMetaX, headerBoxY, midMetaX, headerBoxY + headerBoxH);
+
+  // Row 1: Invoice No. (left) and Date (right)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Invoice No.', splitColX + 2.5, headerBoxY + 4.5);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(inv.invoiceNumber || inv.id || 'INV2026-27/265'), splitColX + 2.5, headerBoxY + 9.5);
+  doc.text(String(inv.date || inv.invoiceDate || '30-09-2026'), midMetaX + 2.5, headerBoxY + 9.5);
+
+  // Row 2: Place of supply (left) and Purchase Order No (right)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Place of supply', splitColX + 2.5, headerBoxY + 18.0);
+  doc.text('Purchease Order No', midMetaX + 2.5, headerBoxY + 18.0);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(inv.placeOfSupply || inv.state || '27-Maharashtra'), splitColX + 2.5, headerBoxY + 23.0);
+  doc.text(String(inv.poNumber || inv.salesOrder || inv.refOrder || 'VERBAL'), midMetaX + 2.5, headerBoxY + 23.0);
+
+  // 3. Bill To Box (Customer Box)
+  const custBoxY = headerBoxY + headerBoxH;
+  const custBoxH = 32;
+  doc.rect(marginX, custBoxY, contentWidth, custBoxH, 'S');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Bill To', marginX + 2.5, custBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text(String(inv.customer || inv.customerFullName || 'PS MAINTENANCE SERVICE'), marginX + 2.5, custBoxY + 9.0);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  const custAddr = String(inv.customerAddress || inv.billingAddress || 'PLOT NO 64 FLAT NO 6 PURVA APARTMENT CDC SHAHU NAGAR CHINCHWAD\nPune, Maharashtra-411019\nIndia');
+  const addrLines = doc.splitTextToSize(custAddr, contentWidth - 6);
+  let addrCurY = custBoxY + 12.8;
+  addrLines.forEach((l) => {
+    doc.text(l, marginX + 2.5, addrCurY);
+    addrCurY += 3.2;
+  });
+
+  doc.text(`Contact No. : ${inv.contactNo || inv.customerContact || '8600280084'}`, marginX + 2.5, addrCurY + 0.5);
+  doc.text(`GSTIN : ${inv.gstin || inv.customerGstin || '27AIBPB6756H1ZB'}`, marginX + 2.5, addrCurY + 3.8);
+  doc.text(`State: ${inv.placeOfSupply || inv.state || '27-Maharashtra'}`, marginX + 2.5, addrCurY + 7.1);
+
+  // 4. Line Items Table (6 columns: #, Item name, HSN/ SAC, Quantity, Price/ Unit, Amount)
+  const tableStartY = custBoxY + custBoxH;
+
   const tableBody = items.map((it, idx) => {
-    const rate = it.rate || 350000;
-    const taxable = it.taxable || (rate * (it.qty || 1));
-    const gstRate = 18;
-    const gstAmt = (taxable * gstRate) / 100;
-    const total = taxable + gstAmt;
+    const itName = it.name || it.product || it.desc || 'Precision Spindle Component';
+    const itHsn = it.hsn || it.hsn_sac || '84669390';
+    const itQty = it.qty != null ? it.qty : (it.quantity || 1);
+    const itRate = it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0);
+    const itTotal = it.total != null ? it.total : (Number(itQty) * Number(itRate));
 
     return [
       idx + 1,
-      it.description || 'Precision Spindle Unit',
-      it.hsn || '84669390',
-      `${it.qty || 1} ${it.unit || 'Set'}`,
-      formatCurrency(rate),
-      formatCurrency(taxable),
-      '18%',
-      formatCurrency(gstAmt),
-      formatCurrency(total)
+      itName,
+      itHsn,
+      itQty,
+      formatRupee(itRate),
+      formatRupee(itTotal)
     ];
   });
 
   autoTable(doc, {
-    startY: y,
-    head: [['#', 'Item Description', 'HSN', 'Qty', 'Unit Rate', 'Taxable Val', 'GST %', 'GST Amt', 'Total Amount']],
+    startY: tableStartY,
+    margin: { left: marginX, right: marginX },
+    head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Price/ Unit', 'Amount']],
     body: tableBody,
+    foot: [['', 'Total', '', { content: String(totalQty), styles: { halign: 'right' } }, '', { content: subtotalFormatted, styles: { halign: 'right' } }]],
     theme: 'grid',
     headStyles: {
-      fillColor: THEME.primary,
-      textColor: THEME.white,
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.5,
-      halign: 'center'
+      fontSize: 6.8,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 }
     },
-    styles: {
-      fontSize: 7,
-      cellPadding: 2.2,
-      textColor: THEME.textMain,
-      lineColor: THEME.border,
-      lineWidth: 0.2
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontSize: 6.5,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 }
+    },
+    footStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 6.8,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
-      1: { halign: 'left', cellWidth: 55 },
-      2: { halign: 'center', cellWidth: 16 },
-      3: { halign: 'center', cellWidth: 14 },
-      4: { halign: 'right', cellWidth: 20 },
-      5: { halign: 'right', cellWidth: 20 },
-      6: { halign: 'center', cellWidth: 12 },
-      7: { halign: 'right', cellWidth: 18 },
-      8: { halign: 'right', cellWidth: 21 }
+      0: { halign: 'left', cellWidth: 10 },
+      1: { halign: 'left', cellWidth: 82 },
+      2: { halign: 'left', cellWidth: 24 },
+      3: { halign: 'right', cellWidth: 18 },
+      4: { halign: 'right', cellWidth: 24 },
+      5: { halign: 'right', cellWidth: 24 }
+    },
+    didParseCell: (data) => {
+      if (data.column.index === 0 || data.column.index === 1 || data.column.index === 2) {
+        data.cell.styles.halign = 'left';
+      } else if (data.column.index === 3 || data.column.index === 4 || data.column.index === 5) {
+        data.cell.styles.halign = 'right';
+      }
     }
   });
 
-  const finalY = doc.lastAutoTable.finalY + 6;
+  // 5. Middle Section (Words & Description on left, Amounts on right)
+  const middleY = doc.lastAutoTable.finalY;
+  const middleH = 38;
+  const midSplitX = marginX + 112;
 
-  // Calculation Summary Box on Right
-  const taxableTotal = items.reduce((acc, it) => acc + (it.taxable || ((it.rate || 350000) * (it.qty || 1))), 0);
-  const cgst = taxableTotal * 0.09;
-  const sgst = taxableTotal * 0.09;
-  const grandTotal = taxableTotal + cgst + sgst;
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, middleY, contentWidth, middleH, 'S');
+  doc.line(midSplitX, middleY, midSplitX, middleY + middleH);
 
-  // Bank Details Left Box
-  doc.setFillColor(...THEME.surface);
-  doc.roundedRect(14, finalY, 96, 32, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(14, finalY, 96, 32, 1.5, 1.5, 'S');
+  // Left Side: Invoice Amount in Words Box
+  const wordsH = 9.5;
+  doc.line(marginX, middleY + wordsH, midSplitX, middleY + wordsH);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Invoice Amount in Words', marginX + 2, middleY + 3.8);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.2);
+  const amtWords = inv.amountInWords || numberToIndianWords(totalAmount);
+  const amtWordLines = doc.splitTextToSize(amtWords, midSplitX - marginX - 4);
+  doc.text(amtWordLines, marginX + 2, middleY + 7.8);
+
+  // Description Box
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Description', marginX + 2, middleY + wordsH + 3.8);
+
+  let descY = middleY + wordsH + 7.5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  if (inv.spindleSerial) {
+    doc.text(`SERIAL NO. ${inv.spindleSerial}`, marginX + 2, descY);
+    descY += 3.2;
+  }
+  doc.text('SCOPE OF WORK :-', marginX + 2, descY);
+  descY += 3.2;
+
+  const rawScope = Array.isArray(inv.scopeOfWork)
+    ? inv.scopeOfWork
+    : (inv.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. SHAFT SLEEVING\n6. STATIC TEST\n7. ASSEMBLY\n8. DYNAMIC TEST').split('\n');
+
+  rawScope.forEach((line, idx) => {
+    if (descY + (idx * 2.8) < middleY + middleH - 1) {
+      doc.text(line.trim(), marginX + 2, descY + (idx * 2.8));
+    }
+  });
+
+  // Right Side: Amounts Box
+  const amtRX = midSplitX + 2;
+  const amtRight = marginX + contentWidth - 2;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.primary);
-  doc.text('ELECTRONIC PAYMENT REMITTANCE (RTGS/NEFT):', 18, finalY + 5.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Amounts', amtRX, middleY + 3.8);
 
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.text('Sub Total', amtRX, middleY + 10.5);
+  doc.text(subtotalFormatted, amtRight, middleY + 10.5, { align: 'right' });
+
+  doc.text(`Tax (${taxRate}%)`, amtRX, middleY + 16.5);
+  doc.text(gstFormatted, amtRight, middleY + 16.5, { align: 'right' });
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.line(amtRX, middleY + 20, amtRight, middleY + 20);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text('Total', amtRX, middleY + 24.5);
+  doc.text(totalFormatted, amtRight, middleY + 24.5, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.text('Received', amtRX, middleY + 29.5);
+  doc.text(receivedFormatted, amtRight, middleY + 29.5, { align: 'right' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text('Balance', amtRX, middleY + 34.5);
+  doc.text(balanceFormatted, amtRight, middleY + 34.5, { align: 'right' });
+
+  // 6. GST Tax Summary Table
+  const isIntraState = String(inv.placeOfSupply || inv.state || '27-Maharashtra').startsWith('27');
+
+  const computeHsnSummary = (itemList) => {
+    const map = {};
+    itemList.forEach(it => {
+      const rawCode = it.hsn != null ? String(it.hsn).trim() : (it.hsn_sac || '84669390');
+      const key = rawCode === '' ? '84669390' : rawCode;
+      const itQty = it.qty != null ? it.qty : (it.quantity || 1);
+      const itRate = it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0);
+      const amt = Number(it.total != null ? it.total : (Number(itQty) * Number(itRate))) || 0;
+      if (!map[key]) {
+        map[key] = { hsn: key, taxable: 0 };
+      }
+      map[key].taxable += amt;
+    });
+    return Object.values(map).sort((a, b) => String(a.hsn).localeCompare(String(b.hsn)));
+  };
+
+  const hsnList = computeHsnSummary(items);
+
+  if (isIntraState) {
+    const hsnRows = hsnList.map(h => {
+      const cgstAmt = Math.round(h.taxable * 0.09);
+      const sgstAmt = Math.round(h.taxable * 0.09);
+      const totalTax = cgstAmt + sgstAmt;
+      return [
+        h.hsn || '',
+        formatRupee(h.taxable),
+        '9%',
+        formatRupee(cgstAmt),
+        '9%',
+        formatRupee(sgstAmt),
+        formatRupee(totalTax)
+      ];
+    });
+
+    const halfTax = Math.round(gstAmount / 2);
+    autoTable(doc, {
+      startY: middleY + middleH,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'CGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'SGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } },
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', formatRupee(halfTax), '', formatRupee(halfTax), gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 26 },
+        1: { halign: 'right', cellWidth: 34 },
+        2: { halign: 'right', cellWidth: 16 },
+        3: { halign: 'right', cellWidth: 26 },
+        4: { halign: 'right', cellWidth: 16 },
+        5: { halign: 'right', cellWidth: 26 },
+        6: { halign: 'right', cellWidth: 38 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  } else {
+    // Inter-State IGST table
+    const hsnRows = hsnList.map(h => {
+      const tax = Math.round(h.taxable * 0.18);
+      return [
+        h.hsn || '',
+        formatRupee(h.taxable),
+        '18%',
+        formatRupee(tax),
+        formatRupee(tax)
+      ];
+    });
+
+    autoTable(doc, {
+      startY: middleY + middleH,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', gstFormatted, gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 38 },
+        1: { halign: 'right', cellWidth: 44 },
+        2: { halign: 'right', cellWidth: 22 },
+        3: { halign: 'right', cellWidth: 40 },
+        4: { halign: 'right', cellWidth: 38 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  }
+
+  // 7. Bottom 3-Column Footer Box
+  const actualBottomY = doc.lastAutoTable.finalY;
+  const bottomH = 34;
+  const col1W = 58;
+  const col2W = 72;
+  const col3W = contentWidth - col1W - col2W;
+  const col2X = marginX + col1W;
+  const col3X = col2X + col2W;
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, actualBottomY, contentWidth, bottomH, 'S');
+  doc.line(col2X, actualBottomY, col2X, actualBottomY + bottomH);
+  doc.line(col3X, actualBottomY, col3X, actualBottomY + bottomH);
+
+  // Column 1: Bank Details
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.setTextColor(...THEME.textMain);
-  doc.text(`Bank: ${COMPANY.bank.name} | Branch: ${COMPANY.bank.branch}`, 18, finalY + 10);
-  doc.text(`A/C Name: ${COMPANY.name}`, 18, finalY + 14);
-  doc.text(`Account No: ${COMPANY.bank.accountNo} (${COMPANY.bank.accountType})`, 18, finalY + 18);
-  doc.text(`IFSC Code: ${COMPANY.bank.ifsc}`, 18, finalY + 22);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(...THEME.textMuted);
-  doc.text('Please quote invoice number on RTGS/NEFT transaction advice.', 18, finalY + 27);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Bank Details', marginX + 2, actualBottomY + 4.5);
 
-  // Totals Breakdown Box
-  const sumBoxX = pageWidth - 78;
-  doc.setFillColor(...THEME.primaryLight);
-  doc.roundedRect(sumBoxX, finalY, 64, 32, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(sumBoxX, finalY, 64, 32, 1.5, 1.5, 'S');
+  // Dynamic Amount-Wise Scannable UPI QR Code
+  const upiId = inv.bankDetails?.upiId || inv.upiId || getActiveUpiId();
+  const payeeName = inv.bankDetails?.accountHolder || inv.bankDetails?.accountName || DEFAULT_BANK_DETAILS.accountHolder;
+  const invRef = inv.invoiceNo || inv.invoiceNumber || inv.id || '';
+
+  try {
+    const qrDataUrl = await generateUpiQrDataUrl({
+      upiId,
+      payeeName,
+      amount: totalAmount,
+      transactionNote: invRef ? `Invoice ${invRef}` : 'Tax Invoice Payment',
+      transactionRef: invRef
+    }, { width: 300, margin: 1 });
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', marginX + 2, actualBottomY + 6.5, 14.5, 14.5);
+    }
+  } catch (_qrErr) {
+    console.error('Failed to generate UPI QR for tax invoice PDF:', _qrErr);
+  }
+
+  // UPI badge
+  doc.setFillColor(22, 163, 74);
+  doc.rect(marginX + 2, actualBottomY + 22.0, 14.5, 3.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(4);
+  doc.setTextColor(255, 255, 255);
+  doc.text('UPI: SCAN TO PAY', marginX + 9.25, actualBottomY + 24.3, { align: 'center' });
+
+  // Bank Text
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.6);
+  doc.setTextColor(0, 0, 0);
+  let bankY = actualBottomY + 7.5;
+  doc.text('Name : ICICI BANK LIMITED, PUNE', marginX + 17.5, bankY); bankY += 3.0;
+  doc.text('NANDED CITY', marginX + 17.5, bankY); bankY += 3.6;
+  doc.text('Account No. : 349105000701', marginX + 17.5, bankY); bankY += 3.6;
+  doc.text('IFSC code : ICIC0003491', marginX + 17.5, bankY); bankY += 3.6;
+  doc.text(`UPI ID : ${upiId}`, marginX + 17.5, bankY); bankY += 3.6;
+  doc.text("Account holder's name : GENERAL", marginX + 17.5, bankY); bankY += 3.0;
+  doc.text('PRECISION SPINDLES', marginX + 17.5, bankY);
+
+  // Column 2: Terms and conditions
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Terms and conditions', col2X + 2, actualBottomY + 4.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMain);
-  doc.text('Subtotal (Taxable):', sumBoxX + 4, finalY + 6);
-  doc.text(formatCurrency(taxableTotal), pageWidth - 18, finalY + 6, { align: 'right' });
+  doc.setFontSize(5.4);
+  const defaultTerms = `We declare that this invoice shows the actual price of the goods\ndescribed and that all particulars are true and correct.\nBank Details:\nICICI Bank Ltd(Nanded City Branch)\nA/c No : 349105000701\nIFSC Code: ICIC0003491\nMSME (UDYAM ADHAR) NO-MH26A0189736\nTYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING\nMAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE REPAIRING ,SPINDLE MANUFACTURING.`;
+  const cleanTerms = String(inv.terms || defaultTerms).replace('the goods described', 'the goods\ndescribed');
+  doc.text(cleanTerms, col2X + 2, actualBottomY + 8.5, { maxWidth: col2W - 4 });
 
-  doc.text('CGST (9%):', sumBoxX + 4, finalY + 11);
-  doc.text(formatCurrency(cgst), pageWidth - 18, finalY + 11, { align: 'right' });
-
-  doc.text('SGST (9%):', sumBoxX + 4, finalY + 16);
-  doc.text(formatCurrency(sgst), pageWidth - 18, finalY + 16, { align: 'right' });
-
-  doc.setDrawColor(...THEME.primary);
-  doc.setLineWidth(0.3);
-  doc.line(sumBoxX + 4, finalY + 20, pageWidth - 18, finalY + 20);
+  // Column 3: Authorized Signatory
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('For : GENERAL PRECISION SPINDLES', col3X + (col3W / 2), actualBottomY + 5.5, { align: 'center' });
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...THEME.primary);
-  doc.text('Total Invoice Value:', sumBoxX + 4, finalY + 26);
-  doc.text(formatCurrency(grandTotal), pageWidth - 18, finalY + 26, { align: 'right' });
+  doc.setFontSize(7);
+  doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
-  drawSignatory(doc, finalY + 38);
-  drawCorporateFooter(doc);
-
-  doc.save(`GPS_Tax_Invoice_${inv.id || 'INV-2026'}.pdf`);
+  // Save the PDF
+  const cleanId = String(inv.invoiceNumber || inv.id || 'INV2026-27_265').replace(/[^a-zA-Z0-9_-]/g, '_');
+  doc.save(`GPS_Tax_Invoice_${cleanId}.pdf`);
 };
 
 // ==========================================
@@ -498,175 +1007,532 @@ export const exportGstr1ReportPdf = (invoices = []) => {
 };
 
 // ==========================================
-// 3. PURCHASE ORDER (PO) PDF
+// 3. PURCHASE ORDER (PO) PDF (Exact Replica of Purchase Order_PO 2025-26 00106_PREMIER.pdf)
 // ==========================================
-export const exportPurchaseOrderPdf = (po) => {
+export const exportPurchaseOrderPdf = async (po = {}) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = drawCorporateHeader(doc, 'PURCHASE ORDER', po.poNumber || po.id || 'PO-2026-089');
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+  const marginX = 14;
+  const contentWidth = pageWidth - (marginX * 2); // 182mm
 
-  // Vendor & Delivery Details Two-Column Card
-  doc.setFillColor(...THEME.surface);
-  doc.roundedRect(14, y, pageWidth - 28, 30, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(14, y, pageWidth - 28, 30, 1.5, 1.5, 'S');
-
-  // Left: Vendor Info
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...THEME.primary);
-  doc.text('VENDOR / SUPPLIER:', 18, y + 6);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...THEME.textMain);
-  doc.text(po.vendorName || po.vendor || 'Precision Bearings & Alloys Corp', 18, y + 11);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMuted);
-  doc.text(po.vendorAddress || 'GIDC Industrial Estate, Phase 3, Naroda, Ahmedabad - 382330', 18, y + 15.5);
-  doc.text(`GSTIN: ${po.vendorGstin || '24AABCP9871M1ZQ'} | State: 24-Gujarat`, 18, y + 19.5);
-  doc.text(`Contact: ${po.vendorContact || 'Technical Sales Team'} • ${po.vendorPhone || '+91 79 2280 4455'}`, 18, y + 23.5);
-
-  // Right: Order Info
-  const colRight = pageWidth - 80;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...THEME.primary);
-  doc.text('PO & SHIPMENT SPECIFICATION:', colRight, y + 6);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMain);
-  doc.text(`PO Number: ${po.poNumber || po.id || 'PO-2026-089'}`, colRight, y + 11);
-  doc.text(`PO Date: ${formatDate(po.date || po.created_at)}`, colRight, y + 15.5);
-  doc.text(`Expected Delivery: ${formatDate(po.deliveryDate || po.expected_delivery_date || '2026-03-20')}`, colRight, y + 19.5);
-  doc.text(`Payment Terms: ${po.paymentTerms || 'Net 45 Days Post Inward QC'}`, colRight, y + 23.5);
-
-  y += 34;
-
-  // Line items
+  // Normalize Line items
   const items = (po.items && po.items.length > 0) ? po.items : [
     {
-      description: po.itemDescription || po.notes || 'Hybrid Ceramic Spindle Bearings (P4S Tolerance grade)',
-      partNumber: po.partNumber || 'B-HC-7014-P4S',
-      hsn: '84821011',
-      qty: po.qty || 10,
-      unit: 'Pairs',
-      unitPrice: po.unitPrice || 24500,
-      totalAmount: po.totalAmount || (po.unitPrice || 24500) * (po.qty || 10)
+      id: 1,
+      name: po.itemDescription || po.notes || '120TAC20FME2DBCP5P01-NSK',
+      item: po.itemDescription || po.notes || '120TAC20FME2DBCP5P01-NSK',
+      hsn: po.hsn || '84821012',
+      qty: po.qty != null ? po.qty : 1,
+      unitPrice: po.unitPrice || po.rate || 58262,
+      rate: po.unitPrice || po.rate || 58262,
+      total: po.totalAmount || 58262
     }
   ];
 
-  const tableBody = items.map((it, idx) => {
-    const qty = it.qty || 1;
-    const rate = it.unitPrice || it.rate || 24500;
-    const taxable = qty * rate;
-    const gstRate = 18;
-    const gstAmt = (taxable * gstRate) / 100;
-    const lineTotal = taxable + gstAmt;
+  const subtotal = Number(po.subtotal) || items.reduce((sum, it) => sum + (Number(it.qty != null ? it.qty : 1) * Number(it.unitPrice != null ? it.unitPrice : (it.rate || 0))), 0);
+  const taxRate = Number(po.taxRate) || 18;
+  const gstAmount = Number(po.gstAmount) || Number(po.taxAmount) || (subtotal * (taxRate / 100));
+  const rawTotal = subtotal + gstAmount;
+  const roundOff = po.roundOff != null ? Number(po.roundOff) : (po.totalAmount ? Number(po.totalAmount) - rawTotal : Number((Math.round(rawTotal) - rawTotal).toFixed(2)));
+  const totalAmount = po.totalAmount != null ? Number(po.totalAmount) : Math.round(rawTotal);
+  const advance = Number(po.advance || po.advanceAmount || 0);
+  const balance = Number(po.balance != null ? po.balance : (totalAmount - advance));
+  const totalQty = items.reduce((s, it) => s + (Number(it.qty != null ? it.qty : (it.quantity || 1)) || 0), 0);
 
+  const formatRupee = (num) => 'Rs. ' + Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatRupeeWithSign = (num) => {
+    const val = Number(num || 0);
+    if (val < 0) return '- Rs. ' + Math.abs(val).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return 'Rs. ' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const subtotalFormatted = formatRupee(subtotal);
+  const gstFormatted = formatRupee(gstAmount);
+  const roundOffFormatted = formatRupeeWithSign(roundOff);
+  const totalFormatted = formatRupee(totalAmount);
+  const advanceFormatted = formatRupee(advance);
+  const balanceFormatted = formatRupee(balance);
+
+  // 1. Document Title: "Purchase Order" centered at top, NO underline
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Purchase Order', pageWidth / 2, 12.5, { align: 'center' });
+
+  // 2. Main Outer Top Header Grid (X = marginX, Y = 16)
+  const headerBoxY = 16;
+  const headerBoxH = 28;
+  const splitColX = 124;
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, headerBoxY, contentWidth, headerBoxH, 'S');
+
+  // Vertical dividing line between left company details and right metadata
+  doc.line(splitColX, headerBoxY, splitColX, headerBoxY + headerBoxH);
+
+  // Company details on Left — with GPS logo
+  let logoDataUrl = null;
+  try {
+    const resp = await fetch('/logo.jpg');
+    const blob = await resp.blob();
+    logoDataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(blob);
+    });
+  } catch(_e) { logoDataUrl = null; }
+
+  const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'JPEG', marginX + 2.5, headerBoxY + 6.5, 27, 13.5);
+  }
+
+  // Company title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('GENERAL PRECISION', textX, headerBoxY + 4.2);
+  doc.text('SPINDLES', textX, headerBoxY + 7.6);
+
+  // Address lines
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', textX, headerBoxY + 11.0);
+  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', textX, headerBoxY + 13.8);
+
+  const piPhoneData = getBlackPhoneIconData();
+  if (piPhoneData) {
+    try {
+      const iconH = 1.9;
+      const iconW = iconH * (piPhoneData.aspectRatio || 1.08);
+      doc.addImage(piPhoneData.dataUrl, 'PNG', textX, headerBoxY + 14.7, iconW, iconH);
+      doc.text('+919764252188 /9764032929', textX + iconW + 0.35, headerBoxY + 16.6);
+    } catch (_imgErr) {
+      doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+    }
+  } else {
+    doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+  }
+  doc.text('Email: process@gpsspindles.net', textX, headerBoxY + 19.4);
+  doc.text('GSTIN: 27AATFG1527D1ZF', textX, headerBoxY + 22.2);
+  doc.text('State: 27-Maharashtra', textX, headerBoxY + 25.0);
+
+  // Right side: Metadata (2 rows x 2 cols)
+  const rightW = (marginX + contentWidth) - splitColX;
+  const midMetaX = splitColX + (rightW / 2);
+
+  // Horizontal line separating top row from bottom row
+  doc.line(splitColX, headerBoxY + 14, marginX + contentWidth, headerBoxY + 14);
+
+  // Vertical line dividing left and right in BOTH rows
+  doc.line(midMetaX, headerBoxY, midMetaX, headerBoxY + headerBoxH);
+
+  // Row 1: Order No. (left) and Date (right)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Order No.', splitColX + 2.5, headerBoxY + 4.5);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(po.poNumber || po.id || 'PO/2025-26/00106'), splitColX + 2.5, headerBoxY + 9.5);
+  doc.text(String(po.date || '04-09-2026'), midMetaX + 2.5, headerBoxY + 9.5);
+
+  // Row 2: Due Date: (left) and Place of supply (right)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Due Date:', splitColX + 2.5, headerBoxY + 18.0);
+  doc.text('Place of supply', midMetaX + 2.5, headerBoxY + 18.0);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(po.dueDate || po.expectedDelivery || po.date || '04-09-2026'), splitColX + 2.5, headerBoxY + 23.0);
+  doc.text(String(po.placeOfSupply || po.state || '27-Maharashtra'), midMetaX + 2.5, headerBoxY + 23.0);
+
+  // 3. Order To (Supplier Box)
+  const suppBoxY = headerBoxY + headerBoxH;
+  const suppBoxH = 34;
+
+  doc.rect(marginX, suppBoxY, contentWidth, suppBoxH, 'S');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Order To', marginX + 3, suppBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(String(po.supplier || po.vendorName || po.vendor || 'PREMIER INDUSTRIAL SOLUTIONS'), marginX + 3, suppBoxY + 9);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  const suppAddress = po.supplierAddress || po.vendorAddress || 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad\nPune, Maharashtra-411019\nIndia';
+  const addrLines = suppAddress.split('\n');
+  doc.text(addrLines[0] || 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad', marginX + 3, suppBoxY + 13.5);
+  doc.text(addrLines[1] || 'Pune, Maharashtra-411019', marginX + 3, suppBoxY + 16.7);
+  doc.text(addrLines[2] || 'India', marginX + 3, suppBoxY + 19.9);
+
+  doc.text(`Contact No. : ${po.supplierPhone || po.supplierContact || po.vendorContact || '0124-4510000'}`, marginX + 3, suppBoxY + 24.5);
+  doc.text(`GSTIN : ${po.supplierGstin || po.vendorGstin || '27ABDFP3172C1ZH'}`, marginX + 3, suppBoxY + 28);
+  doc.text(`State: ${po.supplierState || po.placeOfSupply || '27-Maharashtra'}`, marginX + 3, suppBoxY + 31.5);
+
+  // 4. Line Items Table (6 cols: #, Item name, HSN/ SAC, Quantity, Price/ Unit, Amount)
+  const tableRows = items.map((item, idx) => {
+    const lineAmt = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || item.rate || 0)));
     return [
       idx + 1,
-      it.partNumber || 'PARTS-001',
-      it.description || 'Precision Spindle Component',
-      it.hsn || '84821011',
-      `${qty} ${it.unit || 'Nos'}`,
-      formatCurrency(rate),
-      formatCurrency(taxable),
-      '18%',
-      formatCurrency(lineTotal)
+      item.item || item.name || item.desc || '120TAC20FME2DBCP5P01-NSK',
+      item.hsn || item.hsn_code || '84821012',
+      item.qty != null ? item.qty : 1,
+      formatRupee(item.unitPrice || item.rate),
+      formatRupee(lineAmt)
     ];
   });
 
   autoTable(doc, {
-    startY: y,
-    head: [['#', 'Part No', 'Material / Component Description', 'HSN', 'Qty', 'Unit Price', 'Taxable Val', 'GST', 'Total Val']],
-    body: tableBody,
+    startY: suppBoxY + suppBoxH,
+    margin: { left: marginX, right: marginX },
+    head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Price/ Unit', 'Amount']],
+    body: tableRows,
+    foot: [['', 'Total', '', { content: String(totalQty), styles: { halign: 'right' } }, '', { content: subtotalFormatted, styles: { halign: 'right' } }]],
     theme: 'grid',
     headStyles: {
-      fillColor: THEME.primary,
-      textColor: THEME.white,
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.5,
-      halign: 'center'
-    },
-    styles: {
       fontSize: 7,
-      cellPadding: 2.2,
-      textColor: THEME.textMain,
-      lineColor: THEME.border,
-      lineWidth: 0.2
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontSize: 6.8,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
+    },
+    footStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 7,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
-      1: { halign: 'center', cellWidth: 24 },
-      2: { halign: 'left', cellWidth: 54 },
-      3: { halign: 'center', cellWidth: 16 },
-      4: { halign: 'center', cellWidth: 16 },
-      5: { halign: 'right', cellWidth: 18 },
-      6: { halign: 'right', cellWidth: 18 },
-      7: { halign: 'center', cellWidth: 12 },
-      8: { halign: 'right', cellWidth: 20 }
+      0: { halign: 'left', cellWidth: 8 },
+      1: { halign: 'left', fontStyle: 'bold', cellWidth: 82 },
+      2: { halign: 'left', cellWidth: 24 },
+      3: { halign: 'right', cellWidth: 16 },
+      4: { halign: 'right', cellWidth: 26 },
+      5: { halign: 'right', fontStyle: 'bold', cellWidth: 26 }
+    },
+    didParseCell: (data) => {
+      if (data.column.index === 0 || data.column.index === 1 || data.column.index === 2) {
+        data.cell.styles.halign = 'left';
+      } else if (data.column.index === 3 || data.column.index === 4 || data.column.index === 5) {
+        data.cell.styles.halign = 'right';
+      }
     }
   });
 
-  const finalY = doc.lastAutoTable.finalY + 6;
+  // 5. Middle Section (Words on Left, Amounts on Right)
+  const pageBottom = pageHeight - marginX; // 283mm
+  let middleY = doc.lastAutoTable.finalY;
+  const middleH = 38;
+  const midSplitX = marginX + 110;
 
-  // Commercial Clauses Left Box
-  doc.setFillColor(...THEME.surface);
-  doc.roundedRect(14, finalY, 100, 32, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(14, finalY, 100, 32, 1.5, 1.5, 'S');
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, middleY, contentWidth, middleH, 'S');
+  doc.line(midSplitX, middleY, midSplitX, middleY + middleH);
+
+  // Left: Order Amount in Words
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Order Amount in Words', marginX + 2.5, middleY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.2);
+  const amtWords = po.amountInWords || numberToIndianWords(totalAmount);
+  const amtWordLines = doc.splitTextToSize(amtWords, midSplitX - marginX - 5);
+  doc.text(amtWordLines, marginX + 2.5, middleY + 9.5);
+
+  // Right: Amounts Box
+  const amtRX = midSplitX + 2.5;
+  const amtRight = marginX + contentWidth - 2.5;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.primary);
-  doc.text('PURCHASE TERMS & QUALITY REQUIREMENTS:', 18, finalY + 5.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Amounts', amtRX, middleY + 4.5);
 
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  let curAmtY = middleY + 9.5;
+  doc.text('Sub Total', amtRX, curAmtY);
+  doc.text(subtotalFormatted, amtRight, curAmtY, { align: 'right' });
+
+  curAmtY += 4.5;
+  doc.text(`Tax (${taxRate}%)`, amtRX, curAmtY);
+  doc.text(gstFormatted, amtRight, curAmtY, { align: 'right' });
+
+  curAmtY += 4.5;
+  doc.text('Round off', amtRX, curAmtY);
+  doc.text(roundOffFormatted, amtRight, curAmtY, { align: 'right' });
+
+  // Dividing line above Total
+  curAmtY += 2;
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.line(midSplitX, curAmtY, marginX + contentWidth, curAmtY);
+
+  curAmtY += 4.5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.8);
+  doc.text('Total', amtRX, curAmtY);
+  doc.text(totalFormatted, amtRight, curAmtY, { align: 'right' });
+
+  curAmtY += 4.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text('Advance', amtRX, curAmtY);
+  doc.text(advanceFormatted, amtRight, curAmtY, { align: 'right' });
+
+  curAmtY += 4.5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.8);
+  doc.text('Balance', amtRX, curAmtY);
+  doc.text(balanceFormatted, amtRight, curAmtY, { align: 'right' });
+
+  // 6. Tax Summary Table (CGST+SGST if Maharashtra, IGST if inter-state)
+  const isIntraState = String(po.placeOfSupply || po.state || '27-Maharashtra').startsWith('27');
+
+  const computeHsnSummary = (itemList) => {
+    const map = {};
+    itemList.forEach(it => {
+      const rawCode = it.hsn || it.hsn_code || '84821012';
+      const key = rawCode === '' ? '84821012' : rawCode;
+      const amt = Number(it.total != null ? it.total : (Number(it.qty || 1) * Number(it.unitPrice || it.rate || 0))) || 0;
+      if (!map[key]) {
+        map[key] = { hsn: key, taxable: 0 };
+      }
+      map[key].taxable += amt;
+    });
+    return Object.values(map).sort((a, b) => String(a.hsn).localeCompare(String(b.hsn)));
+  };
+
+  const hsnList = computeHsnSummary(items);
+  const taxStartY = middleY + middleH;
+
+  if (isIntraState) {
+    const hsnRows = hsnList.map(h => {
+      const halfRate = (taxRate / 2);
+      const cgstAmt = Number((h.taxable * (halfRate / 100)).toFixed(2));
+      const sgstAmt = Number((h.taxable * (halfRate / 100)).toFixed(2));
+      const totalTax = cgstAmt + sgstAmt;
+      return [
+        h.hsn || '84821012',
+        formatRupee(h.taxable),
+        `${halfRate}%`,
+        formatRupee(cgstAmt),
+        `${halfRate}%`,
+        formatRupee(sgstAmt),
+        formatRupee(totalTax)
+      ];
+    });
+
+    const halfTax = Number((gstAmount / 2).toFixed(2));
+    autoTable(doc, {
+      startY: taxStartY,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'CGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'SGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } },
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', formatRupee(halfTax), '', formatRupee(halfTax), gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 26 },
+        1: { halign: 'right', cellWidth: 32 },
+        2: { halign: 'right', cellWidth: 16 },
+        3: { halign: 'right', cellWidth: 27 },
+        4: { halign: 'right', cellWidth: 16 },
+        5: { halign: 'right', cellWidth: 27 },
+        6: { halign: 'right', fontStyle: 'bold', cellWidth: 38 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  } else {
+    // Inter-State IGST
+    const hsnRows = hsnList.map(h => {
+      const igstAmt = Number((h.taxable * (taxRate / 100)).toFixed(2));
+      return [
+        h.hsn || '84821012',
+        formatRupee(h.taxable),
+        `${taxRate}%`,
+        formatRupee(igstAmt),
+        formatRupee(igstAmt)
+      ];
+    });
+
+    autoTable(doc, {
+      startY: taxStartY,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', gstFormatted, gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 32 },
+        1: { halign: 'right', cellWidth: 42 },
+        2: { halign: 'right', cellWidth: 20 },
+        3: { halign: 'right', cellWidth: 42 },
+        4: { halign: 'right', fontStyle: 'bold', cellWidth: 46 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  }
+
+  // 7. Bottom Section (Terms on Left, Signatory on Right)
+  const bottomFinalY = doc.lastAutoTable.finalY;
+  const bottomBoxH = Math.max(30, pageBottom - bottomFinalY);
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, bottomFinalY, contentWidth, bottomBoxH, 'S');
+
+  // Vertical line separating Terms from Signatory
+  doc.line(midSplitX, bottomFinalY, midSplitX, bottomFinalY + bottomBoxH);
+
+  // Left: Terms and conditions
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Terms and conditions', marginX + 2.5, bottomFinalY + 4.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  const termsText = po.termsAndConditions || po.notes || 'Thanks for doing business with us!';
+  doc.text(termsText, marginX + 2.5, bottomFinalY + 8.5);
+
+  // Right: Authorized Signatory
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  doc.setTextColor(...THEME.textMuted);
-  doc.text('1. Material Test Certificate (MTC) and CMM inspection report mandatory with dispatch.', 18, finalY + 10);
-  doc.text('2. Parts subject to 100% incoming metrology inspection before GRN authorization.', 18, finalY + 14);
-  doc.text('3. Packaging must be rust-preventive coated with vacuum sealed VCI wrapping.', 18, finalY + 18);
-  doc.text(`4. Delivery Address: ${COMPANY.name}, Plant 1 Stores, Pune - 411041.`, 18, finalY + 22);
-
-  // Totals Box Right
-  const sumBoxX = pageWidth - 76;
-  const taxableSum = items.reduce((acc, it) => acc + ((it.qty || 1) * (it.unitPrice || it.rate || 24500)), 0);
-  const gstSum = taxableSum * 0.18;
-  const grandTotal = taxableSum + gstSum;
-
-  doc.setFillColor(...THEME.primaryLight);
-  doc.roundedRect(sumBoxX, finalY, 62, 32, 1.5, 1.5, 'F');
-  doc.setDrawColor(...THEME.border);
-  doc.roundedRect(sumBoxX, finalY, 62, 32, 1.5, 1.5, 'S');
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...THEME.textMain);
-  doc.text('Subtotal:', sumBoxX + 4, finalY + 7);
-  doc.text(formatCurrency(taxableSum), pageWidth - 18, finalY + 7, { align: 'right' });
-
-  doc.text('GST (18%):', sumBoxX + 4, finalY + 14);
-  doc.text(formatCurrency(gstSum), pageWidth - 18, finalY + 14, { align: 'right' });
-
-  doc.setDrawColor(...THEME.primary);
-  doc.setLineWidth(0.3);
-  doc.line(sumBoxX + 4, finalY + 19, pageWidth - 18, finalY + 19);
+  doc.text('For : GENERAL PRECISION SPINDLES', midSplitX + 28, bottomFinalY + 4.5);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...THEME.primary);
-  doc.text('Total PO Value:', sumBoxX + 4, finalY + 26);
-  doc.text(formatCurrency(grandTotal), pageWidth - 18, finalY + 26, { align: 'right' });
+  doc.setFontSize(7.2);
+  doc.text('Authorized Signatory', midSplitX + 38, bottomFinalY + bottomBoxH - 4.5);
 
-  drawSignatory(doc, finalY + 38, 'Procurement Manager Sign', 'Authorized Technical Director');
-  drawCorporateFooter(doc);
-
-  doc.save(`GPS_Purchase_Order_${po.poNumber || po.id || 'PO-2026'}.pdf`);
+  // Save PDF using exact user naming format
+  const poNumClean = String(po.poNumber || po.id || 'PO 2025-26 00106').replace(/[\/\\]/g, ' ');
+  const suppNameClean = String(po.supplier || po.vendor || 'PREMIER').split(' ')[0].toUpperCase();
+  const filename = `Purchase Order_${poNumClean}_${suppNameClean}.pdf`;
+  doc.save(filename);
 };
 
 // ==========================================
@@ -728,421 +1594,621 @@ export const exportPurchaseOrderRegisterPdf = (orders = []) => {
 
 // ==========================================
 // ==========================================
-// 5. PROFORMA INVOICE (PI) PDF (EXACT ON-SCREEN DOCUMENT FORMAT)
+// 5. PROFORMA INVOICE (PI) PDF (EXACT 1:1 REPLICA OF PROFORMA INVOICE_27_TTB.PDF)
 // ==========================================
-// 5. PROFORMA INVOICE (PI) PDF (EXACT ON-SCREEN DOCUMENT FORMAT)
-// ==========================================
-export const exportProformaInvoicePdf = (pi = {}) => {
+export const exportProformaInvoicePdf = async (pi = {}) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
   const marginX = 14;
   const contentWidth = pageWidth - (marginX * 2); // 182mm
 
-  const docId = pi.piNumber || pi.id || 'PI-2026-041';
-  const partyName = pi.customerFullName || pi.customer || 'Customer Organization';
-  const partyContact = pi.customerContact || pi.contactPerson || 'Procurement Officer';
-  const partyAddress = pi.billingAddress || pi.customerAddress || 'Customer Plant, Industrial Area, Maharashtra';
-  const partyGstin = pi.customerGstin || pi.gstin || '36AAACT2718E1ZQ';
-  const partyEmail = pi.customerEmail || '';
-  const dateStr = formatDate(pi.date || pi.piDate || pi.created_at);
-  const validUntilStr = pi.validUntil ? formatDate(pi.validUntil) : '';
-  const salesOrder = pi.salesOrder || 'SO-2026-041';
-  const paymentTerms = pi.paymentTerms || '50% Advance with Proforma, 50% against Dispatch Inspection';
-  const dispatchWindow = pi.dispatchWindow || '6 Weeks post-advance';
-
-  // 1. Exact Document Header Matching On-Screen Modal
-  let y = 14;
-
-  // Company Logo Badge / Monogram Box
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(203, 213, 225); // #cbd5e1
-  doc.roundedRect(marginX, y, 14, 14, 1.5, 1.5, 'FD');
-  doc.setFillColor(122, 31, 61); // #7A1F3D
-  doc.rect(marginX + 1.5, y + 1.5, 11, 11, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('GPS', marginX + 7, y + 8.5, { align: 'center' });
-
-  // Company Name & Subtitles
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12.5);
-  doc.setTextColor(15, 23, 42); // #0f172a
-  doc.text('GENERAL PRECISION SPINDLES PVT. LTD.', marginX + 17, y + 4.2);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(71, 85, 105); // #475569
-  doc.text('Manufacturer of High-Precision Motorized & Belt-Driven Spindles • ISO 9001:2015 Certified', marginX + 17, y + 8);
-
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139); // #64748b
-  doc.text('Plot B-12, Nanded City Industrial Complex, Pune - 411041, Maharashtra, India', marginX + 17, y + 11.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(122, 31, 61); // #7A1F3D
-  doc.text('GSTIN: 27AABCG1492K1Z8 • MSME: MH26A0189736 • sales@gpsspindle.com', marginX + 17, y + 15);
-
-  // Right Side Header Metadata
-  const badgeW = 44;
-  const badgeH = 6.5;
-  const badgeX = marginX + contentWidth - badgeW;
-  doc.setFillColor(245, 232, 237); // #F5E8ED
-  doc.roundedRect(badgeX, y, badgeW, badgeH, 1, 1, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.2);
-  doc.setTextColor(122, 31, 61); // #7A1F3D
-  doc.text('PROFORMA INVOICE', badgeX + (badgeW / 2), y + 4.5, { align: 'center' });
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text(docId, marginX + contentWidth, y + 11.5, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Date: ', marginX + contentWidth - 28, y + 15.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(dateStr, marginX + contentWidth, y + 15.5, { align: 'right' });
-
-  if (validUntilStr) {
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('Valid Until: ', marginX + contentWidth - 32, y + 19.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(180, 83, 9); // #b45309 Amber
-    doc.text(validUntilStr, marginX + contentWidth, y + 19.5, { align: 'right' });
-  }
-
-  // 2px Solid #7A1F3D Divider Line
-  y += 24;
-  doc.setDrawColor(122, 31, 61);
-  doc.setLineWidth(0.65);
-  doc.line(marginX, y, marginX + contentWidth, y);
-
-  // 2. Customer Dossier & Commercial Reference (2 Columns)
-  y += 3;
-  const cardH = 30;
-  const col1W = 104;
-  const col2W = 74;
-  const col2X = marginX + col1W + 4;
-
-  // Box 1: Billed To Client
-  doc.setFillColor(248, 250, 252); // #f8fafc
-  doc.roundedRect(marginX, y, col1W, cardH, 1.2, 1.2, 'F');
-  doc.setDrawColor(226, 232, 240); // #e2e8f0
-  doc.roundedRect(marginX, y, col1W, cardH, 1.2, 1.2, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.2);
-  doc.setTextColor(122, 31, 61); // #7A1F3D
-  doc.text('BILLED TO CLIENT', marginX + 3.5, y + 4.8);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.8);
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(partyName), marginX + 3.5, y + 9.5);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(71, 85, 105);
-  doc.text(partyAddress, marginX + 3.5, y + 13.8, { maxWidth: col1W - 7 });
-
-  const contactText = `GSTIN: ${partyGstin}    |    Contact: ${partyContact}`;
-  doc.text(contactText, marginX + 3.5, y + 23);
-  if (partyEmail) {
-    doc.text(`Email: ${partyEmail}`, marginX + 3.5, y + 27);
-  }
-
-  // Box 2: Commercial Reference
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(col2X, y, col2W, cardH, 1.2, 1.2, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(col2X, y, col2W, cardH, 1.2, 1.2, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.2);
-  doc.setTextColor(122, 31, 61);
-  doc.text('COMMERCIAL REFERENCE', col2X + 3.5, y + 4.8);
-
-  // Linked SO Pill
-  doc.setFillColor(245, 232, 237);
-  doc.roundedRect(col2X + 2.5, y + 7, col2W - 5, 6, 1, 1, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.8);
-  doc.setTextColor(122, 31, 61);
-  doc.text('Linked Sales Order:', col2X + 4.5, y + 11);
-  doc.text(String(salesOrder), col2X + col2W - 4.5, y + 11, { align: 'right' });
-
-  // Payment Terms
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Payment Terms:', col2X + 3.5, y + 18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(paymentTerms), col2X + col2W - 3.5, y + 18, { align: 'right', maxWidth: col2W - 28 });
-
-  // Dispatch Window
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Dispatch Window:', col2X + 3.5, y + 24);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(String(dispatchWindow), col2X + col2W - 3.5, y + 24, { align: 'right' });
-
-  y += cardH + 3.5;
-
-  // 3. Line Items Table Matching On-Screen Table
   const items = (pi.items && pi.items.length > 0) ? pi.items : [
-    { 
-      product: 'GPS-HSK-A63-24K Precision Motorized Spindle Unit (15 kW, 24,000 RPM)', 
-      desc: 'GPS-HSK-A63-24K Precision Motorized Spindle Unit (15 kW, 24,000 RPM)', 
-      hsn: '84669390', 
-      qty: 2, 
-      rate: 421000, 
-      discount: 0, 
-      gst: 18, 
-      total: 842000 
-    }
+    { id: 1, name: 'RECONDITIONING CHARGES FOR SPINDLE (M77-002)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 33500 },
+    { id: 2, name: '7014CTYNSULP4 NSK (SET OF 4 )', hsn: '84821012', qty: 1, unit: 'SET', unitPrice: 22500 },
+    { id: 3, name: 'TRANSPORT CHARGES', hsn: '996511', qty: 1, unit: '-', unitPrice: 3500 },
+    { id: 4, name: 'DRAWBAR ASSEMBLY WITH DISC SPRING (MUBEA MAKE GERMANY)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 15500 },
+    { id: 5, name: 'TAPER GRINDING', hsn: '998717', qty: 1, unit: '-', unitPrice: 5500 },
+    { id: 6, name: 'SHAFT BALANCING G2.5', hsn: '84669390', qty: 1, unit: '-', unitPrice: 2500 },
+    { id: 7, name: 'REMOVAL & FITMENT CHARGES', hsn: '998717', qty: 1, unit: '-', unitPrice: 12500 }
   ];
 
-  let calculatedSubtotal = 0;
+  const subtotal = Number(pi.subtotal) || items.reduce((sum, it) => sum + (Number(it.qty || 0) * Number(it.unitPrice || it.rate || 0)), 0);
+  const taxRate = Number(pi.taxRate) || 18;
+  const gstAmount = Number(pi.gstAmount) || Number(pi.taxAmount) || Math.round(subtotal * (taxRate / 100));
+  const totalAmount = Number(pi.totalAmount) || (subtotal + gstAmount);
+  const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
 
-  const tableRows = items.map((it, idx) => {
-    const qty = Number(it.qty || it.quantity) || 1;
-    const unit = it.unit || 'Units';
-    const rate = Number(it.rate || it.unitPrice || 421000);
-    const lineDiscount = Number(it.discount || 0);
-    const lineTotal = it.total || it.totalValue || (qty * rate - lineDiscount);
-    const name = it.product || it.item || it.name || it.desc || 'Precision Component';
-    const desc = it.desc && it.desc !== name ? it.desc : '';
-    const hsn = it.hsn || '84669390';
-    const gstRate = Number(it.gst || it.gstRate || 18);
+  const formatRupee = (num) => 'Rs. ' + Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subtotalFormatted = formatRupee(subtotal);
+  const gstFormatted = formatRupee(gstAmount);
+  const totalFormatted = formatRupee(totalAmount);
 
-    calculatedSubtotal += (qty * rate);
+  // 1. Document Title: "Proforma Invoice" centered at top, NO underline
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Proforma Invoice', pageWidth / 2, 13, { align: 'center' });
 
-    const titleAndDesc = desc ? `${name}\n${desc}` : name;
+  // 2. Main Outer Top Header Grid (X = marginX, Y = 16)
+  const headerBoxY = 16;
+  const headerBoxH = 27;
+  const splitColX = 124;
 
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, headerBoxY, contentWidth, headerBoxH, 'S');
+
+  // Vertical dividing line between left company details and right metadata
+  doc.line(splitColX, headerBoxY, splitColX, headerBoxY + headerBoxH);
+
+  // Company details on Left — with GPS logo
+  let logoDataUrl = null;
+  try {
+    const resp = await fetch('/logo.jpg');
+    const blob = await resp.blob();
+    logoDataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(blob);
+    });
+  } catch(_e) { logoDataUrl = null; }
+
+  const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'JPEG', marginX + 2.5, headerBoxY + 6.5, 27, 13.5);
+  }
+
+  // Company title: 2 lines matching the original format
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('GENERAL PRECISION', textX, headerBoxY + 4.2);
+  doc.text('SPINDLES', textX, headerBoxY + 7.6);
+
+  // Address lines to the right of the logo — no overlap
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', textX, headerBoxY + 11.0);
+  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', textX, headerBoxY + 13.8);
+  const piPhoneData = getBlackPhoneIconData();
+  if (piPhoneData) {
+    try {
+      const iconH = 1.9;
+      const iconW = iconH * (piPhoneData.aspectRatio || 1.08);
+      doc.addImage(piPhoneData.dataUrl, 'PNG', textX, headerBoxY + 14.7, iconW, iconH);
+      doc.text('+919764252188 /9764032929', textX + iconW + 0.35, headerBoxY + 16.6);
+    } catch (_imgErr) {
+      doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+    }
+  } else {
+    doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+  }
+  doc.text('Email: process@gpsspindles.net', textX, headerBoxY + 19.4);
+  doc.text('GSTIN: 27AATFG1527D1ZF', textX, headerBoxY + 22.2);
+  doc.text('State: 27-Maharashtra', textX, headerBoxY + 25.0);
+
+  // Right side: Metadata (3 Rows: Row 1 = Proforma Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space)
+  const rightW = (marginX + contentWidth) - splitColX;
+  const midMetaX = splitColX + (rightW / 2);
+  const row1H = 8.5;
+  const row2H = 8.5;
+  const row1Bottom = headerBoxY + row1H;
+  const row2Bottom = row1Bottom + row2H;
+
+  // Horizontal line 1: separates Row 1 from Row 2
+  doc.line(splitColX, row1Bottom, marginX + contentWidth, row1Bottom);
+
+  // Horizontal line 2: separates Row 2 from Row 3 (empty bottom space)
+  doc.line(splitColX, row2Bottom, marginX + contentWidth, row2Bottom);
+
+  // Vertical line dividing left and right columns across Row 1 and Row 2 (stops before empty Row 3)
+  doc.line(midMetaX, headerBoxY, midMetaX, row2Bottom);
+
+  // Row 1: Proforma Invoice No. (left) and Date (right)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Proforma Invoice No.', splitColX + 2.5, headerBoxY + 3.4);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 3.4);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(pi.piNumber || pi.id || '27'), splitColX + 2.5, headerBoxY + 7.2);
+  doc.text(String(pi.date || pi.issueDate || '22-08-2026'), midMetaX + 2.5, headerBoxY + 7.2);
+
+  // Row 2: Place of supply (left) and empty right corner
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.2);
+  doc.text('Place of supply', splitColX + 2.5, row1Bottom + 3.4);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(String(pi.placeOfSupply || pi.state || '27-Maharashtra'), splitColX + 2.5, row1Bottom + 7.2);
+
+  // Row 3: Empty space between row2Bottom and (headerBoxY + headerBoxH) matching original PDF
+
+  // 3. Proforma Invoice For (Customer Box)
+  const custBoxY = headerBoxY + headerBoxH;
+  const custBoxH = 34;
+  doc.rect(marginX, custBoxY, contentWidth, custBoxH, 'S');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Proforma Invoice For', marginX + 3, custBoxY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(String(pi.customer || 'T T B TOOLING'), marginX + 3, custBoxY + 9);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  const addrLines = (pi.customerAddress || 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan\nPune, Maharashtra-410501').split('\n');
+  doc.text(addrLines[0] || 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan', marginX + 3, custBoxY + 13.5);
+  doc.text(addrLines[1] || 'Pune, Maharashtra-410501', marginX + 3, custBoxY + 16.7);
+  doc.text('India', marginX + 3, custBoxY + 19.9);
+  doc.text(`Contact No. : ${pi.contactNo || '9975108709'}`, marginX + 3, custBoxY + 24.5);
+  doc.text(`GSTIN : ${pi.gstin || '27AAKFT2876K1ZI'}`, marginX + 3, custBoxY + 28);
+  doc.text(`State: ${pi.state || pi.placeOfSupply || '27-Maharashtra'}`, marginX + 3, custBoxY + 31.5);
+
+  // 4. Line Items Table with Unit column
+  const tableRows = items.map((item, idx) => {
+    const lineAmt = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || item.rate || 0)));
     return [
       idx + 1,
-      titleAndDesc,
-      hsn,
-      `${qty} ${unit}`,
-      'Rs. ' + Math.round(rate).toLocaleString('en-IN'),
-      `${gstRate}%`,
-      'Rs. ' + Math.round(lineTotal).toLocaleString('en-IN')
+      item.name || item.product || item.desc,
+      item.hsn || '',
+      item.qty,
+      item.unit || '-',
+      formatRupee(item.unitPrice || item.rate),
+      formatRupee(lineAmt)
     ];
   });
 
-  const subtotal = Number(pi.taxableValue || pi.subtotal || calculatedSubtotal);
-  const discount = Number(pi.discount || 0);
-  const cgst = Number(pi.cgstAmount || 0);
-  const sgst = Number(pi.sgstAmount || 0);
-  const igst = Number(pi.igstAmount || 0);
-  const taxAmount = (cgst + sgst + igst) || Number(pi.gstAmount) || Math.round((subtotal - discount) * 0.18);
-  const grandTotal = Number(pi.totalInvoiceValue || pi.totalAmount) || ((subtotal - discount) + taxAmount);
-  const amountInWords = pi.amountInWords || numberToIndianWords(grandTotal);
-
   autoTable(doc, {
-    startY: y,
+    startY: custBoxY + custBoxH,
     margin: { left: marginX, right: marginX },
-    head: [['#', 'Description of Goods / Technical Specification', 'HSN', 'Qty', 'Rate (Rs.)', 'GST', 'Total (Rs.)']],
+    head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Unit', 'Price/ Unit', 'Amount']],
     body: tableRows,
+    foot: [['', 'Total', '', totalQty, '', '', subtotalFormatted]],
     theme: 'grid',
     headStyles: {
-      fillColor: [241, 245, 249], // #F1F5F9
-      textColor: [15, 23, 42],    // #0f172a
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.2,
+      fontSize: 7,
       halign: 'center',
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
-    styles: {
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontSize: 6.8,
-      cellPadding: 2,
-      textColor: [15, 23, 42],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.2
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
+    },
+    footStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 7,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
-      1: { halign: 'left', fontStyle: 'bold', cellWidth: 74 },
-      2: { halign: 'center', cellWidth: 20 },
-      3: { halign: 'center', cellWidth: 16 },
-      4: { halign: 'right', cellWidth: 22 },
-      5: { halign: 'center', cellWidth: 14 },
-      6: { halign: 'right', fontStyle: 'bold', cellWidth: 28 }
+      0: { halign: 'left', cellWidth: 8 },
+      1: { halign: 'left', fontStyle: 'bold', cellWidth: 72 },
+      2: { halign: 'left', cellWidth: 22 },
+      3: { halign: 'right', cellWidth: 16 },
+      4: { halign: 'center', cellWidth: 14 },
+      5: { halign: 'right', cellWidth: 25 },
+      6: { halign: 'right', fontStyle: 'bold', cellWidth: 25 }
+    },
+    didParseCell: (data) => {
+      if (data.section === 'head') {
+        if (data.column.index === 0) data.cell.styles.halign = 'left';
+        if (data.column.index === 1) data.cell.styles.halign = 'left';
+        if (data.column.index === 2) data.cell.styles.halign = 'left';
+        if (data.column.index === 3) data.cell.styles.halign = 'right';
+        if (data.column.index === 4) data.cell.styles.halign = 'center';
+        if (data.column.index === 5) data.cell.styles.halign = 'right';
+        if (data.column.index === 6) data.cell.styles.halign = 'right';
+      } else if (data.section === 'body') {
+        if (data.column.index === 0) data.cell.styles.halign = 'left';
+        if (data.column.index === 1) data.cell.styles.halign = 'left';
+        if (data.column.index === 2) data.cell.styles.halign = 'left';
+        if (data.column.index === 3) data.cell.styles.halign = 'right';
+        if (data.column.index === 4) data.cell.styles.halign = 'center';
+        if (data.column.index === 5) data.cell.styles.halign = 'right';
+        if (data.column.index === 6) data.cell.styles.halign = 'right';
+      } else if (data.section === 'foot') {
+        if (data.column.index === 1) data.cell.styles.halign = 'left';
+        if (data.column.index === 3) data.cell.styles.halign = 'right';
+        if (data.column.index === 6) data.cell.styles.halign = 'right';
+      }
     }
   });
 
-  const finalY = doc.lastAutoTable.finalY + 3.5;
+  // 5. Middle Section (Words, Description, Amounts)
+  const pageBottom = pageHeight - marginX; // 283mm
+  const bottomH = 44;
+  const bottomY = pageBottom - bottomH; // ~239mm
 
-  // 4. Calculation Summary & Bank / Terms Grid (2 Columns)
-  const btmGridH = 44;
-  const btmCol1W = 104;
-  const btmCol2W = 74;
-  const btmCol2X = marginX + btmCol1W + 4;
+  let middleY = doc.lastAutoTable.finalY;
+  const middleH = Math.max(55, bottomY - middleY - 32);
+  const midSplitX = marginX + 110;
 
-  // Left Box 1: Bank Wire Coordinates (RTGS / NEFT)
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(marginX, finalY, btmCol1W, 20, 1.2, 1.2, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(marginX, finalY, btmCol1W, 20, 1.2, 1.2, 'S');
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, middleY, contentWidth, middleH, 'S');
+  doc.line(midSplitX, middleY, midSplitX, middleY + middleH);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(122, 31, 61);
-  doc.text('BANK WIRE COORDINATES (RTGS / NEFT)', marginX + 3.5, finalY + 4.2);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Bank: ICICI BANK LIMITED, PUNE NANDED CITY', marginX + 3.5, finalY + 8.5);
-  doc.text('Account Name: GENERAL PRECISION SPINDLES', marginX + 3.5, finalY + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('A/C Number: 349105000701    |    IFSC Code: ICIC0003491', marginX + 3.5, finalY + 16);
-
-  // Left Box 2: Special Terms & Notes
-  const notesY = finalY + 22.5;
-  const notesH = 21.5;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(marginX, notesY, btmCol1W, notesH, 1.2, 1.2, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(marginX, notesY, btmCol1W, notesH, 1.2, 1.2, 'S');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(122, 31, 61);
-  doc.text('SPECIAL TERMS & NOTES', marginX + 3.5, notesY + 4.2);
+  // Proforma Invoice Amount in Words Box
+  const wordsH = 10;
+  doc.line(marginX, middleY + wordsH, midSplitX, middleY + wordsH);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(71, 85, 105);
-  const noteStr = pi.notes || 'Proforma generated against confirmed Sales Order for advance wire remittance. Goods subject to GPS incoming inspection. Test certificates and calibration sheets mandatory.';
-  doc.text(noteStr, marginX + 3.5, notesY + 8.5, { maxWidth: btmCol1W - 7 });
+  doc.setTextColor(0, 0, 0);
+  doc.text('Proforma Invoice Amount in Words', marginX + 2, middleY + 4);
 
-  // Right Box: Tax Calculation Card
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(btmCol2X, finalY, btmCol2W, btmGridH, 1.2, 1.2, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(btmCol2X, finalY, btmCol2W, btmGridH, 1.2, 1.2, 'S');
-
-  let curY = finalY + 4.5;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Taxable Subtotal:', btmCol2X + 3.5, curY);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('Rs. ' + Math.round(subtotal).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
+  doc.setFontSize(7);
+  const amtWords = pi.amountInWords || numberToIndianWords(totalAmount);
+  const amtWordLines = doc.splitTextToSize(amtWords, midSplitX - marginX - 4);
+  doc.text(amtWordLines, marginX + 2, middleY + 8);
 
-  if (discount > 0) {
-    curY += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(22, 128, 60);
-    doc.text('Commercial Discount:', btmCol2X + 3.5, curY);
-    doc.setFont('helvetica', 'bold');
-    doc.text('-Rs. ' + Math.round(discount).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-  }
-
-  if (cgst > 0) {
-    curY += 4.8;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('Central GST (CGST 9%):', btmCol2X + 3.5, curY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('Rs. ' + Math.round(cgst).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-  }
-
-  if (sgst > 0) {
-    curY += 4.8;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('State GST (SGST 9%):', btmCol2X + 3.5, curY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('Rs. ' + Math.round(sgst).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-  }
-
-  if (igst > 0) {
-    curY += 4.8;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('Integrated GST (IGST 18%):', btmCol2X + 3.5, curY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('Rs. ' + Math.round(igst).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-  }
-
-  if (!cgst && !sgst && !igst) {
-    curY += 4.8;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('GST (18% Applicable):', btmCol2X + 3.5, curY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('Rs. ' + Math.round(taxAmount).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-  }
-
-  // 2px Solid #7A1F3D Divider Line before Grand Total
-  curY += 4;
-  doc.setDrawColor(122, 31, 61);
-  doc.setLineWidth(0.5);
-  doc.line(btmCol2X + 3.5, curY, btmCol2X + btmCol2W - 3.5, curY);
-
-  curY += 5.5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(122, 31, 61);
-  doc.text('Grand Total:', btmCol2X + 3.5, curY);
-  doc.text('Rs. ' + Math.round(grandTotal).toLocaleString('en-IN'), btmCol2X + btmCol2W - 3.5, curY, { align: 'right' });
-
-  curY += 4.5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Amount in Words:', btmCol2X + 3.5, curY);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(amountInWords, btmCol2X + 3.5, curY + 3.2, { maxWidth: btmCol2W - 7 });
-
-  // 5. Signature Bar Matching On-Screen Modal
-  const sigY = finalY + btmGridH + 5;
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.line(marginX, sigY, marginX + contentWidth, sigY);
+  // Description Box
+  const formatChallanDate = (raw) => {
+    if (!raw) return '18-08-2026';
+    if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    return String(raw);
+  };
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(148, 163, 184); // #94a3b8
-  doc.text(`Document Ref: ${docId} • Generated via GPS ERP Core on ${new Date().toLocaleDateString('en-GB')}`, marginX, sigY + 6);
+  doc.setFontSize(6.2);
+  doc.text('Description', marginX + 2, middleY + wordsH + 4);
 
-  const sigCenterX = marginX + contentWidth - 36;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
-  doc.setTextColor(15, 23, 42);
-  doc.text('For GENERAL PRECISION SPINDLES PVT. LTD.', sigCenterX, sigY + 5, { align: 'center' });
+  let descY = middleY + wordsH + 8;
+  doc.text(`SERIAL NO. ${pi.spindleSerial || 'HMMXXVI (M77-002)'}`, marginX + 2, descY); descY += 3.4;
+  doc.text(`CHALLAN NO. ${pi.challanNo || '049'}`, marginX + 2, descY); descY += 3.4;
+  doc.text(`CHALLAN DATE. ${formatChallanDate(pi.challanDate)}`, marginX + 2, descY); descY += 3.4;
+  doc.text('SCOPE OF WORK :-', marginX + 2, descY); descY += 3.5;
 
-  doc.setFont('helvetica', 'bolditalic');
+  const rawScope = Array.isArray(pi.scopeOfWork)
+    ? pi.scopeOfWork
+    : (pi.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. SHAFT TAPER GRINDING\n6. SHAFT BALANCING\n7. DRAWBAR ASSEMBLY WITH NEW DISC SPRING\n8. STATIC TEST\n9. ASSEMBLYY\n10. DYNAMIC TEST.').split('\n');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  rawScope.forEach((line, idx) => {
+    doc.text(line.trim(), marginX + 2, descY + (idx * 3.0));
+  });
+
+  // Right Side: Amounts Box
+  const amtRX = midSplitX + 2;
+  const amtRight = marginX + contentWidth - 2;
+
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(122, 31, 61);
-  doc.text('Authorized Signatory', sigCenterX, sigY + 11, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.text('Amounts', amtRX, middleY + 4.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Commercial Applications & Plant Operations', sigCenterX, sigY + 14.5, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('Sub Total', amtRX, middleY + 14);
+  doc.text(subtotalFormatted, amtRight, middleY + 14, { align: 'right' });
+
+  doc.text(`Tax (${taxRate}%)`, amtRX, middleY + 22);
+  doc.text(gstFormatted, amtRight, middleY + 22, { align: 'right' });
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.line(amtRX, middleY + 27, amtRight, middleY + 27);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('Total', amtRX, middleY + 34);
+  doc.text(totalFormatted, amtRight, middleY + 34, { align: 'right' });
+
+  // 6. Tax Summary Table (CGST+SGST if Maharashtra, IGST if inter-state)
+  const isIntraState = String(pi.placeOfSupply || pi.state || '27-Maharashtra').startsWith('27');
+
+  const computeHsnSummary = (itemList) => {
+    const map = {};
+    itemList.forEach(it => {
+      const rawCode = it.hsn != null ? String(it.hsn).trim() : '';
+      const key = rawCode === '' ? '__blank__' : rawCode;
+      const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || it.rate || 0))) || 0;
+      if (!map[key]) {
+        map[key] = { hsn: rawCode, taxable: 0 };
+      }
+      map[key].taxable += amt;
+    });
+    return Object.values(map)
+      .sort((a, b) => String(a.hsn).localeCompare(String(b.hsn)));
+  };
+
+  const hsnList = computeHsnSummary(items);
+
+  if (isIntraState) {
+    const hsnRows = hsnList.map(h => {
+      const cgstAmt = Math.round(h.taxable * 0.09);
+      const sgstAmt = Math.round(h.taxable * 0.09);
+      const totalTax = cgstAmt + sgstAmt;
+      return [
+        h.hsn || '',
+        formatRupee(h.taxable),
+        '9%',
+        formatRupee(cgstAmt),
+        '9%',
+        formatRupee(sgstAmt),
+        formatRupee(totalTax)
+      ];
+    });
+
+    const halfTax = Math.round(gstAmount / 2);
+    autoTable(doc, {
+      startY: middleY + middleH,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'CGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'SGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } },
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', formatRupee(halfTax), '', formatRupee(halfTax), gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 28 },
+        1: { halign: 'right', cellWidth: 34 },
+        2: { halign: 'right', cellWidth: 16 },
+        3: { halign: 'right', cellWidth: 26 },
+        4: { halign: 'right', cellWidth: 16 },
+        5: { halign: 'right', cellWidth: 26 },
+        6: { halign: 'right', cellWidth: 36 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  } else {
+    // Inter-state (IGST)
+    const hsnRows = hsnList.map(h => {
+      const tax = Math.round(h.taxable * 0.18);
+      return [
+        h.hsn || '',
+        formatRupee(h.taxable),
+        '18%',
+        formatRupee(tax),
+        formatRupee(tax)
+      ];
+    });
+
+    autoTable(doc, {
+      startY: middleY + middleH,
+      margin: { left: marginX, right: marginX },
+      head: [
+        [
+          { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+          { content: 'Rate', styles: { halign: 'center' } },
+          { content: 'Amount', styles: { halign: 'center' } }
+        ]
+      ],
+      body: hsnRows,
+      foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', gstFormatted, gstFormatted]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 6,
+        lineColor: [184, 184, 184],
+        lineWidth: 0.18,
+        cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 38 },
+        1: { halign: 'right', cellWidth: 44 },
+        2: { halign: 'right', cellWidth: 22 },
+        3: { halign: 'right', cellWidth: 40 },
+        4: { halign: 'right', cellWidth: 38 }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head') {
+          data.cell.styles.halign = 'center';
+        } else if (data.section === 'body') {
+          if (data.column.index === 0) data.cell.styles.halign = 'left';
+          else data.cell.styles.halign = 'right';
+        } else if (data.section === 'foot') {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+  }
+
+  // 7. Bottom 3-Column Footer Box
+  const actualBottomY = Math.max(doc.lastAutoTable.finalY, bottomY);
+  const col1W = 62;
+  const col2W = 68;
+  const col3W = contentWidth - col1W - col2W;
+  const col2X = marginX + col1W;
+  const col3X = col2X + col2W;
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, actualBottomY, contentWidth, bottomH, 'S');
+  doc.line(col2X, actualBottomY, col2X, actualBottomY + bottomH);
+  doc.line(col3X, actualBottomY, col3X, actualBottomY + bottomH);
+
+  // Column 1: Bank Details
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Bank Details', marginX + 2, actualBottomY + 4.5);
+
+  // Dynamic Amount-Wise Scannable UPI QR Code
+  const upiId = pi.bankDetails?.upiId || pi.upiId || getActiveUpiId();
+  const payeeName = pi.bankDetails?.accountHolder || pi.bankDetails?.accountName || DEFAULT_BANK_DETAILS.accountHolder;
+  const piRef = pi.proformaNo || pi.piNumber || pi.id || '';
+
+  try {
+    const qrDataUrl = await generateUpiQrDataUrl({
+      upiId,
+      payeeName,
+      amount: totalAmount,
+      transactionNote: piRef ? `Proforma ${piRef}` : 'Proforma Invoice Payment',
+      transactionRef: piRef
+    }, { width: 300, margin: 1 });
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', marginX + 2, actualBottomY + 6.5, 14.5, 14.5);
+    }
+  } catch (_qrErr) {
+    console.error('Failed to generate UPI QR for proforma PDF:', _qrErr);
+  }
+
+  // UPI badge
+  doc.setFillColor(22, 163, 74);
+  doc.rect(marginX + 2, actualBottomY + 21.5, 14.5, 3.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(4);
+  doc.setTextColor(255, 255, 255);
+  doc.text('UPI: SCAN TO PAY', marginX + 9.25, actualBottomY + 23.8, { align: 'center' });
+
+  // Bank Text
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.6);
+  doc.setTextColor(0, 0, 0);
+  let bankY = actualBottomY + 7.5;
+  doc.text('Name : ICICI BANK LIMITED, PUNE', marginX + 18, bankY); bankY += 3.0;
+  doc.text('NANDED CITY', marginX + 18, bankY); bankY += 3.6;
+  doc.text('Account No. : 349105000701', marginX + 18, bankY); bankY += 3.6;
+  doc.text('IFSC code : ICIC0003491', marginX + 18, bankY); bankY += 3.6;
+  doc.text(`UPI ID : ${upiId}`, marginX + 18, bankY); bankY += 3.6;
+  doc.text("Account holder's name : GENERAL", marginX + 18, bankY); bankY += 3.0;
+  doc.text('PRECISION SPINDLES', marginX + 18, bankY);
+
+  // Column 2: Terms and conditions
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Terms and conditions', col2X + 2, actualBottomY + 4.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.2);
+  const termsTextLines = [
+    'We declare that this invoice shows the actual price of the goods',
+    'described and that all particulars are true and correct.',
+    '',
+    'Bank Details:',
+    'ICICI Bank Ltd(Nanded City Branch)',
+    'A/c No : 349105000701',
+    'IFSC Code: ICIC0003491',
+    'MSME (UDYAM ADHAR) NO-MH26A0189736',
+    'TYPE OF ENTERPRISES: SPINDLE MANUFACTURING',
+    'AND REPAIRING',
+    'MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF',
+    'CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,',
+    'INTEGRATED,SPINDLE REPAIRING ,SPINDLE',
+    'MANUFACTURING.'
+  ];
+  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, actualBottomY + 7.5 + (i * 2.35)); });
+
+  // Column 3: Authorized Signatory
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('For : GENERAL PRECISION SPINDLES', col3X + (col3W / 2), actualBottomY + 5.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
   // Save the PDF
-  const cleanId = String(docId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanId = String(pi.piNumber || pi.id || 'PI_27').replace(/[^a-zA-Z0-9_-]/g, '_');
   doc.save(`GPS_Proforma_Invoice_${cleanId}.pdf`);
 };
 
@@ -1565,7 +2631,11 @@ export const exportSpindleRegistryPdf = (spindles = []) => {
 export const exportCalibrationCertificatePdf = (inspection) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = drawCorporateHeader(doc, 'CALIBRATION CERTIFICATE', inspection?.inspection_number || inspection?.id || 'QC-2026-104', 'Metrology Acceptance & Dynamic Balancing Certificate');
+  const isService = inspection?.spindleCategory === 'service';
+  const certSubtitle = isService 
+    ? 'Spindle Overhaul Metrology Acceptance & Re-Certification' 
+    : 'Metrology Acceptance & Dynamic Balancing Certificate';
+  let y = drawCorporateHeader(doc, 'CALIBRATION CERTIFICATE', inspection?.inspection_number || inspection?.id || 'QC-2026-104', certSubtitle);
 
   // Spindle & Test Specification Card
   doc.setFillColor(...THEME.surface);
@@ -1586,7 +2656,7 @@ export const exportCalibrationCertificatePdf = (inspection) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...THEME.textMain);
-  doc.text(`Spindle Serial: ${spindleSerial}`, 18, y + 11.5);
+  doc.text(`Spindle Serial: ${spindleSerial} (${isService ? 'Service Overhaul' : 'New Build'})`, 18, y + 11.5);
   doc.text(`Spindle Model: ${spindleModel}`, 18, y + 16.5);
   doc.text(`Customer / End User: ${customer}`, 18, y + 21.5);
 
@@ -1969,9 +3039,10 @@ export const exportJobTravelerPdf = (wo, operations = []) => {
 // ==========================================
 // 15. OFFICIAL ESTIMATE / QUOTATION PDF (100% EXACT 1:1 REPLICA OF ESTIMATE_QTN 2026-27 294 PDF)
 // ==========================================
-export const exportQuotationPdf = (quote = {}) => {
+export const exportQuotationPdf = async (quote = {}) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
   const marginX = 14;
   const contentWidth = pageWidth - (marginX * 2); // 182mm
 
@@ -2004,66 +3075,106 @@ export const exportQuotationPdf = (quote = {}) => {
 
   // 2. Main Outer Top Header Grid (X = marginX, Y = 16)
   const headerBoxY = 16;
-  const headerBoxH = 26;
+  const headerBoxH = 27;
   const splitColX = 124;
 
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.2);
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
   doc.rect(marginX, headerBoxY, contentWidth, headerBoxH, 'S');
 
   // Vertical dividing line between left company details and right metadata
   doc.line(splitColX, headerBoxY, splitColX, headerBoxY + headerBoxH);
 
-  // Company details on Left
+  // Company details on Left — with GPS logo
+  // Fetch logo as base64 so jsPDF can embed it
+  let logoDataUrl = null;
+  try {
+    const resp = await fetch('/logo.jpg');
+    const blob = await resp.blob();
+    logoDataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(blob);
+    });
+  } catch(_e) { logoDataUrl = null; }
+
+  const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'JPEG', marginX + 2.5, headerBoxY + 6.5, 27, 13.5);
+  }
+
+  // Company title: 2 lines matching the original format
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(8.5);
   doc.setTextColor(0, 0, 0);
-  doc.text('GENERAL PRECISION SPINDLES', marginX + 3, headerBoxY + 5.5);
+  doc.text('GENERAL PRECISION', textX, headerBoxY + 4.2);
+  doc.text('SPINDLES', textX, headerBoxY + 7.6);
 
+  // Address lines to the right of the logo — no overlap
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(5.8);
   doc.setTextColor(0, 0, 0);
-  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', marginX + 3, headerBoxY + 10);
-  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', marginX + 3, headerBoxY + 13.3);
-  doc.text('Ph: +919764252188 / 9764032929', marginX + 3, headerBoxY + 16.6);
-  doc.text('Email: process@gpsspindles.net', marginX + 3, headerBoxY + 19.9);
-  doc.text('GSTIN: 27AATFG1527D1ZF', marginX + 3, headerBoxY + 23.2);
-  doc.text('State: 27-Maharashtra', marginX + 3, headerBoxY + 25.5);
+  doc.text('SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI', textX, headerBoxY + 11.0);
+  doc.text('DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,', textX, headerBoxY + 13.8);
 
-  // Right side: Metadata fields
-  // Horizontal dividing line at headerBoxY + 13
-  doc.line(splitColX, headerBoxY + 13, marginX + contentWidth, headerBoxY + 13);
-  // Vertical dividing line at x = 160 (continuous 2x2 grid matching Image 2)
-  const midMetaX = 160;
-  doc.line(midMetaX, headerBoxY, midMetaX, headerBoxY + headerBoxH);
+  const qtnPhoneData = getBlackPhoneIconData();
+  if (qtnPhoneData) {
+    try {
+      const iconH = 1.9;
+      const iconW = iconH * (qtnPhoneData.aspectRatio || 1.08);
+      doc.addImage(qtnPhoneData.dataUrl, 'PNG', textX, headerBoxY + 14.7, iconW, iconH);
+      doc.text('+919764252188 /9764032929', textX + iconW + 0.35, headerBoxY + 16.6);
+    } catch (_imgErr) {
+      doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+    }
+  } else {
+    doc.text('+919764252188 /9764032929', textX, headerBoxY + 16.6);
+  }
+  doc.text('Email: process@gpsspindles.net', textX, headerBoxY + 19.4);
+  doc.text('GSTIN: 27AATFG1527D1ZF', textX, headerBoxY + 22.2);
+  doc.text('State: 27-Maharashtra', textX, headerBoxY + 25.0);
 
-  // Top Left: Estimate No.
+  // Right side: Metadata (3 Rows: Row 1 = Estimate No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space)
+  const rightW = (marginX + contentWidth) - splitColX;
+  const midMetaX = splitColX + (rightW / 2);
+  const row1H = 8.5;
+  const row2H = 8.5;
+  const row1Bottom = headerBoxY + row1H;
+  const row2Bottom = row1Bottom + row2H;
+
+  // Horizontal line 1: separates Row 1 from Row 2
+  doc.line(splitColX, row1Bottom, marginX + contentWidth, row1Bottom);
+
+  // Horizontal line 2: separates Row 2 from Row 3 (empty bottom space)
+  doc.line(splitColX, row2Bottom, marginX + contentWidth, row2Bottom);
+
+  // Vertical line dividing left and right columns across Row 1 and Row 2 (stops before empty Row 3)
+  doc.line(midMetaX, headerBoxY, midMetaX, row2Bottom);
+
+  // Row 1: Estimate No. (left) and Date (right)
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.2);
   doc.setTextColor(0, 0, 0);
-  doc.text('Estimate No.', splitColX + 2.5, headerBoxY + 4.5);
+  doc.text('Estimate No.', splitColX + 2.5, headerBoxY + 3.4);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 3.4);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text(String(quote.estimateNo || quote.id || 'QTN/2026-27/294'), splitColX + 2.5, headerBoxY + 9.5);
+  doc.setFontSize(7.5);
+  doc.text(String(quote.estimateNo || quote.id || 'QTN/2026-27/294'), splitColX + 2.5, headerBoxY + 7.2);
+  doc.text(String(quote.date || '07-09-2026'), midMetaX + 2.5, headerBoxY + 7.2);
 
-  // Top Right: Date
+  // Row 2: Place of supply (left) and empty right corner
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.text('Date', midMetaX + 2.5, headerBoxY + 4.5);
+  doc.setFontSize(6.2);
+  doc.text('Place of supply', splitColX + 2.5, row1Bottom + 3.4);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text(String(quote.date || '07-09-2026'), midMetaX + 2.5, headerBoxY + 9.5);
+  doc.setFontSize(7.5);
+  doc.text(String(quote.placeOfSupply || quote.state || '23-Madhya Pradesh'), splitColX + 2.5, row1Bottom + 7.2);
 
-  // Bottom: Place of supply (with blank cell on right matching Image 2)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.text('Place of supply', splitColX + 2.5, headerBoxY + 17.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text(String(quote.placeOfSupply || quote.state || '23-Madhya Pradesh'), splitColX + 2.5, headerBoxY + 22.5);
+  // Row 3: Empty space between row2Bottom and (headerBoxY + headerBoxH) matching original PDF
 
   // 3. Estimate For (Customer Box) - matching generous spacing from Image 3
   const custBoxY = headerBoxY + headerBoxH;
@@ -2090,7 +3201,7 @@ export const exportQuotationPdf = (quote = {}) => {
   doc.text(`GSTIN : ${quote.gstin || '23AACCL5351J1ZM'}`, marginX + 3, custBoxY + 28);
   doc.text(`State: ${quote.state || quote.placeOfSupply || '23-Madhya Pradesh'}`, marginX + 3, custBoxY + 31.5);
 
-  // 4. Line Items Table
+  // 4. Line Items Table (no dummy rows, matching exact PDF line items)
   const tableRows = items.map((item, idx) => {
     const lineAmt = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0)));
     return [
@@ -2103,34 +3214,28 @@ export const exportQuotationPdf = (quote = {}) => {
     ];
   });
 
-  const displayTableRows = [...tableRows];
-  while (displayTableRows.length < 5) {
-    displayTableRows.push(['', '', '', '', '', '']);
-  }
-
   autoTable(doc, {
     startY: custBoxY + custBoxH,
     margin: { left: marginX, right: marginX },
     head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Price/ Unit', 'Amount']],
-    body: displayTableRows,
-    foot: [['', 'Total', '', totalQty, '', subtotalFormatted]],
+    body: tableRows,
+    foot: [['', 'Total', '', { content: String(totalQty), styles: { halign: 'right' } }, '', { content: subtotalFormatted, styles: { halign: 'right' } }]],
     theme: 'grid',
     headStyles: {
       fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       fontSize: 7,
-      halign: 'center',
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
       cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     bodyStyles: {
       fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontSize: 6.8,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
       cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
     },
     footStyles: {
@@ -2138,30 +3243,83 @@ export const exportQuotationPdf = (quote = {}) => {
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       fontSize: 7,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
       cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
+      0: { halign: 'left', cellWidth: 8 },
       1: { halign: 'left', fontStyle: 'bold', cellWidth: 82 },
-      2: { halign: 'center', cellWidth: 24 },
+      2: { halign: 'left', cellWidth: 24 },
       3: { halign: 'right', cellWidth: 16 },
       4: { halign: 'right', cellWidth: 26 },
-      5: { halign: 'right', fontStyle: 'bold', cellWidth: 26 }
+      5: { halign: 'right', cellWidth: 26 }
+    },
+    didParseCell: (data) => {
+      if (data.column.index === 0 || data.column.index === 1 || data.column.index === 2) {
+        data.cell.styles.halign = 'left';
+      } else if (data.column.index === 3 || data.column.index === 4 || data.column.index === 5) {
+        data.cell.styles.halign = 'right';
+      }
     }
   });
 
   // 5. Middle Section (Words, Description, Amounts)
   const pageBottom = pageHeight - marginX; // 283mm
-  const bottomH = 44;
-  const bottomY = pageBottom - bottomH; // 239mm
-
-  let middleY = doc.lastAutoTable.finalY;
-  const middleH = Math.max(54, bottomY - middleY - 26);
+  const targetBottomH = 44;
+  const targetBottomY = pageBottom - targetBottomH; // ~239mm
   const midSplitX = marginX + 110;
+  let middleY = doc.lastAutoTable.finalY;
 
-  doc.setLineWidth(0.25);
+  // Precompute HSN table so we can size Middle Section so HSN table lands flush with Bottom Box
+  const computeHsnSummary = (itemList) => {
+    const map = {};
+    itemList.forEach(it => {
+      const rawCode = it.hsn != null ? String(it.hsn).trim() : '';
+      const key = rawCode === '' ? '__blank__' : rawCode;
+      const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
+      if (!map[key]) {
+        map[key] = { hsn: rawCode, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+      }
+      map[key].taxable += amt;
+    });
+    return Object.values(map)
+      .sort((a, b) => {
+        if (!a.hsn && b.hsn) return -1;
+        if (a.hsn && !b.hsn) return 1;
+        return String(a.hsn).localeCompare(String(b.hsn));
+      })
+      .map(entry => {
+        const tax = Math.round(entry.taxable * 0.18);
+        return {
+          hsn: entry.hsn,
+          taxable: entry.taxable,
+          rate: '18%',
+          igst: tax,
+          totalTax: tax
+        };
+      });
+  };
+
+  const hsnList = (quote.hsnSummary && quote.hsnSummary.length > 0)
+    ? quote.hsnSummary
+    : computeHsnSummary(items);
+
+  const hsnRows = hsnList.map(h => [
+    h.hsn || '',
+    formatRupee(h.taxable),
+    h.rate || '18%',
+    formatRupee(h.igst),
+    formatRupee(h.totalTax)
+  ]);
+
+  // HSN table height: 2 header rows (6.2mm) + body rows (2.8mm each) + 1 foot row (2.8mm)
+  const estimatedHsnH = 6.2 + (hsnRows.length * 2.8) + 2.8;
+  const availableMiddleH = targetBottomY - estimatedHsnH - middleY;
+  const middleH = Math.max(52, availableMiddleH);
+
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
   doc.rect(marginX, middleY, contentWidth, middleH, 'S');
   doc.line(midSplitX, middleY, midSplitX, middleY + middleH);
 
@@ -2180,7 +3338,25 @@ export const exportQuotationPdf = (quote = {}) => {
   const amtWordLines = doc.splitTextToSize(amtWords, midSplitX - marginX - 4);
   doc.text(amtWordLines, marginX + 2, middleY + 8);
 
-  // Description Box
+  // Description Box — matches actual PDF format exactly:
+  // - "Description" label in normal weight
+  // - SERIAL NO / CHALLAN / INWORD DATE / SCOPE OF WORK header in bold
+  // - All scope items in a SINGLE COLUMN in bold (not two-column split)
+  // - inwardDate formatted as DD-MM-YYYY
+
+  const formatInwardDate = (raw) => {
+    if (!raw) return '22-08-2026';
+    if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    return String(raw);
+  };
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.2);
   doc.text('Description', marginX + 2, middleY + wordsH + 4);
@@ -2188,32 +3364,28 @@ export const exportQuotationPdf = (quote = {}) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
   let descY = middleY + wordsH + 8;
-  doc.text(`SERIAL NO. ${quote.spindleSerial || 'HMMXXVI'}`, marginX + 2, descY); descY += 3.2;
-  doc.text(`CHALLAN NO. ${quote.challanNo || 'N/A'}`, marginX + 2, descY); descY += 3.2;
-  doc.text(`INWORD DATE. ${quote.inwardDate || '22-08-2026'}`, marginX + 2, descY); descY += 3.2;
-  doc.text('SCOPE OF WORK :-', marginX + 2, descY); descY += 3;
+  doc.text(`SERIAL NO. ${quote.spindleSerial || 'HMMXXVI'}`, marginX + 2, descY); descY += 3.4;
+  doc.text(`CHALLAN NO. ${quote.challanNo || 'N/A'}`, marginX + 2, descY); descY += 3.4;
+  doc.text(`INWORD DATE. ${formatInwardDate(quote.inwardDate)}`, marginX + 2, descY); descY += 3.4;
+  doc.text('SCOPE OF WORK :-', marginX + 2, descY); descY += 3.5;
 
   const rawScope = Array.isArray(quote.scopeOfWork)
     ? quote.scopeOfWork
     : (quote.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.8);
-  const halfLen = Math.ceil(rawScope.length / 2);
-  const scopeColW = (midSplitX - marginX - 4) / 2;
-  rawScope.slice(0, halfLen).forEach((line, idx) => {
-    doc.text(line.trim(), marginX + 2, descY + (idx * 2.8));
-  });
-  rawScope.slice(halfLen).forEach((line, idx) => {
-    doc.text(line.trim(), marginX + 2 + scopeColW, descY + (idx * 2.8));
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  rawScope.forEach((line, idx) => {
+    doc.text(line.trim(), marginX + 2, descY + (idx * 3.0));
   });
 
   // Right Side: Amounts Box
   const amtRX = midSplitX + 2;
   const amtRight = marginX + contentWidth - 2;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
   doc.text('Amounts', amtRX, middleY + 4.5);
 
   doc.setFont('helvetica', 'normal');
@@ -2224,8 +3396,8 @@ export const exportQuotationPdf = (quote = {}) => {
   doc.text(`Tax (${taxRate}%)`, amtRX, middleY + 22);
   doc.text(gstFormatted, amtRight, middleY + 22, { align: 'right' });
 
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.2);
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
   doc.line(amtRX, middleY + 27, amtRight, middleY + 27);
 
   doc.setFont('helvetica', 'bold');
@@ -2233,40 +3405,7 @@ export const exportQuotationPdf = (quote = {}) => {
   doc.text('Total', amtRX, middleY + 34);
   doc.text(totalFormatted, amtRight, middleY + 34, { align: 'right' });
 
-  // 6. HSN/SAC Tax Summary Table
-  const computeHsnSummary = (itemList) => {
-    const map = {};
-    itemList.forEach(it => {
-      const code = it.hsn ? String(it.hsn).trim() : '';
-      const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
-      if (!map[code]) {
-        map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
-      }
-      map[code].taxable += amt;
-    });
-    return Object.values(map).map(entry => {
-      const tax = Math.round(entry.taxable * 0.18);
-      return {
-        hsn: entry.hsn,
-        taxable: entry.taxable,
-        rate: '18%',
-        igst: tax,
-        totalTax: tax
-      };
-    });
-  };
-
-  const hsnList = (quote.hsnSummary && quote.hsnSummary.length > 0)
-    ? quote.hsnSummary
-    : computeHsnSummary(items);
-
-  const hsnRows = hsnList.map(h => [
-    h.hsn || '',
-    formatRupee(h.taxable),
-    h.rate || '18%',
-    formatRupee(h.igst),
-    formatRupee(h.totalTax)
-  ]);
+  // 6. HSN/SAC Tax Summary Table (matching blank-HSN sorted first)
 
   autoTable(doc, {
     startY: middleY + middleH,
@@ -2274,127 +3413,141 @@ export const exportQuotationPdf = (quote = {}) => {
     head: [
       [
         { content: 'HSN/ SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-        { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
+        { content: 'Taxable amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
         { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
-        { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } }
+        { content: 'Total Tax Amount', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
       ],
       [
         { content: 'Rate', styles: { halign: 'center' } },
-        { content: 'Amount', styles: { halign: 'right' } }
+        { content: 'Amount', styles: { halign: 'center' } }
       ]
     ],
     body: hsnRows,
-    foot: [['Total', subtotalFormatted, '', gstFormatted, gstFormatted]],
+    foot: [[{ content: 'Total', styles: { halign: 'right' } }, subtotalFormatted, '', gstFormatted, gstFormatted]],
     theme: 'grid',
     headStyles: {
       fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 6.5,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
-      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
+      fontSize: 6,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
     },
     bodyStyles: {
       fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
-      fontSize: 6.5,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
-      cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 }
+      fontSize: 6,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
     },
     footStyles: {
       fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 6.5,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
-      cellPadding: { top: 1.8, bottom: 1.8, left: 1.5, right: 1.5 }
+      fontSize: 6,
+      lineColor: [184, 184, 184],
+      lineWidth: 0.18,
+      cellPadding: { top: 0.9, bottom: 0.9, left: 1.5, right: 1.5 }
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 38 },
+      0: { halign: 'left', cellWidth: 38 },
       1: { halign: 'right', cellWidth: 44 },
-      2: { halign: 'center', cellWidth: 22 },
+      2: { halign: 'right', cellWidth: 22 },
       3: { halign: 'right', cellWidth: 40 },
       4: { halign: 'right', cellWidth: 38 }
+    },
+    didParseCell: (data) => {
+      if (data.section === 'head') {
+        data.cell.styles.halign = 'center';
+      } else if (data.section === 'body') {
+        if (data.column.index === 0) data.cell.styles.halign = 'left';
+        if (data.column.index === 1) data.cell.styles.halign = 'right';
+        if (data.column.index === 2) data.cell.styles.halign = 'right';
+        if (data.column.index === 3) data.cell.styles.halign = 'right';
+        if (data.column.index === 4) data.cell.styles.halign = 'right';
+      } else if (data.section === 'foot') {
+        data.cell.styles.halign = 'right';
+      }
     }
   });
 
   // 7. Bottom 3-Column Footer Box (Bank Details, Terms, Signatory)
+  // Attached directly to bottom of HSN table with ZERO gap
+  const actualBottomY = doc.lastAutoTable.finalY;
+  const actualBottomH = Math.max(targetBottomH, pageBottom - actualBottomY);
   const col1W = 62;
   const col2W = 68;
   const col3W = contentWidth - col1W - col2W;
   const col2X = marginX + col1W;
   const col3X = col2X + col2W;
 
-  doc.setLineWidth(0.25);
-  doc.rect(marginX, bottomY, contentWidth, bottomH, 'S');
-  doc.line(col2X, bottomY, col2X, bottomY + bottomH);
-  doc.line(col3X, bottomY, col3X, bottomY + bottomH);
+  doc.setDrawColor(184, 184, 184);
+  doc.setLineWidth(0.18);
+  doc.rect(marginX, actualBottomY, contentWidth, actualBottomH, 'S');
+  doc.line(col2X, actualBottomY, col2X, actualBottomY + actualBottomH);
+  doc.line(col3X, actualBottomY, col3X, actualBottomY + actualBottomH);
 
   // Column 1: Bank Details
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
-  doc.text('Bank Details', marginX + 2, bottomY + 4.5);
+  doc.text('Bank Details', marginX + 2, actualBottomY + 4.5);
 
-  // QR Code representation
-  doc.setLineWidth(0.2);
-  doc.rect(marginX + 2, bottomY + 7, 14, 14, 'S');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 3, bottomY + 8, 4, 4, 'F');
-  doc.setFillColor(255, 255, 255);
-  doc.rect(marginX + 3.7, bottomY + 8.7, 2.6, 2.6, 'F');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 4.3, bottomY + 9.3, 1.4, 1.4, 'F');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 8.5, bottomY + 8, 4, 4, 'F');
-  doc.setFillColor(255, 255, 255);
-  doc.rect(marginX + 9.2, bottomY + 8.7, 2.6, 2.6, 'F');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 9.8, bottomY + 9.3, 1.4, 1.4, 'F');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 3, bottomY + 16.5, 4, 4, 'F');
-  doc.setFillColor(255, 255, 255);
-  doc.rect(marginX + 3.7, bottomY + 17.2, 2.6, 2.6, 'F');
-  doc.setFillColor(0, 0, 0);
-  doc.rect(marginX + 4.3, bottomY + 17.8, 1.4, 1.4, 'F');
+  // Dynamic Amount-Wise Scannable UPI QR Code
+  const upiId = quote.bankDetails?.upiId || quote.upiId || getActiveUpiId();
+  const payeeName = quote.bankDetails?.accountHolder || quote.bankDetails?.accountName || DEFAULT_BANK_DETAILS.accountHolder;
+  const quoteRef = quote.estimateNo || quote.id || '';
+
+  try {
+    const qrDataUrl = await generateUpiQrDataUrl({
+      upiId,
+      payeeName,
+      amount: totalAmount,
+      transactionNote: quoteRef ? `Quotation ${quoteRef}` : 'Quotation Payment',
+      transactionRef: quoteRef
+    }, { width: 300, margin: 1 });
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', marginX + 2, actualBottomY + 6.5, 14.5, 14.5);
+    }
+  } catch (_qrErr) {
+    console.error('Failed to generate UPI QR for quotation PDF:', _qrErr);
+  }
 
   // UPI badge
   doc.setFillColor(22, 163, 74);
-  doc.rect(marginX + 2, bottomY + 21.5, 14, 3.5, 'F');
+  doc.rect(marginX + 2, actualBottomY + 21.5, 14.5, 3.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(4);
   doc.setTextColor(255, 255, 255);
-  doc.text('UPI: SCAN TO PAY', marginX + 9, bottomY + 23.8, { align: 'center' });
+  doc.text('UPI: SCAN TO PAY', marginX + 9.25, actualBottomY + 23.8, { align: 'center' });
 
   // Bank Text
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.8);
+  doc.setFontSize(5.6);
   doc.setTextColor(0, 0, 0);
-  const bankTxtLines = [
-    'Name : ICICI BANK LIMITED, PUNE',
-    'NANDED CITY',
-    'Account No. : 349105000701',
-    'IFSC code : ICIC0003491',
-    "Account holder's name : GENERAL",
-    'PRECISION SPINDLES'
-  ];
-  bankTxtLines.forEach((line, i) => { doc.text(line, marginX + 18, bottomY + 8 + (i * 3.2)); });
+  let bankY = actualBottomY + 7.5;
+  doc.text('Name : ICICI BANK LIMITED, PUNE', marginX + 18, bankY); bankY += 3.0;
+  doc.text('NANDED CITY', marginX + 18, bankY); bankY += 3.6;
+  doc.text('Account No. : 349105000701', marginX + 18, bankY); bankY += 3.6;
+  doc.text('IFSC code : ICIC0003491', marginX + 18, bankY); bankY += 3.6;
+  doc.text(`UPI ID : ${upiId}`, marginX + 18, bankY); bankY += 3.6;
+  doc.text("Account holder's name : GENERAL", marginX + 18, bankY); bankY += 3.0;
+  doc.text('PRECISION SPINDLES', marginX + 18, bankY);
 
   // Column 2: Terms and conditions
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
-  doc.text('Terms and conditions', col2X + 2, bottomY + 4.5);
+  doc.text('Terms and conditions', col2X + 2, actualBottomY + 4.5);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.2);
   const termsTextLines = [
-    'We declare that this invoice shows the actual price of',
-    'the goods described and that all particulars are true and',
-    'correct.',
+    'We declare that this invoice shows the actual price of the goods',
+    'described and that all particulars are true and correct.',
     '',
     'Bank Details:',
     'ICICI Bank Ltd(Nanded City Branch)',
@@ -2408,17 +3561,17 @@ export const exportQuotationPdf = (quote = {}) => {
     'INTEGRATED,SPINDLE REPAIRING ,SPINDLE',
     'MANUFACTURING.'
   ];
-  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, bottomY + 7.5 + (i * 2.35)); });
+  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, actualBottomY + 7.5 + (i * 2.35)); });
 
   // Column 3: Authorized Signatory
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(0, 0, 0);
-  doc.text('For : GENERAL PRECISION SPINDLES', col3X + 2, bottomY + 4.5);
+  doc.text('For : GENERAL PRECISION SPINDLES', col3X + (col3W / 2), actualBottomY + 5.5, { align: 'center' });
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.text('Authorized Signatory', col3X + (col3W / 2), bottomY + bottomH - 4, { align: 'center' });
+  doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + actualBottomH - 4.5, { align: 'center' });
 
   // Save the PDF
   const cleanId = String(quote.estimateNo || quote.id || 'QTN-2026').replace(/[^a-zA-Z0-9_-]/g, '_');

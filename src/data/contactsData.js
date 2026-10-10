@@ -1,4 +1,5 @@
 // GPS Spindle ERP — Master Contacts & Systematic CC Email Directory
+import { isCleanSlateMode } from '../utils/dataMode';
 
 export const INTERNAL_GPS_CCS = [
   { id: 'billing', label: 'Accounts & Invoicing', email: 'billing@gpsspindle.com', role: 'Finance & Tax Invoices' },
@@ -17,7 +18,7 @@ export const PRESET_EMAIL_GROUPS = [
   { id: 'quality', label: 'Quality Inspection & Balancing Reports', icon: 'ShieldCheck', desc: 'Pre-fills QC Inward, Metrology Lab & GPS QA' }
 ];
 
-export const MASTER_CONTACTS = [
+const SEED_MASTER_CONTACTS = [
   {
     id: 'CNT-001',
     companyId: 'CUST-01',
@@ -408,3 +409,5 @@ export const MASTER_CONTACTS = [
     notes: 'Quote drawbar collets with OTT part numbers (e.g. 95.101.488.9.2 for HSK-A63).'
   }
 ];
+
+export const MASTER_CONTACTS = isCleanSlateMode() ? [] : SEED_MASTER_CONTACTS;

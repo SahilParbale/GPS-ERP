@@ -4,8 +4,9 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { purchaseOrderService } from '../services/database/purchaseOrderService';
+import { supplierService } from '../services/database/supplierService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
-import { exportPurchaseOrderPdf, exportPurchaseOrderRegisterPdf } from '../utils/pdfGenerator';
+import { exportPurchaseOrderPdf, exportPurchaseOrderRegisterPdf, numberToIndianWords } from '../utils/pdfGenerator';
 import { 
   Search, Plus, Eye, Printer, FileText, Send, 
   Download, Trash2, Edit3, Check, X, Building2, 
@@ -19,54 +20,121 @@ import ConfirmActionModal from '../components/common/ConfirmActionModal';
 
 const PRESET_SUPPLIERS = [
   {
+    name: 'PREMIER INDUSTRIAL SOLUTIONS',
+    code: 'SUPP-00',
+    category: 'Super Precision Spindle Bearings (NSK)',
+    contact: '0124-4510000',
+    email: 'sales@premierindustrial.in',
+    phone: '0124-4510000',
+    gstin: '27ABDFP3172C1ZH',
+    address: 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune, Maharashtra-411019, India',
+    placeOfSupply: '27-Maharashtra',
+    state: '27-Maharashtra',
+    paymentTerms: 'Due on Receipt'
+  },
+  {
     name: 'Schaeffler India',
+    code: 'SUPP-01',
+    category: 'High-Precision Angular Contact Spindle Bearings',
     contact: 'Mr. Rajesh Nair (Sales Director - Spindle Bearings)',
     email: 'r.nair@schaeffler.com',
     phone: '+91 20 6608 4100',
     gstin: '27AAACS4821M1ZB',
-    address: 'Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra'
+    address: 'Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra',
+    placeOfSupply: '27-Maharashtra',
+    state: '27-Maharashtra',
+    paymentTerms: 'Net 30 Days'
   },
   {
     name: 'Bharat Special Steel',
+    code: 'SUPP-02',
+    category: 'Alloy Metallurgy & Case Hardened Tool Steels',
     contact: 'Mr. Manoj Gokhale (Head - Alloy Metallurgy)',
     email: 'sales@bharatspecialsteel.com',
     phone: '+91 20 2712 9182',
     gstin: '27AABCB9182L1ZX',
-    address: 'Plot 42, Bhosari Industrial Area, Pune - 411026, Maharashtra'
+    address: 'Plot 42, Bhosari Industrial Area, Pune - 411026, Maharashtra',
+    placeOfSupply: '27-Maharashtra',
+    state: '27-Maharashtra',
+    paymentTerms: 'Net 30 Days'
   },
   {
     name: 'OTT Jakob',
+    code: 'SUPP-03',
+    category: 'Automatic Tool Clamping Systems & Rotary Joints',
     contact: 'Mr. K. S. Raman (Country Applications Manager)',
     email: 'raman@ottjakob-india.com',
     phone: '+91 80 4112 0900',
     gstin: '29AAACJ3918K1Z3',
-    address: 'Bengaluru Technology Centre, 4th Phase, Peenya Industrial Area, Bengaluru - 560058'
+    address: 'Bengaluru Technology Centre, 4th Phase, Peenya Industrial Area, Bengaluru - 560058',
+    placeOfSupply: '29-Karnataka',
+    state: '29-Karnataka',
+    paymentTerms: 'Net 45 Days'
   },
   {
     name: 'Heidenhain India',
+    code: 'SUPP-04',
+    category: 'Optical Encoders & Precision Linear Glass Scales',
     contact: 'Mr. Suresh Babu (Regional Head)',
     email: 'info@heidenhain.in',
     phone: '+91 22 2831 4910',
     gstin: '27AABCH4910D1Z7',
-    address: 'Tech Park, Andheri East, Mumbai - 400069, Maharashtra'
+    address: 'Tech Park, Andheri East, Mumbai - 400069, Maharashtra',
+    placeOfSupply: '27-Maharashtra',
+    state: '27-Maharashtra',
+    paymentTerms: 'Net 30 Days'
   },
   {
     name: 'Sandvik Coromant India',
+    code: 'SUPP-05',
+    category: 'Carbide Tooling & Spindle Collets',
     contact: 'Ms. Priya Sharma (Key Accounts)',
     email: 'orders@sandvik.com',
     phone: '+91 20 6734 5000',
     gstin: '27AAACS1928F1ZG',
-    address: 'Mumbai-Pune Road, Dapodi, Pune - 411012, Maharashtra'
+    address: 'Mumbai-Pune Road, Dapodi, Pune - 411012, Maharashtra',
+    placeOfSupply: '27-Maharashtra',
+    state: '27-Maharashtra',
+    paymentTerms: 'Net 30 Days'
   }
 ];
 
 export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState(PRESET_SUPPLIERS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPO, setSelectedPO] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const loadSuppliers = async () => {
+    try {
+      const res = await supplierService.getSuppliers();
+      if (res.data && res.data.length > 0) {
+        const map = new Map();
+        PRESET_SUPPLIERS.forEach(ps => map.set(ps.name.toLowerCase().trim(), ps));
+        res.data.forEach(s => {
+          map.set(s.name.toLowerCase().trim(), {
+            name: s.name,
+            code: s.supplier_code || s.id || '',
+            category: s.category || '',
+            contact: s.contact_person || s.contact || '',
+            email: s.email || '',
+            phone: s.phone || '',
+            gstin: s.gstin || '',
+            address: s.address || s.location || '',
+            placeOfSupply: s.placeOfSupply || s.state || '27-Maharashtra',
+            state: s.state || s.placeOfSupply || '27-Maharashtra',
+            paymentTerms: s.paymentTerms || 'Due on Receipt'
+          });
+        });
+        setAvailableSuppliers(Array.from(map.values()));
+      }
+    } catch (e) {
+      console.warn('Could not load dynamic suppliers in PO Screen:', e);
+    }
+  };
 
   const loadPurchaseOrders = async () => {
     try {
@@ -85,6 +153,17 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
   useEffect(() => {
     loadPurchaseOrders();
+    loadSuppliers();
+
+    const handleSync = (e) => {
+      if (e?.detail?.entity === 'suppliers') {
+        loadSuppliers();
+      } else if (e?.detail?.entity === 'purchase-orders') {
+        loadPurchaseOrders();
+      }
+    };
+    window.addEventListener('gps_entities_updated', handleSync);
+    return () => window.removeEventListener('gps_entities_updated', handleSync);
   }, []);
 
   // Modals & Drawers
@@ -106,21 +185,25 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
     isLoading: false
   });
 
-  // Form State for Create / Edit PO
+  // Form State for Create / Edit PO matching official PDF format
   const [formData, setFormData] = useState({
-    supplier: 'Schaeffler India',
-    supplierContact: 'Mr. Rajesh Nair (Sales Director - Spindle Bearings)',
-    supplierEmail: 'r.nair@schaeffler.com',
-    supplierPhone: '+91 20 6608 4100',
-    supplierGstin: '27AAACS4821M1ZB',
-    supplierAddress: 'Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra',
-    poDate: '09 Sep 2026',
-    expectedDelivery: '23 Sep 2026',
-    paymentTerms: 'Net 30 Days from GRN inspection',
-    deliveryAddress: 'General Precision Spindles Pvt. Ltd., Plot B-12 Nanded City Industrial Complex, Pune - 411041',
-    notes: 'Standard OEM calibration certificates and DIN EN 10204 3.1 inspection reports mandatory.',
+    poNumber: 'PO/2025-26/00106',
+    supplier: 'PREMIER INDUSTRIAL SOLUTIONS',
+    supplierContact: '0124-4510000',
+    supplierEmail: 'sales@premierindustrial.in',
+    supplierPhone: '0124-4510000',
+    supplierGstin: '27ABDFP3172C1ZH',
+    supplierAddress: 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune, Maharashtra-411019, India',
+    placeOfSupply: '27-Maharashtra',
+    poDate: '04-09-2026',
+    expectedDelivery: '04-09-2026',
+    paymentTerms: 'Due on Receipt',
+    deliveryAddress: 'SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041',
+    notes: 'Thanks for doing business with us!',
+    termsAndConditions: 'Thanks for doing business with us!',
+    advance: 0,
     items: [
-      { id: 1, item: 'HC7014-E-T-P4S-UL', desc: 'FAG High-Precision Ceramic Angular Contact Spindle Bearings', qty: 2, unit: 'Pairs', rate: 72000, gst: 18 }
+      { id: 1, item: '120TAC20FME2DBCP5P01-NSK', desc: '120TAC20FME2DBCP5P01-NSK', hsn: '84821012', qty: 1, unit: 'Nos', rate: 58262, gst: 18 }
     ]
   });
 
@@ -146,8 +229,9 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
       const matchesStatus = statusFilter === 'all' || po.status.toLowerCase() === statusFilter.toLowerCase();
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q ||
-        po.poNumber.toLowerCase().includes(q) ||
-        po.supplier.toLowerCase().includes(q) ||
+        (po.poNumber && po.poNumber.toLowerCase().includes(q)) ||
+        (po.supplier && po.supplier.toLowerCase().includes(q)) ||
+        (po.placeOfSupply && po.placeOfSupply.toLowerCase().includes(q)) ||
         (po.supplierGstin && po.supplierGstin.toLowerCase().includes(q));
       return matchesStatus && matchesSearch;
     });
@@ -155,16 +239,18 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
   // Handle supplier change in form
   const handleSupplierSelect = (supplierName) => {
-    const matched = PRESET_SUPPLIERS.find(s => s.name === supplierName);
+    const matched = availableSuppliers.find(s => s.name.toLowerCase() === supplierName.toLowerCase() || s.name === supplierName);
     if (matched) {
       setFormData(prev => ({
         ...prev,
         supplier: matched.name,
-        supplierContact: matched.contact,
+        supplierContact: matched.contact || matched.phone,
         supplierEmail: matched.email,
-        supplierPhone: matched.phone,
+        supplierPhone: matched.phone || matched.contact,
         supplierGstin: matched.gstin,
-        supplierAddress: matched.address
+        supplierAddress: matched.address,
+        placeOfSupply: matched.placeOfSupply || '27-Maharashtra',
+        paymentTerms: matched.paymentTerms || prev.paymentTerms || 'Due on Receipt'
       }));
     } else {
       setFormData(prev => ({ ...prev, supplier: supplierName }));
@@ -177,7 +263,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
       ...prev,
       items: [
         ...prev.items,
-        { id: Date.now(), item: '', desc: '', qty: 1, unit: 'Pcs', rate: 0, gst: 18 }
+        { id: Date.now(), item: '', desc: '', hsn: '84821012', qty: 1, unit: 'Nos', rate: 0, gst: 18 }
       ]
     }));
   };
@@ -200,7 +286,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
     }));
   };
 
-  // Live item totals in form
+  // Live item totals and GST calculations matching official PDF format
   const formTotals = useMemo(() => {
     const subtotal = formData.items.reduce((sum, it) => {
       const q = Number(it.qty) || 0;
@@ -215,27 +301,49 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
       return sum + (q * r * (g / 100));
     }, 0);
 
-    const grandTotal = Math.round(subtotal + gst);
-    return { subtotal, gst: Math.round(gst), grandTotal };
-  }, [formData.items]);
+    const rawTotal = subtotal + gst;
+    const grandTotal = Math.round(rawTotal);
+    const roundOff = Number((grandTotal - rawTotal).toFixed(2));
+    const advance = Number(formData.advance) || 0;
+    const balance = grandTotal - advance;
+    const words = numberToIndianWords ? numberToIndianWords(grandTotal) : '';
+
+    return { 
+      subtotal, 
+      gst: Math.round(gst * 100) / 100, 
+      cgst: Math.round(gst * 50) / 100,
+      sgst: Math.round(gst * 50) / 100,
+      roundOff, 
+      grandTotal, 
+      advance, 
+      balance, 
+      words 
+    };
+  }, [formData.items, formData.advance]);
 
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditingPOId(null);
+    const randNum = String(Math.floor(100 + Math.random() * 900)).padStart(5, '0');
+    const todayStr = '04-09-2026';
     setFormData({
-      supplier: 'Schaeffler India',
-      supplierContact: 'Mr. Rajesh Nair (Sales Director - Spindle Bearings)',
-      supplierEmail: 'r.nair@schaeffler.com',
-      supplierPhone: '+91 20 6608 4100',
-      supplierGstin: '27AAACS4821M1ZB',
-      supplierAddress: 'Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra',
-      poDate: '09 Sep 2026',
-      expectedDelivery: '23 Sep 2026',
-      paymentTerms: 'Net 30 Days from GRN inspection',
-      deliveryAddress: 'General Precision Spindles Pvt. Ltd., Plot B-12 Nanded City Industrial Complex, Pune - 411041',
-      notes: 'Standard OEM calibration certificates and DIN EN 10204 3.1 inspection reports mandatory.',
+      poNumber: `PO/2025-26/${randNum}`,
+      supplier: 'PREMIER INDUSTRIAL SOLUTIONS',
+      supplierContact: '0124-4510000',
+      supplierEmail: 'sales@premierindustrial.in',
+      supplierPhone: '0124-4510000',
+      supplierGstin: '27ABDFP3172C1ZH',
+      supplierAddress: 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune, Maharashtra-411019, India',
+      placeOfSupply: '27-Maharashtra',
+      poDate: todayStr,
+      expectedDelivery: todayStr,
+      paymentTerms: 'Due on Receipt',
+      deliveryAddress: 'SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041',
+      notes: 'Thanks for doing business with us!',
+      termsAndConditions: 'Thanks for doing business with us!',
+      advance: 0,
       items: [
-        { id: 1, item: 'HC7014-E-T-P4S-UL', desc: 'FAG High-Precision Ceramic Angular Contact Spindle Bearings', qty: 2, unit: 'Pairs', rate: 72000, gst: 18 }
+        { id: 1, item: '120TAC20FME2DBCP5P01-NSK', desc: '120TAC20FME2DBCP5P01-NSK', hsn: '84821012', qty: 1, unit: 'Nos', rate: 58262, gst: 18 }
       ]
     });
     setIsCreateModalOpen(true);
@@ -243,78 +351,155 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
 
   // Open Edit Modal
   const handleOpenEdit = (po) => {
-    setEditingPOId(po.id);
+    setEditingPOId(po.id || po.poNumber);
     setFormData({
+      poNumber: po.poNumber || po.id,
       supplier: po.supplier,
       supplierContact: po.supplierContact || '',
       supplierEmail: po.supplierEmail || '',
       supplierPhone: po.supplierPhone || '',
       supplierGstin: po.supplierGstin || '',
       supplierAddress: po.supplierAddress || '',
+      placeOfSupply: po.placeOfSupply || '27-Maharashtra',
       poDate: po.date,
-      expectedDelivery: po.expectedDelivery,
-      paymentTerms: po.paymentTerms || 'Net 30 Days',
-      deliveryAddress: po.deliveryAddress || 'Plot B-12 Nanded City Industrial Complex, Pune - 411041',
-      notes: po.notes || '',
+      expectedDelivery: po.dueDate || po.expectedDelivery,
+      paymentTerms: po.paymentTerms || 'Due on Receipt',
+      deliveryAddress: po.deliveryAddress || 'SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041',
+      notes: po.notes || 'Thanks for doing business with us!',
+      termsAndConditions: po.termsAndConditions || po.notes || 'Thanks for doing business with us!',
+      advance: po.advance || 0,
       items: po.items && po.items.length > 0 ? po.items.map(it => ({
         id: it.id || Math.random(),
         item: it.item || it.name,
         desc: it.desc || '',
-        qty: it.qty,
-        unit: it.unit || 'Pcs',
-        rate: it.rate || it.unitPrice,
+        hsn: it.hsn || it.hsn_code || '84821012',
+        qty: it.qty != null ? it.qty : 1,
+        unit: it.unit || 'Nos',
+        rate: it.rate != null ? it.rate : (it.unitPrice || 0),
         gst: it.gst || 18
-      })) : [{ id: 1, item: 'Spindle Bearing Component', desc: '', qty: 1, unit: 'Pcs', rate: 50000, gst: 18 }]
+      })) : [{ id: 1, item: '120TAC20FME2DBCP5P01-NSK', desc: '', hsn: '84821012', qty: 1, unit: 'Nos', rate: 58262, gst: 18 }]
     });
     setIsCreateModalOpen(true);
   };
 
   // Save or Send PO
-  const handleSavePO = async (targetStatus = 'Draft') => {
+  const handleSavePO = async (targetStatus = 'Draft', andSend = false) => {
     if (!formData.supplier.trim()) {
       onNotify('Please specify a supplier name', 'danger');
       return;
     }
 
     try {
+      const payload = {
+        poNumber: formData.poNumber,
+        supplierName: formData.supplier,
+        supplierContact: formData.supplierContact,
+        supplierEmail: formData.supplierEmail,
+        supplierPhone: formData.supplierPhone,
+        supplierGstin: formData.supplierGstin,
+        supplierAddress: formData.supplierAddress,
+        placeOfSupply: formData.placeOfSupply || '27-Maharashtra',
+        poDate: formData.poDate,
+        dueDate: formData.expectedDelivery,
+        expectedDeliveryDate: formData.expectedDelivery,
+        paymentTerms: formData.paymentTerms,
+        subtotal: formTotals.subtotal,
+        taxRate: 18,
+        gstAmount: formTotals.gst,
+        roundOff: formTotals.roundOff,
+        totalAmount: formTotals.grandTotal,
+        advance: formTotals.advance,
+        balance: formTotals.balance,
+        status: andSend ? 'Sent' : targetStatus,
+        notes: formData.notes,
+        termsAndConditions: formData.termsAndConditions || 'Thanks for doing business with us!',
+        items: formData.items.map(it => ({
+          item: it.item || it.desc || '120TAC20FME2DBCP5P01-NSK',
+          desc: it.desc || it.item,
+          hsn: it.hsn || '84821012',
+          qty: Number(it.qty) || 1,
+          unit: it.unit || 'Nos',
+          rate: Number(it.rate) || 0,
+          gst: Number(it.gst) || 18,
+          total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
+        }))
+      };
+
+      let activePoRecord = null;
       if (editingPOId) {
-        const res = await purchaseOrderService.updatePurchaseOrderStatus(editingPOId, targetStatus);
+        const res = await purchaseOrderService.updatePurchaseOrder(editingPOId, payload);
         if (res.error) throw res.error;
+        activePoRecord = res.data;
         onNotify(`Purchase Order ${editingPOId} updated successfully.`);
       } else {
-        const payload = {
-          supplierName: formData.supplier,
-          supplierContact: formData.supplierContact,
-          supplierEmail: formData.supplierEmail,
-          supplierPhone: formData.supplierPhone,
-          supplierGstin: formData.supplierGstin,
-          supplierAddress: formData.supplierAddress,
-          expectedDeliveryDate: formData.expectedDelivery,
-          paymentTerms: formData.paymentTerms,
-          subtotal: formTotals.subtotal,
-          totalAmount: formTotals.grandTotal,
-          status: targetStatus,
-          notes: formData.notes,
-          items: formData.items.map(it => ({
-            desc: it.desc || it.item,
-            qty: Number(it.qty) || 1,
-            unit: it.unit || 'Pcs',
-            rate: Number(it.rate) || 0,
-            gst: Number(it.gst) || 18,
-            total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
-          }))
-        };
         const res = await purchaseOrderService.createPurchaseOrder(payload);
         if (res.error) throw res.error;
-        onNotify(`Purchase Order created successfully in PostgreSQL.`);
+        activePoRecord = res.data?.[0] || res.data;
+        onNotify(`Purchase Order ${payload.poNumber} created successfully.`);
       }
 
       await loadPurchaseOrders();
       setIsCreateModalOpen(false);
+
+      if (andSend) {
+        const poToSend = activePoRecord || {
+          ...formData,
+          id: formData.poNumber,
+          totalAmount: formTotals.grandTotal,
+          subtotal: formTotals.subtotal,
+          gstAmount: formTotals.gst,
+          status: 'Sent'
+        };
+        handleOpenEmail(poToSend);
+      }
     } catch (err) {
       console.error('Error saving Purchase Order:', err);
       onNotify(err.message || 'Failed to save Purchase Order', 'danger');
     }
+  };
+
+  // Preview directly from create/edit modal before saving
+  const handlePreviewCurrentForm = () => {
+    const previewPayload = {
+      id: formData.poNumber || 'PO/2025-26/00106',
+      poNumber: formData.poNumber || 'PO/2025-26/00106',
+      supplier: formData.supplier,
+      supplierContact: formData.supplierContact,
+      supplierEmail: formData.supplierEmail,
+      supplierPhone: formData.supplierPhone,
+      supplierGstin: formData.supplierGstin,
+      supplierAddress: formData.supplierAddress,
+      placeOfSupply: formData.placeOfSupply || '27-Maharashtra',
+      date: formData.poDate,
+      dueDate: formData.expectedDelivery,
+      expectedDelivery: formData.expectedDelivery,
+      paymentTerms: formData.paymentTerms,
+      subtotal: formTotals.subtotal,
+      taxRate: 18,
+      gstAmount: formTotals.gst,
+      roundOff: formTotals.roundOff,
+      totalAmount: formTotals.grandTotal,
+      advance: formTotals.advance,
+      balance: formTotals.balance,
+      amountInWords: formTotals.words,
+      termsAndConditions: formData.termsAndConditions || formData.notes || 'Thanks for doing business with us!',
+      notes: formData.notes,
+      items: formData.items.map((it, idx) => ({
+        id: it.id || idx + 1,
+        item: it.item || '120TAC20FME2DBCP5P01-NSK',
+        name: it.item || '120TAC20FME2DBCP5P01-NSK',
+        desc: it.desc || it.item,
+        hsn: it.hsn || '84821012',
+        qty: Number(it.qty) || 1,
+        unit: it.unit || 'Nos',
+        rate: Number(it.rate) || 0,
+        unitPrice: Number(it.rate) || 0,
+        gst: Number(it.gst) || 18,
+        total: (Number(it.qty) || 1) * (Number(it.rate) || 0)
+      }))
+    };
+    setPreviewDoc(previewPayload);
+    setIsPreviewOpen(true);
   };
 
   // Row actions
@@ -560,11 +745,11 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>PO Number</th>
-                <th>Supplier</th>
-                <th>PO Date</th>
-                <th>Expected Delivery</th>
-                <th>Total Amount</th>
+                <th>Order Number</th>
+                <th>Supplier / Order To</th>
+                <th>PO Date / Due Date</th>
+                <th>Place of Supply</th>
+                <th>Total Value</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -578,31 +763,87 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                 </tr>
               ) : (
                 filteredPOs.map((po) => (
-                  <tr key={po.id}>
+                  <tr key={po.id || po.poNumber}>
                     <td 
                       className="mono" 
                       style={{ fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}
                       onClick={() => handleOpenPreview(po)}
-                      title="Click to view Purchase Order pop-up"
+                      title="Click to view Official Purchase Order PDF"
                     >
-                      {po.poNumber}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{po.poNumber || po.id}</span>
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                        {po.items ? `${po.items.length} line item(s)` : '1 line item'}
+                      </div>
                     </td>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{po.supplier}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{po.supplierContact}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {po.supplierGstin ? `GSTIN: ${po.supplierGstin}` : (po.supplierContact || po.supplierEmail)}
+                      </div>
                     </td>
-                    <td className="mono" style={{ fontSize: '12px' }}>{po.date}</td>
-                    <td className="mono" style={{ fontSize: '12px', color: '#7A1F3D', fontWeight: 600 }}>
-                      {po.expectedDelivery}
+                    <td className="mono" style={{ fontSize: '12px' }}>
+                      <div style={{ fontWeight: 600 }}>{po.date}</div>
+                      <div style={{ fontSize: '10.5px', color: '#7A1F3D' }}>
+                        Due: {po.dueDate || po.expectedDelivery || 'Due on Receipt'}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge" style={{ fontSize: '11px', background: '#F8FAF9', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                        {po.placeOfSupply || '27-Maharashtra'}
+                      </span>
                     </td>
                     <td className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                      {po.formattedTotal || `₹${Number(po.totalAmount).toLocaleString('en-IN')}`}
+                      <div>{po.formattedTotal || `₹${Number(po.totalAmount || po.grandTotal || 0).toLocaleString('en-IN')}`}</div>
+                      {po.balance != null && po.advance > 0 && (
+                        <div style={{ fontSize: '10px', color: '#7A1F3D', fontWeight: 500 }}>
+                          Bal: ₹{Number(po.balance).toLocaleString('en-IN')}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <StatusBadge status={po.status} />
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'inline-flex', gap: '5px' }}>
+                      <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
+                        <button 
+                          type="button" 
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '4px 8px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => handleOpenEmail(po)}
+                          title="Send Official PO PDF to Supplier via Email"
+                        >
+                          <Mail size={12} />
+                          <span>Send PO</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 7px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => handleOpenPreview(po)}
+                          title="Preview Official 1:1 PDF"
+                        >
+                          <FileText size={12} />
+                          <span>PDF</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 6px' }}
+                          onClick={() => {
+                            try {
+                              exportPurchaseOrderPdf(po);
+                              if (onNotify) onNotify(`Downloaded Purchase Order ${po.poNumber || po.id} (PDF)`, 'info');
+                            } catch (e) {
+                              console.error(e);
+                              if (onNotify) onNotify('Failed to generate PDF', 'danger');
+                            }
+                          }}
+                          title="Download Vector PDF"
+                        >
+                          <Download size={12} />
+                        </button>
                         <button 
                           type="button" 
                           className="btn btn-secondary btn-sm"
@@ -622,26 +863,6 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                         >
                           <Edit3 size={12} />
                           <span>Edit</span>
-                        </button>
-                        <button 
-                          type="button" 
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '4px 7px', fontSize: '11.5px' }}
-                          onClick={() => handleOpenPreview(po)}
-                          title="PDF Preview"
-                        >
-                          <FileText size={12} />
-                          <span>PDF</span>
-                        </button>
-                        <button 
-                          type="button" 
-                          className="btn btn-primary btn-sm"
-                          style={{ padding: '4px 7px', fontSize: '11.5px' }}
-                          onClick={() => handleOpenEmail(po)}
-                          title="Email PO to Supplier"
-                        >
-                          <Mail size={12} />
-                          <span>Email</span>
                         </button>
                         {po.status !== 'Cancelled' && po.status !== 'Received' && (
                           <button 
@@ -677,20 +898,37 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title={editingPOId ? `Edit Purchase Order: ${editingPOId}` : "+ Create Purchase Order"}
-        maxWidth="820px"
+        title={editingPOId ? `Edit Purchase Order: ${editingPOId}` : "+ Create Purchase Order (Official GST Format)"}
+        maxWidth="960px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formTotals.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Total PO Value: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '15px' }}>₹{formTotals.grandTotal.toLocaleString('en-IN')}</strong> (Incl. GST)
+              </div>
+              {formTotals.words && (
+                <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontStyle: 'italic', maxWidth: '380px' }}>
+                  {formTotals.words}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary" 
                 onClick={() => setIsCreateModalOpen(false)}
               >
                 Discard
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                onClick={handlePreviewCurrentForm}
+                title="Preview 1:1 replica of official PDF"
+              >
+                <FileText size={13} />
+                <span>Preview Official PO (PDF)</span>
               </button>
               <button 
                 type="button" 
@@ -702,138 +940,265 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               <button 
                 type="button" 
                 className="btn btn-primary" 
-                onClick={() => handleSavePO('Sent')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                onClick={() => handleSavePO('Sent', true)}
               >
                 <Send size={13} />
-                <span>Send PO</span>
+                <span>Save & Send PO to Supplier</span>
               </button>
             </div>
           </div>
         }
       >
-        <form onSubmit={(e) => { e.preventDefault(); handleSavePO('Sent'); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Supplier Information Section */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
-              <Building2 size={15} />
-              <span>Supplier Information</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Select or Type Supplier</label>
-                <input 
-                  list="supplier-presets"
-                  className="form-control"
-                  value={formData.supplier}
-                  onChange={(e) => handleSupplierSelect(e.target.value)}
-                  placeholder="e.g. Schaeffler India"
-                  required
-                />
-                <datalist id="supplier-presets">
-                  {PRESET_SUPPLIERS.map(s => <option key={s.name} value={s.name} />)}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Supplier Contact Person</label>
-                <input 
-                  type="text"
-                  className="form-control"
-                  value={formData.supplierContact}
-                  onChange={(e) => setFormData(prev => ({ ...prev, supplierContact: e.target.value }))}
-                  placeholder="e.g. Mr. Rajesh Nair"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '12px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Supplier Email</label>
-                <input 
-                  type="email"
-                  className="form-control"
-                  value={formData.supplierEmail}
-                  onChange={(e) => setFormData(prev => ({ ...prev, supplierEmail: e.target.value }))}
-                  placeholder="vendor@company.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Supplier GSTIN</label>
-                <input 
-                  type="text"
-                  className="form-control mono"
-                  value={formData.supplierGstin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, supplierGstin: e.target.value.toUpperCase() }))}
-                  placeholder="27AAACS4821M1ZB"
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Supplier Address</label>
-                <input 
-                  type="text"
-                  className="form-control"
-                  value={formData.supplierAddress}
-                  onChange={(e) => setFormData(prev => ({ ...prev, supplierAddress: e.target.value }))}
-                  placeholder="City, State, PIN"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* PO Commercial & Delivery Information */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12.5px' }}>
-              <Truck size={15} />
-              <span>PO Information & Delivery Terms</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '12px', marginBottom: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>PO Date</label>
-                <input 
-                  type="text"
-                  className="form-control mono"
-                  value={formData.poDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, poDate: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Expected Delivery Date</label>
-                <input 
-                  type="text"
-                  className="form-control mono"
-                  value={formData.expectedDelivery}
-                  onChange={(e) => setFormData(prev => ({ ...prev, expectedDelivery: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px' }}>Payment Terms</label>
-                <input 
-                  type="text"
-                  className="form-control"
-                  value={formData.paymentTerms}
-                  onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
-                />
-              </div>
-            </div>
-
+        <form onSubmit={(e) => { e.preventDefault(); handleSavePO('Sent', true); }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* GPS Letterhead Banner */}
+          <div style={{ 
+            border: '1px solid var(--border-color)', 
+            borderRadius: '6px', 
+            padding: '10px 14px', 
+            background: '#F8FAF9',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '11.5px'
+          }}>
             <div>
-              <label className="form-label" style={{ fontSize: '11px' }}>Delivery Address</label>
-              <input 
-                type="text"
-                className="form-control"
-                value={formData.deliveryAddress}
-                onChange={(e) => setFormData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
-              />
+              <div style={{ fontWeight: 800, color: '#7A1F3D', fontSize: '13px' }}>GENERAL PRECISION SPINDLES</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>
+                SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <div>GSTIN: <strong className="mono">27AABCG1234F1ZP</strong></div>
+              <div>State: <strong>27-Maharashtra</strong></div>
             </div>
           </div>
 
-          {/* Line Items Table */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items</span>
+          {/* Top 2-Column Grid: Left Order To (Supplier) & Right Order Metadata (2x2 Grid) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+            {/* Left: Supplier / Order To Box */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                <Building2 size={14} />
+                <span>Order To (Supplier Details)</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Prominent Vendor / Supplier Selection Dropdown */}
+                <div style={{ 
+                  background: '#F5E8ED', 
+                  border: '1px solid #e2ccd5', 
+                  borderRadius: '6px', 
+                  padding: '10px 12px' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', margin: 0 }}>
+                      Select Vendor from Approved Registry *
+                    </label>
+                    <span style={{ fontSize: '10.5px', color: '#5A1730', fontWeight: 600 }}>
+                      {availableSuppliers.length} Registered Suppliers
+                    </span>
+                  </div>
+
+                  <select 
+                    className="form-control"
+                    style={{ 
+                      fontWeight: 600, 
+                      color: '#7A1F3D', 
+                      backgroundColor: '#ffffff', 
+                      borderColor: '#7A1F3D', 
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                    value={availableSuppliers.some(s => s.name === formData.supplier) ? formData.supplier : ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleSupplierSelect(e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">-- Choose Approved Vendor to Generate PO --</option>
+                    {availableSuppliers.map((s, idx) => (
+                      <option key={s.code || s.name || idx} value={s.name}>
+                        {s.name} {s.code ? `[${s.code}]` : ''} {s.category ? `• ${s.category}` : ''}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                    <span style={{ fontSize: '10px', color: '#5A1730' }}>
+                      💡 Selecting an approved vendor auto-fills contact, email, GSTIN, and delivery address.
+                    </span>
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreateModalOpen(false);
+                          onNavigate('suppliers');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#7A1F3D',
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0
+                        }}
+                      >
+                        Manage Vendors ↗
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Supplier / Vendor Name *</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    value={formData.supplier}
+                    onChange={(e) => handleSupplierSelect(e.target.value)}
+                    placeholder="e.g. PREMIER INDUSTRIAL SOLUTIONS"
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10.5px' }}>Supplier Email (For Sending PO) *</label>
+                    <input 
+                      type="email"
+                      className="form-control"
+                      value={formData.supplierEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplierEmail: e.target.value }))}
+                      placeholder="sales@supplier.com"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10.5px' }}>Contact No.</label>
+                    <input 
+                      type="text"
+                      className="form-control mono"
+                      value={formData.supplierPhone || formData.supplierContact}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplierPhone: e.target.value, supplierContact: e.target.value }))}
+                      placeholder="0124-4510000"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10.5px' }}>Address</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      value={formData.supplierAddress}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplierAddress: e.target.value }))}
+                      placeholder="P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune..."
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10.5px' }}>GSTIN</label>
+                    <input 
+                      type="text"
+                      className="form-control mono"
+                      value={formData.supplierGstin}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplierGstin: e.target.value.toUpperCase() }))}
+                      placeholder="27ABDFP3172C1ZH"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Order Metadata 2x2 Grid (matching PDF layout) */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                <Truck size={14} />
+                <span>PO Commercial & Delivery Terms</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Order No.</label>
+                  <input 
+                    type="text"
+                    className="form-control mono"
+                    value={formData.poNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, poNumber: e.target.value }))}
+                    placeholder="PO/2025-26/00106"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Date</label>
+                  <input 
+                    type="text"
+                    className="form-control mono"
+                    value={formData.poDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, poDate: e.target.value }))}
+                    placeholder="04-09-2025"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Due Date:</label>
+                  <input 
+                    type="text"
+                    className="form-control mono"
+                    value={formData.expectedDelivery}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                    placeholder="04-09-2025 or 14 Days"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Place of supply</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    value={formData.placeOfSupply}
+                    onChange={(e) => setFormData(prev => ({ ...prev, placeOfSupply: e.target.value }))}
+                    placeholder="27-Maharashtra"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Payment Terms</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    value={formData.paymentTerms}
+                    onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                    placeholder="Due on Receipt"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Delivery Address</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    value={formData.deliveryAddress}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                    placeholder="Nanded Phata, Pune-411041"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Line Items Table (matching PDF Table: #, Item name, HSN/ SAC, Quantity, Unit, Price/ Unit, Amount) */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', background: '#ffffff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 700, fontSize: '12px', color: '#7A1F3D' }}>
+                Ordered Items & HSN/SAC Codes
+              </span>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm"
@@ -845,43 +1210,47 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>Item / Part #</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>Description</th>
-                    <th style={{ padding: '6px 8px', width: '65px', textAlign: 'center' }}>Qty</th>
-                    <th style={{ padding: '6px 8px', width: '70px', textAlign: 'center' }}>Unit</th>
-                    <th style={{ padding: '6px 8px', width: '100px', textAlign: 'right' }}>Rate (₹)</th>
-                    <th style={{ padding: '6px 8px', width: '65px', textAlign: 'center' }}>GST%</th>
-                    <th style={{ padding: '6px 8px', width: '100px', textAlign: 'right' }}>Total (₹)</th>
-                    <th style={{ padding: '6px 8px', width: '35px' }}></th>
+                    <th style={{ padding: '6px 4px', width: '30px', textAlign: 'center' }}>#</th>
+                    <th style={{ padding: '6px 6px', textAlign: 'left' }}>Item name</th>
+                    <th style={{ padding: '6px 6px', width: '110px', textAlign: 'left' }}>HSN/ SAC</th>
+                    <th style={{ padding: '6px 6px', width: '70px', textAlign: 'center' }}>Quantity</th>
+                    <th style={{ padding: '6px 6px', width: '65px', textAlign: 'center' }}>Unit</th>
+                    <th style={{ padding: '6px 6px', width: '110px', textAlign: 'right' }}>Price/ Unit (₹)</th>
+                    <th style={{ padding: '6px 6px', width: '65px', textAlign: 'center' }}>GST%</th>
+                    <th style={{ padding: '6px 6px', width: '110px', textAlign: 'right' }}>Amount (₹)</th>
+                    <th style={{ padding: '6px 4px', width: '30px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {formData.items.map((it) => {
+                  {formData.items.map((it, idx) => {
                     const lineTotal = (Number(it.qty) || 0) * (Number(it.rate) || 0);
                     return (
-                      <tr key={it.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <tr key={it.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          {idx + 1}
+                        </td>
                         <td style={{ padding: '6px 4px' }}>
                           <input 
                             type="text" 
                             className="form-control" 
-                            style={{ height: '28px', fontSize: '11.5px' }}
+                            style={{ height: '28px', fontSize: '11px', fontWeight: 600 }}
                             value={it.item} 
                             onChange={(e) => handleItemChange(it.id, 'item', e.target.value)}
-                            placeholder="e.g. HC7014-E-T-P4S"
+                            placeholder="e.g. 120TAC20FME2DBCP5P01-NSK"
                             required
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
                           <input 
                             type="text" 
-                            className="form-control" 
-                            style={{ height: '28px', fontSize: '11.5px' }}
-                            value={it.desc} 
-                            onChange={(e) => handleItemChange(it.id, 'desc', e.target.value)}
-                            placeholder="Item description"
+                            className="form-control mono" 
+                            style={{ height: '28px', fontSize: '11px' }}
+                            value={it.hsn || '84821012'} 
+                            onChange={(e) => handleItemChange(it.id, 'hsn', e.target.value)}
+                            placeholder="84821012"
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
@@ -889,7 +1258,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                             type="number" 
                             min="1"
                             className="form-control mono" 
-                            style={{ height: '28px', fontSize: '11.5px', textAlign: 'center' }}
+                            style={{ height: '28px', fontSize: '11px', textAlign: 'center' }}
                             value={it.qty} 
                             onChange={(e) => handleItemChange(it.id, 'qty', e.target.value)}
                           />
@@ -898,13 +1267,13 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                           <select 
                             className="form-control"
                             style={{ height: '28px', fontSize: '11px', padding: '0 4px' }}
-                            value={it.unit}
+                            value={it.unit || 'Nos'}
                             onChange={(e) => handleItemChange(it.id, 'unit', e.target.value)}
                           >
+                            <option value="Nos">Nos</option>
                             <option value="Pcs">Pcs</option>
                             <option value="Pairs">Pairs</option>
                             <option value="Sets">Sets</option>
-                            <option value="Bars">Bars</option>
                             <option value="Kg">Kg</option>
                           </select>
                         </td>
@@ -912,8 +1281,9 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                           <input 
                             type="number" 
                             min="0"
+                            step="any"
                             className="form-control mono" 
-                            style={{ height: '28px', fontSize: '11.5px', textAlign: 'right' }}
+                            style={{ height: '28px', fontSize: '11px', textAlign: 'right' }}
                             value={it.rate} 
                             onChange={(e) => handleItemChange(it.id, 'rate', e.target.value)}
                           />
@@ -922,7 +1292,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                           <select 
                             className="form-control mono"
                             style={{ height: '28px', fontSize: '11px', padding: '0 4px' }}
-                            value={it.gst}
+                            value={it.gst != null ? it.gst : 18}
                             onChange={(e) => handleItemChange(it.id, 'gst', Number(e.target.value))}
                           >
                             <option value={18}>18%</option>
@@ -932,15 +1302,15 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                             <option value={0}>0%</option>
                           </select>
                         </td>
-                        <td className="mono" style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600 }}>
-                          ₹{lineTotal.toLocaleString('en-IN')}
+                        <td className="mono" style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 600 }}>
+                          ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
                           <button 
                             type="button" 
                             onClick={() => handleRemoveItem(it.id)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                            title="Remove row"
+                            title="Remove item"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -952,35 +1322,94 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               </table>
             </div>
 
-            {/* Calculations Summary */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <div style={{ width: '260px', background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
+            {/* Split Financial Section matching PDF (Order Amount in Words on left; Amounts on right) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+              {/* Left Column: Words & Terms */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ padding: '8px 10px', background: '#F8FAF9', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    Order Amount in Words
+                  </div>
+                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#7A1F3D', marginTop: '2px', lineHeight: '1.3' }}>
+                    {formTotals.words || 'Zero Only'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: '10.5px' }}>Terms and conditions</label>
+                  <textarea 
+                    className="form-control"
+                    rows={2}
+                    value={formData.termsAndConditions || formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, termsAndConditions: e.target.value, notes: e.target.value }))}
+                    placeholder="Thanks for doing business with us!"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: PDF-Matching Amounts Grid */}
+              <div style={{ background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Subtotal:</span>
-                  <span className="mono">₹{formTotals.subtotal.toLocaleString('en-IN')}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Sub Total</span>
+                  <span className="mono">₹{formTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>GST:</span>
-                  <span className="mono">₹{formTotals.gst.toLocaleString('en-IN')}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Tax (18% GST)</span>
+                  <span className="mono">₹{formTotals.gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6F6267' }}>
+                  <span>Round off</span>
+                  <span className="mono">{formTotals.roundOff >= 0 ? `+₹${formTotals.roundOff.toFixed(2)}` : `-₹${Math.abs(formTotals.roundOff).toFixed(2)}`}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: '#7A1F3D', fontSize: '13px' }}>
-                  <span>Grand Total:</span>
-                  <span className="mono">₹{formTotals.grandTotal.toLocaleString('en-IN')}</span>
+                  <span>Total</span>
+                  <span className="mono">₹{formTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed var(--border-color)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Advance (₹)</span>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="any"
+                    className="form-control mono"
+                    style={{ height: '24px', width: '90px', fontSize: '11px', textAlign: 'right', padding: '2px 4px' }}
+                    value={formData.advance}
+                    onChange={(e) => setFormData(prev => ({ ...prev, advance: e.target.value }))}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
+                  <span>Balance</span>
+                  <span className="mono">₹{formTotals.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Notes */}
-          <div>
-            <label className="form-label" style={{ fontSize: '11px' }}>Purchase Order Notes & Quality Criteria</label>
-            <textarea 
-              className="form-control"
-              rows={2}
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="e.g. Test certificates, CoC, dispatch packing guidelines"
-            />
+            {/* Live HSN Tax Breakdown Box matching PDF */}
+            <div style={{ marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '8px' }}>
+              <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                HSN / SAC Tax Structure (9% CGST + 9% SGST)
+              </div>
+              <table style={{ width: '100%', fontSize: '10.5px', borderCollapse: 'collapse', background: '#fafafa', border: '1px solid var(--border-color)' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '4px 6px', textAlign: 'left' }}>HSN/ SAC</th>
+                    <th style={{ padding: '4px 6px', textAlign: 'right' }}>Taxable amount</th>
+                    <th style={{ padding: '4px 6px', textAlign: 'right' }}>CGST (9%)</th>
+                    <th style={{ padding: '4px 6px', textAlign: 'right' }}>SGST (9%)</th>
+                    <th style={{ padding: '4px 6px', textAlign: 'right' }}>Total Tax Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="mono" style={{ padding: '4px 6px' }}>{formData.items[0]?.hsn || '84821012'}</td>
+                    <td className="mono" style={{ padding: '4px 6px', textAlign: 'right' }}>₹{formTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '4px 6px', textAlign: 'right' }}>₹{formTotals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '4px 6px', textAlign: 'right' }}>₹{formTotals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>₹{formTotals.gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </form>
       </Modal>
@@ -990,14 +1419,14 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
         <Modal
           isOpen={isDetailDrawerOpen}
           onClose={() => setIsDetailDrawerOpen(false)}
-          title={`Purchase Order: ${selectedPO.poNumber}`}
-          maxWidth="840px"
+          title={`Purchase Order: ${selectedPO.poNumber || selectedPO.id}`}
+          maxWidth="880px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Status: <strong style={{ color: '#7A1F3D' }}>{selectedPO.status}</strong> • Expected: {selectedPO.expectedDelivery}
+                Status: <strong style={{ color: '#7A1F3D' }}>{selectedPO.status}</strong> • Due: {selectedPO.dueDate || selectedPO.expectedDelivery || 'Due on Receipt'}
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
@@ -1010,10 +1439,27 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => handleOpenPreview(selectedPO)}
-                  title="Open Document Pop-up"
+                  title="Open Official PDF Pop-up Replica"
                 >
                   <FileText size={13} />
-                  <span>Preview</span>
+                  <span>Preview PDF</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    try {
+                      exportPurchaseOrderPdf(selectedPO);
+                      if (onNotify) onNotify(`Purchase Order ${selectedPO.poNumber || selectedPO.id} downloaded (PDF)`);
+                    } catch (err) {
+                      console.error('Failed to download PO PDF:', err);
+                      if (onNotify) onNotify('Failed to download PO PDF', 'danger');
+                    }
+                  }}
+                  title="Download Vector PDF"
+                >
+                  <Download size={13} />
+                  <span>Download PDF</span>
                 </button>
                 <button 
                   type="button" 
@@ -1030,27 +1476,11 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                   <Printer size={13} />
                   <span>Print</span>
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={() => {
-                    try {
-                      exportPurchaseOrderPdf(selectedPO);
-                      if (onNotify) onNotify(`Purchase Order ${selectedPO.poNumber || selectedPO.id} downloaded (PDF)`);
-                    } catch (err) {
-                      console.error('Failed to download PO PDF:', err);
-                      if (onNotify) onNotify('Failed to download PO PDF', 'error');
-                    }
-                  }}
-                >
-                  <FileText size={13} />
-                  <span>Download PDF</span>
-                </button>
                 {selectedPO.status !== 'Cancelled' && selectedPO.status !== 'Received' && (
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
-                    style={{ color: '#6F6267', borderColor: 'var(--border-button)' }}
+                    style={{ color: '#6F6267' }}
                     onClick={() => handlePromptCancelPO(selectedPO)}
                   >
                     <X size={13} />
@@ -1060,28 +1490,28 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  style={{ color: 'var(--status-danger-text)', borderColor: 'var(--status-danger-border)' }}
+                  style={{ color: 'var(--status-danger-text)' }}
                   onClick={() => handlePromptDeletePO(selectedPO)}
                 >
                   <Trash2 size={13} />
-                  <span>Delete PO</span>
                 </button>
                 <button 
                   type="button" 
                   className="btn btn-primary" 
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                   onClick={() => {
                     setIsDetailDrawerOpen(false);
                     handleOpenEmail(selectedPO);
                   }}
                 >
                   <Mail size={13} />
-                  <span>Email PO</span>
+                  <span>Send PO to Supplier</span>
                 </button>
               </div>
             </div>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* Header Summary Banner */}
             <div style={{ 
               display: 'flex', 
@@ -1095,7 +1525,7 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#7A1F3D' }}>
-                    {selectedPO.poNumber}
+                    {selectedPO.poNumber || selectedPO.id}
                   </h3>
                   <StatusBadge status={selectedPO.status} />
                 </div>
@@ -1107,88 +1537,181 @@ export default function PurchaseOrderScreen({ onNavigate, onNotify }) {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '11px', color: '#5A1730', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Value</div>
                 <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: '#7A1F3D' }}>
-                  {selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount).toLocaleString('en-IN')}`}
+                  {selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount || selectedPO.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
                 </div>
               </div>
             </div>
 
-            {/* Supplier & Delivery Dossier */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
+            {/* Supplier & Delivery Dossier (2-Column Grid matching PDF layout) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+              {/* Order To (Supplier Box) */}
               <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Supplier Details
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Building2 size={13} />
+                  <span>Order To (Supplier Details)</span>
                 </div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{selectedPO.supplier}</div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '3px' }}>{selectedPO.supplierContact}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedPO.supplierAddress}</div>
-                <div style={{ marginTop: '8px', fontSize: '11.5px' }}>
+                {selectedPO.supplierContact && <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>Attn: {selectedPO.supplierContact}</div>}
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedPO.supplierAddress || 'Pune, Maharashtra'}</div>
+                <div style={{ marginTop: '8px', fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <div>Email: <strong style={{ color: '#7A1F3D' }}>{selectedPO.supplierEmail || 'purchase@vendor.com'}</strong></div>
-                  <div>GSTIN: <strong className="mono">{selectedPO.supplierGstin || '27AAACS4821M1ZB'}</strong></div>
+                  <div>Contact No: <strong className="mono">{selectedPO.supplierPhone || selectedPO.supplierContact || '—'}</strong></div>
+                  <div>GSTIN: <strong className="mono">{selectedPO.supplierGstin || '27ABDFP3172C1ZH'}</strong></div>
                 </div>
               </div>
 
+              {/* Order Metadata 2x2 Grid (matching PDF) */}
               <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-surface-subtle)' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Delivery & Commercial
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Truck size={13} />
+                  <span>Order Details & Place of Supply</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
-                  <div>Expected Delivery: <strong className="mono" style={{ color: '#7A1F3D' }}>{selectedPO.expectedDelivery}</strong></div>
-                  <div>Payment Terms: <strong>{selectedPO.paymentTerms || 'Net 30 Days'}</strong></div>
-                  <div>Delivery Address: <span style={{ color: 'var(--text-secondary)' }}>{selectedPO.deliveryAddress || 'Plot B-12 Nanded City, Pune'}</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
+                  <div style={{ padding: '6px', background: '#ffffff', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Order No.</div>
+                    <div className="mono" style={{ fontWeight: 700, color: '#7A1F3D' }}>{selectedPO.poNumber || selectedPO.id}</div>
+                  </div>
+                  <div style={{ padding: '6px', background: '#ffffff', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Date</div>
+                    <div className="mono" style={{ fontWeight: 600 }}>{selectedPO.date}</div>
+                  </div>
+                  <div style={{ padding: '6px', background: '#ffffff', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Due Date:</div>
+                    <div className="mono" style={{ fontWeight: 600, color: '#7A1F3D' }}>{selectedPO.dueDate || selectedPO.expectedDelivery || 'Due on Receipt'}</div>
+                  </div>
+                  <div style={{ padding: '6px', background: '#ffffff', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Place of supply</div>
+                    <div style={{ fontWeight: 600 }}>{selectedPO.placeOfSupply || '27-Maharashtra'}</div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Delivery Address: {selectedPO.deliveryAddress || 'SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041'}
                 </div>
               </div>
             </div>
 
-            {/* Items Table */}
+            {/* Items Table matching PDF format */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 12px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px' }}>
-                Ordered Spindle Items & Material Specifications
+              <div style={{ padding: '8px 12px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Ordered Spindle Items & Materials</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>Official PDF Table Format</span>
               </div>
-              <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#ffffff', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left' }}>Item</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'left' }}>Description</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Rate (₹)</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>GST</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total (₹)</th>
+                    <th style={{ padding: '6px 8px', width: '30px', textAlign: 'center' }}>#</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left' }}>Item name</th>
+                    <th style={{ padding: '6px 10px', width: '100px', textAlign: 'left' }}>HSN/ SAC</th>
+                    <th style={{ padding: '6px 10px', width: '80px', textAlign: 'center' }}>Quantity</th>
+                    <th style={{ padding: '6px 10px', width: '100px', textAlign: 'right' }}>Price/ Unit (₹)</th>
+                    <th style={{ padding: '6px 10px', width: '100px', textAlign: 'right' }}>Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedPO.items && selectedPO.items.map((it, idx) => (
                     <tr key={it.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '8px 10px', fontWeight: 600 }}>{it.item || it.name}</td>
-                      <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{it.desc}</td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>
-                        {it.qty} {it.unit || 'Pcs'}
+                      <td style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ padding: '6px 10px', fontWeight: 600 }}>
+                        <div>{it.item || it.name}</div>
+                        {it.desc && <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{it.desc}</div>}
                       </td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right' }}>
-                        ₹{Number(it.rate || it.unitPrice || 0).toLocaleString('en-IN')}
+                      <td className="mono" style={{ padding: '6px 10px' }}>{it.hsn || it.hsn_code || '84821012'}</td>
+                      <td className="mono" style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600 }}>
+                        {it.qty} {it.unit || 'Nos'}
                       </td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{it.gst || 18}%</td>
-                      <td className="mono" style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#7A1F3D' }}>
-                        ₹{Number(it.total || (it.qty * it.rate)).toLocaleString('en-IN')}
+                      <td className="mono" style={{ padding: '6px 10px', textAlign: 'right' }}>
+                        ₹{Number(it.rate || it.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="mono" style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#7A1F3D' }}>
+                        ₹{Number(it.total || (it.qty * it.rate)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div style={{ padding: '10px 14px', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '20px', fontSize: '12px' }}>
-                <div>Subtotal: <strong className="mono">₹{Number(selectedPO.subtotal || 0).toLocaleString('en-IN')}</strong></div>
-                <div>GST (18%): <strong className="mono">₹{Number(selectedPO.gstAmount || 0).toLocaleString('en-IN')}</strong></div>
-                <div>Grand Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '13px' }}>{selectedPO.formattedTotal || `₹${Number(selectedPO.totalAmount).toLocaleString('en-IN')}`}</strong></div>
+              {/* Split Financial Box: Words on Left, Amounts on Right (matching PDF) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-color)', fontSize: '11.5px' }}>
+                <div>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    Order Amount in Words:
+                  </div>
+                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#7A1F3D', marginTop: '2px', lineHeight: '1.4' }}>
+                    {numberToIndianWords ? numberToIndianWords(selectedPO.totalAmount || selectedPO.grandTotal || 0) : '—'}
+                  </div>
+                  <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <strong>Terms and conditions:</strong> {selectedPO.termsAndConditions || selectedPO.notes || 'Thanks for doing business with us!'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Sub Total:</span>
+                    <span className="mono">₹{Number(selectedPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tax (18% GST):</span>
+                    <span className="mono">₹{Number(selectedPO.gstAmount || selectedPO.tax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  {selectedPO.roundOff != null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6F6267' }}>
+                      <span>Round off:</span>
+                      <span className="mono">{Number(selectedPO.roundOff) >= 0 ? `+₹${Number(selectedPO.roundOff).toFixed(2)}` : `-₹${Math.abs(Number(selectedPO.roundOff)).toFixed(2)}`}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', fontWeight: 800, color: '#7A1F3D', fontSize: '13px' }}>
+                    <span>Total:</span>
+                    <span className="mono">₹{Number(selectedPO.totalAmount || selectedPO.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', paddingTop: '2px' }}>
+                    <span>Advance:</span>
+                    <span className="mono">₹{Number(selectedPO.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
+                    <span>Balance:</span>
+                    <span className="mono">₹{Number(selectedPO.balance != null ? selectedPO.balance : (selectedPO.totalAmount || selectedPO.grandTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Notes */}
-            {selectedPO.notes && (
-              <div style={{ padding: '10px 12px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '11.5px' }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Purchase Notes: </span>
-                <span style={{ color: 'var(--text-secondary)' }}>{selectedPO.notes}</span>
+            {/* HSN / SAC Tax Summary Table (matching PDF) */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+              <div style={{ padding: '6px 10px', background: '#f1f5f9', borderBottom: '1px solid var(--border-color)', fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                HSN / SAC Tax Structure (9% CGST + 9% SGST)
               </div>
-            )}
+              <table style={{ width: '100%', fontSize: '10.5px', borderCollapse: 'collapse', background: '#fafafa' }}>
+                <thead>
+                  <tr style={{ background: '#ffffff', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>HSN/ SAC</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right' }}>Taxable amount</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right' }}>CGST (9%)</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right' }}>SGST (9%)</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right' }}>Total Tax Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="mono" style={{ padding: '5px 8px' }}>{selectedPO.items?.[0]?.hsn || '84821012'}</td>
+                    <td className="mono" style={{ padding: '5px 8px', textAlign: 'right' }}>₹{Number(selectedPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '5px 8px', textAlign: 'right' }}>₹{Number((selectedPO.gstAmount || 0) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '5px 8px', textAlign: 'right' }}>₹{Number((selectedPO.gstAmount || 0) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="mono" style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600 }}>₹{Number(selectedPO.gstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Official Signatory Block */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <div style={{ textAlign: 'center', width: '240px', padding: '10px', border: '1px dashed var(--border-color)', borderRadius: '4px', background: '#fafafa' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>For : GENERAL PRECISION SPINDLES</div>
+                <div style={{ height: '36px' }}></div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', borderTop: '1px solid #ccc', paddingTop: '4px' }}>
+                  Authorized Signatory
+                </div>
+              </div>
+            </div>
 
             {/* Realistic Activity Timeline */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>

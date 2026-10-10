@@ -1,4 +1,5 @@
 // GPS Spindle Industrial ERP - Comprehensive Precision Manufacturing Mock Data
+import { isCleanSlateMode } from '../utils/dataMode';
 
 export const PLANT_INFO = {
   name: "GPS Spindle Pvt. Ltd.",
@@ -11,7 +12,7 @@ export const PLANT_INFO = {
   shiftSuper: "V. R. Kulkarni (Production Head)"
 };
 
-export const PRODUCTION_PIPELINE_STAGES = [
+const SEED_PRODUCTION_PIPELINE_STAGES = [
   { id: 1, key: "material", name: "Material", desc: "Bar stock inspection & sawing", count: 4 },
   { id: 2, key: "machining", name: "Machining", desc: "CNC Turning & boring", count: 5 },
   { id: 3, key: "grinding", name: "Grinding", desc: "Studer taper & journal grinding", count: 6 },
@@ -34,7 +35,7 @@ export const SERVICE_PIPELINE_STAGES = [
   { id: 9, key: "dispatch", name: "Dispatch", desc: "Express crated delivery" },
 ];
 
-export const DASHBOARD_METRICS = [
+const SEED_DASHBOARD_METRICS = [
   { id: "active_jobs", label: "Active Jobs", value: "24", trend: "+3 this week", isUp: true, icon: "Cpu" },
   { id: "in_prod", label: "In Production", value: "18", trend: "Bays at 88% cap", isUp: true, icon: "Cog" },
   { id: "pending_qc", label: "Pending QC", value: "4", trend: "2 urgent", isUp: false, alert: true, icon: "CheckCircle2" },
@@ -44,18 +45,26 @@ export const DASHBOARD_METRICS = [
   { id: "receivables", label: "Outstanding Rec.", value: "₹18.4L", trend: "₹6.2L due < 7d", isUp: true, icon: "DollarSign" },
 ];
 
-export const SPINDLES = [
+const SEED_SPINDLES = [
+  // =========================================================================
+  // 1. MANUFACTURED (NEW GPS OEM SPINDLES)
+  // =========================================================================
   {
+    id: "sp-0842",
     serialNumber: "GPS-2026-0842",
+    make: "GPS Spindle",
     model: "GPS-HSK-A63-24K",
+    category: "manufactured",
     customer: "Tata Advanced Systems Ltd",
     customerId: "CUST-01",
+    plantLocation: "Pune Plant 1 (Assembly Bay 2)",
     type: "Motorized Electro-Spindle",
     rpm: "24,000 RPM",
     maxRpm: 24000,
     power: "15.0 kW",
     torque: "32.0 Nm",
     interface: "HSK-A63",
+    taper: "HSK-A63 DIN 69893",
     lubrication: "Air-Oil Mist (0.03 ml/min)",
     bearings: "Ceramic Hybrid (HC7008-E)",
     cooling: "Water-Glycol Closed Circuit",
@@ -63,24 +72,31 @@ export const SPINDLES = [
     stage: "Grinding",
     manufacturingDate: "2026-02-18",
     warranty: "Active (24 Months / 4,000h)",
+    runout: "0.8 µm",
     runoutTaper: "0.0008 mm",
     balanceGrade: "ISO 1940 G0.28",
+    vibration: "0.27 mm/s",
     vibrationRms: "0.27 mm/s",
     tempRise: "14.2 °C",
     clampForce: "18.4 kN",
     qrCode: "GPS-2026-0842-HSK-A63-24000-TASL-PUNE"
   },
   {
+    id: "sp-0841",
     serialNumber: "GPS-2026-0841",
+    make: "GPS Spindle",
     model: "GPS-BT40-15K",
+    category: "manufactured",
     customer: "Bharat Forge Ltd - Chakan",
     customerId: "CUST-02",
+    plantLocation: "Pune Plant 1 (QC Cleanroom)",
     type: "Belt Driven Milling Spindle",
     rpm: "15,000 RPM",
     maxRpm: 15000,
     power: "11.0 kW",
     torque: "48.0 Nm",
     interface: "BT-40 Big Plus",
+    taper: "BT-40 Dual Contact",
     lubrication: "High-Speed Grease Packed",
     bearings: "Steel Precision Angular Contact",
     cooling: "Air Cooled",
@@ -88,24 +104,31 @@ export const SPINDLES = [
     stage: "QC",
     manufacturingDate: "2026-02-14",
     warranty: "Active (12 Months / 2,500h)",
+    runout: "0.9 µm",
     runoutTaper: "0.0009 mm",
     balanceGrade: "ISO 1940 G0.32",
+    vibration: "0.31 mm/s",
     vibrationRms: "0.31 mm/s",
     tempRise: "16.8 °C",
     clampForce: "12.2 kN",
     qrCode: "GPS-2026-0841-BT40-15000-BFL-PUNE"
   },
   {
+    id: "sp-0840",
     serialNumber: "GPS-2026-0840",
+    make: "GPS Spindle",
     model: "GPS-HF-60K",
+    category: "manufactured",
     customer: "Godrej & Boyce Aerospace",
     customerId: "CUST-03",
+    plantLocation: "Pune Plant 1 (Dispatch Bay)",
     type: "High Frequency Direct Drive",
     rpm: "60,000 RPM",
     maxRpm: 60000,
     power: "5.5 kW",
     torque: "4.2 Nm",
     interface: "HSK-E25 Micro",
+    taper: "HSK-E25 High Speed",
     lubrication: "Micro Air-Oil Injection",
     bearings: "Silicon Nitride Si3N4 Ceramic",
     cooling: "Liquid Chilled Stator Jacket",
@@ -113,24 +136,31 @@ export const SPINDLES = [
     stage: "Dispatch",
     manufacturingDate: "2026-02-10",
     warranty: "Active (24 Months / 4,000h)",
+    runout: "0.5 µm",
     runoutTaper: "0.0005 mm",
     balanceGrade: "ISO 1940 G0.20",
+    vibration: "0.19 mm/s",
     vibrationRms: "0.19 mm/s",
     tempRise: "11.5 °C",
     clampForce: "4.8 kN",
     qrCode: "GPS-2026-0840-HF-60000-GBA-MUMBAI"
   },
   {
+    id: "sp-0839",
     serialNumber: "GPS-2026-0839",
+    make: "GPS Spindle",
     model: "GPS-BT50-10K",
+    category: "manufactured",
     customer: "Mahindra Heavy Engines",
     customerId: "CUST-04",
+    plantLocation: "Mahindra Igatpuri Line 3",
     type: "High Torque Geared Spindle",
     rpm: "10,000 RPM",
     maxRpm: 10000,
     power: "22.0 kW",
     torque: "160.0 Nm",
     interface: "BT-50 Heavy Contact",
+    taper: "BT-50 Standard",
     lubrication: "Continuous Circulating Oil",
     bearings: "Tapered Roller & Angular Pack",
     cooling: "Oil Recirculating Jacket",
@@ -138,24 +168,31 @@ export const SPINDLES = [
     stage: "Dispatched",
     manufacturingDate: "2026-01-28",
     warranty: "Active (18 Months)",
+    runout: "1.1 µm",
     runoutTaper: "0.0011 mm",
     balanceGrade: "ISO 1940 G0.35",
+    vibration: "0.38 mm/s",
     vibrationRms: "0.38 mm/s",
     tempRise: "17.4 °C",
     clampForce: "25.5 kN",
     qrCode: "GPS-2026-0839-BT50-10000-MHE-PUNE"
   },
   {
+    id: "sp-0838",
     serialNumber: "GPS-2026-0838",
+    make: "GPS Spindle",
     model: "GPS-GR-18K",
+    category: "manufactured",
     customer: "L&T Precision Engineering",
     customerId: "CUST-05",
+    plantLocation: "Pune Plant 2 (Dynamic Balancing)",
     type: "Internal Grinding Spindle",
     rpm: "18,000 RPM",
     maxRpm: 18000,
     power: "7.5 kW",
     torque: "18.0 Nm",
     interface: "Quill / Straight Arbor",
+    taper: "Straight Quill",
     lubrication: "Air-Oil Lubricated",
     bearings: "Ultra-Precision Matched Quad",
     cooling: "Liquid Jacket",
@@ -163,49 +200,31 @@ export const SPINDLES = [
     stage: "Balancing",
     manufacturingDate: "2026-02-16",
     warranty: "Under Production",
+    runout: "0.6 µm",
     runoutTaper: "0.0006 mm",
     balanceGrade: "ISO 1940 G0.25",
+    vibration: "0.22 mm/s",
     vibrationRms: "0.22 mm/s",
     tempRise: "12.8 °C",
     clampForce: "N/A (Threaded Quill)",
     qrCode: "GPS-2026-0838-GR-18000-LTPE-COIMBATORE"
   },
   {
-    serialNumber: "GPS-2025-0721",
-    model: "GPS-HSK-A63-24K",
-    customer: "Kirloskar Oil Engines Ltd",
-    customerId: "CUST-06",
-    type: "Motorized Electro-Spindle",
-    rpm: "24,000 RPM",
-    maxRpm: 24000,
-    power: "15.0 kW",
-    torque: "32.0 Nm",
-    interface: "HSK-A63",
-    lubrication: "Air-Oil Mist",
-    bearings: "Ceramic Hybrid",
-    cooling: "Water-Glycol",
-    status: "Under Service",
-    stage: "Repair",
-    manufacturingDate: "2025-04-12",
-    warranty: "Expired (Service Contract Active)",
-    runoutTaper: "0.0048 mm (Pre-repair)",
-    balanceGrade: "ISO 1940 G1.8 (Pre-repair)",
-    vibrationRms: "1.42 mm/s (Pre-repair)",
-    tempRise: "38.5 °C (Alarm)",
-    clampForce: "14.1 kN",
-    qrCode: "GPS-2025-0721-SERVICE-KOEL-KHADKI"
-  },
-  {
+    id: "sp-0845",
     serialNumber: "GPS-2026-0845",
+    make: "GPS Spindle",
     model: "GPS-HSK-E25-42K",
+    category: "manufactured",
     customer: "Ace Designers Ltd - Bangalore",
     customerId: "CUST-07",
+    plantLocation: "Pune Plant 1 (Machining Bay)",
     type: "High Speed Micro-Milling",
     rpm: "42,000 RPM",
     maxRpm: 42000,
     power: "3.7 kW",
     torque: "2.8 Nm",
     interface: "HSK-E25",
+    taper: "HSK-E25",
     lubrication: "Air-Oil Mist",
     bearings: "Ceramic Hybrid",
     cooling: "Liquid Jacket",
@@ -213,16 +232,343 @@ export const SPINDLES = [
     stage: "Machining",
     manufacturingDate: "2026-02-20",
     warranty: "Under Production",
+    runout: "0.7 µm",
     runoutTaper: "0.0007 mm",
     balanceGrade: "ISO 1940 G0.24",
+    vibration: "0.21 mm/s",
     vibrationRms: "0.21 mm/s",
     tempRise: "13.0 °C",
     clampForce: "5.2 kN",
     qrCode: "GPS-2026-0845-E25-42000-ACE-BLR"
+  },
+
+  // =========================================================================
+  // 2. REPAIRED & SERVICED SPINDLES (CUSTOMER SPINDLES OVERHAULED BY GPS)
+  // =========================================================================
+  {
+    id: "sp-rep-01",
+    serialNumber: "KES-2024-9102",
+    make: "Franz Kessler",
+    model: "DMS 112.AL.4.FOS",
+    category: "repair",
+    customer: "Linamar India Pvt Ltd",
+    customerId: "CUST-08",
+    machineTool: "DMG Mori NHX 5000 (HMC)",
+    plantLocation: "Service Cleanroom Bay 3",
+    type: "Motorized Electro-Spindle",
+    rpm: "18,000 RPM",
+    maxRpm: 18000,
+    power: "25.0 kW",
+    torque: "87.0 Nm",
+    interface: "HSK-A63",
+    taper: "HSK-A63 DIN 69893",
+    lubrication: "Air-Oil Reconditioned",
+    bearings: "Ceramic Hybrid Matched Set",
+    cooling: "Water-Glycol Closed Circuit",
+    status: "Under Service",
+    stage: "Dynamic Balancing",
+    inwardJobNumber: "SRV-2026-092",
+    defectReason: "Bearing seizure from coolant ingress & drawbar clamp force drop to 8 kN",
+    manufacturingDate: "2024-03-15",
+    receivedDate: "2026-02-04",
+    targetDispatchDate: "2026-03-08",
+    warranty: "6 Months Service Warranty",
+    runout: "0.8 µm",
+    runoutTaper: "0.0052 mm (Pre-repair)",
+    balanceGrade: "ISO 1940 G0.35 Target",
+    vibration: "0.32 mm/s",
+    vibrationRms: "1.85 mm/s (Pre-repair)",
+    tempRise: "15.0 °C",
+    clampForce: "18.2 kN (Restored)",
+    qrCode: "KES-2024-9102-SERVICE-LINAMAR-PUNE"
+  },
+  {
+    id: "sp-rep-02",
+    serialNumber: "WEI-2023-4410",
+    make: "Weiss / Siemens",
+    model: "2SP1 180-4HB01",
+    category: "repair",
+    customer: "Force Motors Ltd",
+    customerId: "CUST-09",
+    machineTool: "Grob G550 5-Axis Machining Center",
+    plantLocation: "Spindle Burn-in Testing Cell 1",
+    type: "Motorized Electro-Spindle",
+    rpm: "16,000 RPM",
+    maxRpm: 16000,
+    power: "30.0 kW",
+    torque: "120.0 Nm",
+    interface: "HSK-A63",
+    taper: "HSK-A63 Big Plus",
+    lubrication: "Air-Oil Lubrication (0.04 ml/cycle)",
+    bearings: "FAG High-Speed Ceramic Quad Pack",
+    cooling: "Closed Liquid Cooling",
+    status: "Testing",
+    stage: "4-Hour Thermal Run",
+    inwardJobNumber: "SRV-2026-089",
+    defectReason: "Stator temperature trip & excessive shaft axial vibration under heavy cut",
+    manufacturingDate: "2023-08-11",
+    receivedDate: "2026-01-29",
+    targetDispatchDate: "2026-03-02",
+    warranty: "6 Months Service Warranty",
+    runout: "0.7 µm",
+    runoutTaper: "0.0039 mm (Pre-repair)",
+    balanceGrade: "ISO 1940 G0.30",
+    vibration: "0.28 mm/s",
+    vibrationRms: "1.64 mm/s (Pre-repair)",
+    tempRise: "14.8 °C (Stabilized)",
+    clampForce: "18.5 kN",
+    qrCode: "WEI-2023-4410-SERVICE-FORCEMOTORS-PITHAMPUR"
+  },
+  {
+    id: "sp-rep-03",
+    serialNumber: "FIS-2022-7801",
+    make: "Fischer Spindle",
+    model: "MFW-1524/18/1",
+    category: "repair",
+    customer: "Hindustan Aeronautics Ltd (HAL)",
+    customerId: "CUST-10",
+    machineTool: "Makino V33i 5-Axis (Aerospace Impellers)",
+    plantLocation: "Pune Service Hub (Cleanroom Inspection)",
+    type: "High Frequency Direct Drive",
+    rpm: "24,000 RPM",
+    maxRpm: 24000,
+    power: "20.0 kW",
+    torque: "42.0 Nm",
+    interface: "HSK-E50",
+    taper: "HSK-E50 Ultra Precision",
+    lubrication: "Direct Lubrication (DL)",
+    bearings: "Ceramic Hybrid Matched Tandem",
+    cooling: "Integrated Liquid Jacket",
+    status: "QC Passed",
+    stage: "Inspection Report Release",
+    inwardJobNumber: "SRV-2026-088",
+    defectReason: "Tool crash causing 0.0078mm taper bellmouthing and cracked front ceramic balls",
+    manufacturingDate: "2022-11-04",
+    receivedDate: "2026-01-18",
+    targetDispatchDate: "2026-02-28",
+    warranty: "12 Months Aerospace Overhaul Warranty",
+    runout: "0.6 µm",
+    runoutTaper: "0.0078 mm (Restored to 0.0006 mm)",
+    balanceGrade: "ISO 1940 G0.20 (Restored)",
+    vibration: "0.20 mm/s",
+    vibrationRms: "2.10 mm/s (Pre-repair)",
+    tempRise: "12.4 °C",
+    clampForce: "12.8 kN",
+    qrCode: "FIS-2022-7801-SERVICE-HAL-AEROSPACE-BLR"
+  },
+  {
+    id: "sp-rep-04",
+    serialNumber: "GPS-2025-0721",
+    make: "GPS Spindle",
+    model: "GPS-HSK-A63-24K",
+    category: "repair",
+    customer: "Kirloskar Oil Engines Ltd",
+    customerId: "CUST-06",
+    machineTool: "BFW Chakra BMV 60 (VMC)",
+    plantLocation: "Pune Plant 1 Service Yard",
+    type: "Motorized Electro-Spindle",
+    rpm: "24,000 RPM",
+    maxRpm: 24000,
+    power: "15.0 kW",
+    torque: "32.0 Nm",
+    interface: "HSK-A63",
+    taper: "HSK-A63",
+    lubrication: "Air-Oil Mist",
+    bearings: "Ceramic Hybrid",
+    cooling: "Water-Glycol",
+    status: "Ready",
+    stage: "Ready for Dispatch",
+    inwardJobNumber: "SRV-2026-081",
+    defectReason: "Routine 8,000-hr service: bearing fatigue replacement, O-ring seal pack renewal",
+    manufacturingDate: "2025-04-12",
+    receivedDate: "2026-01-12",
+    targetDispatchDate: "2026-02-25",
+    warranty: "12 Months Reconditioned Warranty",
+    runout: "0.8 µm",
+    runoutTaper: "0.0048 mm (Restored to 0.0008 mm)",
+    balanceGrade: "ISO 1940 G0.28",
+    vibration: "0.26 mm/s",
+    vibrationRms: "1.42 mm/s (Pre-repair)",
+    tempRise: "13.9 °C",
+    clampForce: "18.4 kN",
+    qrCode: "GPS-2025-0721-SERVICE-KOEL-KHADKI"
+  },
+  {
+    id: "sp-rep-05",
+    serialNumber: "SET-2023-3392",
+    make: "Setco",
+    model: "Setco M400 High Precision",
+    category: "repair",
+    customer: "Bharat Heavy Electricals Ltd (BHEL)",
+    customerId: "CUST-11",
+    machineTool: "Heavy Shaft Milling Center",
+    plantLocation: "Service Cleanroom Bay 1",
+    type: "Belt Driven Milling Spindle",
+    rpm: "10,000 RPM",
+    maxRpm: 10000,
+    power: "37.0 kW",
+    torque: "240.0 Nm",
+    interface: "BT-50 Heavy Contact",
+    taper: "BT-50",
+    lubrication: "Continuous Circulating Oil",
+    bearings: "Matched Roller & Quad Contact Pack",
+    cooling: "Liquid Chilled Housing",
+    status: "Under Service",
+    stage: "Shaft Hard-Chrome Plating & Re-grind",
+    inwardJobNumber: "SRV-2026-095",
+    defectReason: "Front journal fretting wear & labyrinth seal contamination",
+    manufacturingDate: "2023-05-19",
+    receivedDate: "2026-02-11",
+    targetDispatchDate: "2026-03-20",
+    warranty: "6 Months Service Warranty",
+    runout: "1.2 µm",
+    runoutTaper: "0.0062 mm (Pre-repair)",
+    balanceGrade: "ISO 1940 G0.40 Target",
+    vibration: "0.36 mm/s",
+    vibrationRms: "1.92 mm/s (Pre-repair)",
+    tempRise: "16.5 °C",
+    clampForce: "24.0 kN",
+    qrCode: "SET-2023-3392-SERVICE-BHEL-TRICHY"
+  },
+
+  // =========================================================================
+  // 3. CATALOGED & KNOWN FLEET ASSETS (KNOWN OEM BENCHMARK SPECIFICATIONS)
+  // =========================================================================
+  {
+    id: "sp-cat-01",
+    serialNumber: "CAT-IBAG-HSC",
+    make: "IBAG Switzerland",
+    model: "HF 170 30K HSK-E40",
+    category: "catalog",
+    customer: "Benchmark Fleet Specification",
+    customerId: "CUST-CAT",
+    machineTool: "Mikron HSM 400 / Hermle C22",
+    plantLocation: "Engineering Master Archive",
+    type: "High Frequency Direct Drive",
+    rpm: "30,000 RPM",
+    maxRpm: 30000,
+    power: "18.0 kW",
+    torque: "12.0 Nm",
+    interface: "HSK-E40",
+    taper: "HSK-E40 DIN 69893",
+    lubrication: "Direct Air-Oil Injection",
+    bearings: "Ceramic Hybrid DLR Series",
+    cooling: "Liquid Stator Jacket",
+    status: "Cataloged Asset",
+    stage: "Technical Reference",
+    manufacturingDate: "2024-01-01",
+    warranty: "OEM Technical Data Sheet on File",
+    runout: "0.5 µm",
+    runoutTaper: "0.0005 mm (OEM Spec)",
+    balanceGrade: "ISO 1940 G0.20",
+    vibration: "0.18 mm/s",
+    vibrationRms: "0.18 mm/s",
+    tempRise: "12.0 °C",
+    clampForce: "9.5 kN",
+    qrCode: "CAT-IBAG-HF170-HSKE40-GPS-REF"
+  },
+  {
+    id: "sp-cat-02",
+    serialNumber: "CAT-STEP-H40",
+    make: "Step-Tec (GF Machining)",
+    model: "HVC 140-16 / 20K",
+    category: "catalog",
+    customer: "Benchmark Fleet Specification",
+    customerId: "CUST-CAT",
+    machineTool: "GF Mikron Mill P 500 / 800",
+    plantLocation: "Engineering Master Archive",
+    type: "Motorized Electro-Spindle",
+    rpm: "20,000 RPM",
+    maxRpm: 20000,
+    power: "25.0 kW",
+    torque: "68.0 Nm",
+    interface: "HSK-A63",
+    taper: "HSK-A63 Cool-Core",
+    lubrication: "Air-Oil Lubricated (OTT)",
+    bearings: "Hybrid High-Speed Hybrid Quad",
+    cooling: "Opti-Cool Spindle Jacket",
+    status: "Cataloged Asset",
+    stage: "Technical Reference",
+    manufacturingDate: "2024-01-01",
+    warranty: "OEM Technical Data Sheet on File",
+    runout: "0.7 µm",
+    runoutTaper: "0.0007 mm (OEM Spec)",
+    balanceGrade: "ISO 1940 G0.28",
+    vibration: "0.24 mm/s",
+    vibrationRms: "0.24 mm/s",
+    tempRise: "14.0 °C",
+    clampForce: "18.0 kN",
+    qrCode: "CAT-STEP-HVC140-HSKA63-GPS-REF"
+  },
+  {
+    id: "sp-cat-03",
+    serialNumber: "CAT-HSD-ES779",
+    make: "HSD Mechatronics",
+    model: "ES779 HSK-F63 24K",
+    category: "catalog",
+    customer: "Benchmark Fleet Specification",
+    customerId: "CUST-CAT",
+    machineTool: "Biesse Rover 5-Axis CNC / Anderson CNC",
+    plantLocation: "Engineering Master Archive",
+    type: "Motorized Electro-Spindle",
+    rpm: "24,000 RPM",
+    maxRpm: 24000,
+    power: "12.0 kW",
+    torque: "14.5 Nm",
+    interface: "HSK-F63",
+    taper: "HSK-F63 High Velocity",
+    lubrication: "Permanent Long-Life Grease",
+    bearings: "Ceramic Hybrid Angular Contact",
+    cooling: "Liquid Cooled Stator",
+    status: "Cataloged Asset",
+    stage: "Technical Reference",
+    manufacturingDate: "2024-01-01",
+    warranty: "OEM Technical Data Sheet on File",
+    runout: "0.8 µm",
+    runoutTaper: "0.0008 mm (OEM Spec)",
+    balanceGrade: "ISO 1940 G0.30",
+    vibration: "0.25 mm/s",
+    vibrationRms: "0.25 mm/s",
+    tempRise: "13.5 °C",
+    clampForce: "11.0 kN",
+    qrCode: "CAT-HSD-ES779-HSKF63-GPS-REF"
+  },
+  {
+    id: "sp-cat-04",
+    serialNumber: "CAT-FANUC-ROBO",
+    make: "Celera / Fanuc",
+    model: "Robodrill BT30 Direct Drive 24K",
+    category: "catalog",
+    customer: "Benchmark Fleet Specification",
+    customerId: "CUST-CAT",
+    machineTool: "Fanuc Robodrill α-D21LiB5 Plus",
+    plantLocation: "Engineering Master Archive",
+    type: "High Frequency Direct Drive",
+    rpm: "24,000 RPM",
+    maxRpm: 24000,
+    power: "7.5 kW",
+    torque: "22.0 Nm",
+    interface: "BT-30 Big Plus",
+    taper: "BT-30 Dual Contact",
+    lubrication: "Air-Oil Injection",
+    bearings: "Ceramic Hybrid Super Precision",
+    cooling: "Air-Oil Closed Spindle Cooling",
+    status: "Cataloged Asset",
+    stage: "Technical Reference",
+    manufacturingDate: "2024-01-01",
+    warranty: "OEM Technical Data Sheet on File",
+    runout: "0.6 µm",
+    runoutTaper: "0.0006 mm (OEM Spec)",
+    balanceGrade: "ISO 1940 G0.24",
+    vibration: "0.22 mm/s",
+    vibrationRms: "0.22 mm/s",
+    tempRise: "12.5 °C",
+    clampForce: "8.5 kN",
+    qrCode: "CAT-FANUC-ROBODRILL-BT30-GPS-REF"
   }
 ];
 
-export const WORK_ORDERS = [
+const SEED_WORK_ORDERS = [
   {
     id: "WO-2026-104",
     spindleSerial: "GPS-2026-0842",
@@ -417,7 +763,7 @@ export const WORK_ORDERS = [
   }
 ];
 
-export const SHOP_BAYS = [
+const SEED_SHOP_BAYS = [
   { id: "bay-1", name: "Bay 1 - CNC Turning & Boring", machine: "Okuma LB3000 Space Turn", status: "Operating", operator: "Rajesh Patil", currentWo: "WO-2026-106", utilization: "92%" },
   { id: "bay-2", name: "Bay 2 - Precision CNC Grinding", machine: "Studer S33 Cylindrical Grinder", status: "Operating", operator: "Suresh Sawant", currentWo: "WO-2026-104", utilization: "96%" },
   { id: "bay-3", name: "Bay 3 - Clean Room Assembly", machine: "Clean Room Class 1000 Station", status: "Operating", operator: "Vikram Shinde", currentWo: "WO-2026-107", utilization: "85%" },
@@ -426,7 +772,7 @@ export const SHOP_BAYS = [
   { id: "bay-6", name: "Bay 6 - QC & Metrology Lab", machine: "Zeiss CMM & Mahr Air Gauges", status: "Inspection", operator: "M. Joshi / S. Sawant", currentWo: "WO-2026-103", utilization: "94%" },
 ];
 
-export const SERVICE_JOBS = [
+const SEED_SERVICE_JOBS = [
   {
     id: "SR-2026-042",
     spindleSerial: "GPS-2025-0721",
@@ -510,11 +856,13 @@ export const SERVICE_JOBS = [
   }
 ];
 
-export const INVENTORY_ITEMS = [
+const SEED_INVENTORY_ITEMS = [
   {
     id: "INV-MAT-01",
     sku: "MAT-18CR-80",
     name: "18CrNiMo7-6 Forged Round Bar Ø80mm",
+    make: "Bharat Special Steel",
+    model: "18CrNiMo7-6 ESR Annealed",
     category: "Raw Alloy Steel",
     availableQty: 42,
     reservedQty: 18,
@@ -523,12 +871,15 @@ export const INVENTORY_ITEMS = [
     location: "Rack A-04 (Heavy Steel Bay)",
     status: "In Stock",
     supplier: "Bharat Special Steels Ltd",
-    unitCost: "₹6,800/m"
+    unitCost: "₹6,800/m",
+    unitCostNum: 6800
   },
   {
     id: "INV-BRG-01",
     sku: "BRG-HC7008",
     name: "FAG HC7008-E-T-P4S Ceramic Hybrid Bearings (Matched Pack)",
+    make: "FAG / Schaeffler",
+    model: "HC7008-E-T-P4S-UL",
     category: "Precision Bearings",
     availableQty: 8,
     reservedQty: 12,
@@ -537,12 +888,15 @@ export const INVENTORY_ITEMS = [
     location: "Cleanroom Cabinet C-01",
     status: "Critical Low",
     supplier: "Schaeffler India Ltd",
-    unitCost: "₹38,500/pair"
+    unitCost: "₹38,500/pair",
+    unitCostNum: 38500
   },
   {
     id: "INV-BRG-02",
     sku: "BRG-SKF-7010",
     name: "SKF 7010 CD/P4ADGA Super-Precision Angular Bearings",
+    make: "SKF",
+    model: "7010 CD/P4ADGA",
     category: "Precision Bearings",
     availableQty: 14,
     reservedQty: 10,
@@ -551,12 +905,32 @@ export const INVENTORY_ITEMS = [
     location: "Cleanroom Cabinet C-02",
     status: "Low Stock",
     supplier: "SKF India Technical Center",
-    unitCost: "₹29,200/pair"
+    unitCost: "₹29,200/pair",
+    unitCostNum: 29200
+  },
+  {
+    id: "INV-BRG-03",
+    sku: "120TAC20FME2DBCP5P01-NSK",
+    name: "NSK 120TAC20 Super Precision Ball Screw Support Bearings",
+    make: "NSK",
+    model: "120TAC20FME2DBCP5P01",
+    category: "Precision Bearings",
+    availableQty: 12,
+    reservedQty: 2,
+    minStock: 6,
+    unit: "Nos",
+    location: "Cleanroom Cabinet C-03",
+    status: "In Stock",
+    supplier: "PREMIER INDUSTRIAL SOLUTIONS",
+    unitCost: "₹58,262/ea",
+    unitCostNum: 58262
   },
   {
     id: "INV-DRW-01",
     sku: "DRW-OTT-A63",
     name: "OTT-Jakob HSK-A63 Power Drawbar Spring Collet Mechanism",
+    make: "OTT-Jakob",
+    model: "HSK-A63 0.957.252.3.0",
     category: "Tool Clamping",
     availableQty: 11,
     reservedQty: 6,
@@ -564,13 +938,16 @@ export const INVENTORY_ITEMS = [
     unit: "Sets",
     location: "Bin T-12 (Tooling Bay)",
     status: "In Stock",
-    supplier: "OTT-Jakob Spanntechnik (Direct Import)",
-    unitCost: "₹54,000/set"
+    supplier: "OTT Jakob",
+    unitCost: "₹54,000/set",
+    unitCostNum: 54000
   },
   {
     id: "INV-ENC-01",
     sku: "ENC-HEID-1380",
     name: "Heidenhain ERN 1380 Sine/Cosine Rotary Encoder 2048 Lines",
+    make: "Heidenhain",
+    model: "ERN 1380.035-2048",
     category: "Electronics & Sensors",
     availableQty: 16,
     reservedQty: 8,
@@ -578,13 +955,16 @@ export const INVENTORY_ITEMS = [
     unit: "Pcs",
     location: "ESD Cabinet E-03",
     status: "In Stock",
-    supplier: "Heidenhain India Pvt Ltd",
-    unitCost: "₹42,000/pc"
+    supplier: "Heidenhain India",
+    unitCost: "₹42,000/pc",
+    unitCostNum: 42000
   },
   {
     id: "INV-STT-01",
     sku: "MOT-STAT-15K",
     name: "High-Speed Built-in Stator Core & Winding Assembly 15 kW",
+    make: "Kollmorgen / Siemens",
+    model: "1FE1084-4WP11",
     category: "Motor Components",
     availableQty: 5,
     reservedQty: 4,
@@ -592,13 +972,16 @@ export const INVENTORY_ITEMS = [
     unit: "Units",
     location: "Electrical Stores E-08",
     status: "Low Stock",
-    supplier: "Kollmorgen / Custom GPS Winding",
-    unitCost: "₹95,000/unit"
+    supplier: "Siemens India Ltd",
+    unitCost: "₹95,000/unit",
+    unitCostNum: 95000
   },
   {
     id: "INV-SEAL-01",
     sku: "SEAL-VT-120",
     name: "High-Temp Viton Fluroelastomer Rotary O-Ring Kit Ø120x3",
+    make: "Freudenberg / Merkel",
+    model: "75 FKM 585",
     category: "Seals & Gaskets",
     availableQty: 180,
     reservedQty: 40,
@@ -607,12 +990,15 @@ export const INVENTORY_ITEMS = [
     location: "Bin S-05",
     status: "In Stock",
     supplier: "Freudenberg Sealing Tech",
-    unitCost: "₹1,450/pack"
+    unitCost: "₹1,450/pack",
+    unitCostNum: 1450
   },
   {
     id: "INV-SPR-01",
     sku: "SPR-DISC-34",
     name: "Belleville Disc Springs 34 x 16.3 x 2.0 mm (High Fatigue)",
+    make: "Schnorr / Mubea",
+    model: "DIN 2093 Group 2",
     category: "Tool Clamping",
     availableQty: 450,
     reservedQty: 120,
@@ -621,55 +1007,184 @@ export const INVENTORY_ITEMS = [
     location: "Bin T-18",
     status: "In Stock",
     supplier: "Mubea Disc Springs India",
-    unitCost: "₹380/pc"
+    unitCost: "₹380/pc",
+    unitCostNum: 380
+  },
+  {
+    id: "INV-LUB-01",
+    sku: "LUB-KLUB-NBU15",
+    name: "Klüber ISOFLEX NBU 15 High-Speed Spindle Grease 1kg",
+    make: "Klüber Lubrication",
+    model: "ISOFLEX NBU 15",
+    category: "Seals & Lubricants",
+    availableQty: 24,
+    reservedQty: 4,
+    minStock: 10,
+    unit: "Tins",
+    location: "Lubricant Room L-02",
+    status: "In Stock",
+    supplier: "PREMIER INDUSTRIAL SOLUTIONS",
+    unitCost: "₹18,500/tin",
+    unitCostNum: 18500
+  },
+  {
+    id: "INV-TOOL-01",
+    sku: "SAND-CNMG-120408",
+    name: "Sandvik Coromant CNMG 120408-SMR Carbide Turning Inserts",
+    make: "Sandvik Coromant",
+    model: "CNMG 120408-SMR 1115",
+    category: "Tooling & Consumables",
+    availableQty: 140,
+    reservedQty: 20,
+    minStock: 40,
+    unit: "Pcs",
+    location: "Tool Crib T-04",
+    status: "In Stock",
+    supplier: "Sandvik Coromant India",
+    unitCost: "₹720/pc",
+    unitCostNum: 720
   }
 ];
 
-export const QUALITY_INSPECTIONS = [
+const SEED_QUALITY_INSPECTIONS = [
   {
     id: "QC-2026-092",
+    inspectionNumber: "QC-2026-092",
+    spindleCategory: "manufacture",
     workOrder: "WO-2026-103",
     spindleSerial: "GPS-2026-0841",
     spindleModel: "GPS-BT40-15K",
     customer: "Bharat Forge Ltd",
+    inspectionType: "Final Metrology QA",
     inspector: "Milind Joshi (Quality Assurance Lead)",
     inspectionDate: "2026-02-26",
-    overallResult: "Passed",
+    overallResult: "Pass",
     approvalStatus: "Approved",
+    ambientTemp: 20.0,
+    ambient_temp_celsius: 20.0,
+    gaugeEquipment: "Mahr Federal Air Collet Probe & Schenck Dual-Plane Rig",
+    gauge_equipment_used: "Mahr Federal Air Collet Probe & Schenck Dual-Plane Rig",
     notes: "Dynamic balancing achieved ISO 1940 G0.32, well within customer requirement G0.4. Thermal run-in passed with 16.8°C rise.",
+    remarks: "Dynamic balancing achieved ISO 1940 G0.32, well within customer requirement G0.4. Thermal run-in passed with 16.8°C rise.",
     parameters: [
-      { id: 1, name: "Spindle Nose Taper Dynamic Runout", required: "≤ 0.0010 mm", actual: "0.0007 mm", instrument: "Mahr Federal Air Gauge & Mitutoyo 0.0001mm", result: "Pass" },
-      { id: 2, name: "Dynamic Runout @ 300mm Test Arbor", required: "≤ 0.0030 mm", actual: "0.0022 mm", instrument: "Mahr Concentricity Bench & Ultra Test Arbor", result: "Pass" },
-      { id: 3, name: "Axial Float / End Play", required: "≤ 0.0010 mm", actual: "0.0005 mm", instrument: "Tesa Micro-Hite & Axial Load Fixture", result: "Pass" },
-      { id: 4, name: "Dynamic Balance Grade (ISO 1940-1)", required: "Grade G0.40", actual: "Grade G0.32 (0.14 g·mm)", instrument: "Schenck SmartBalancing Rig Dual Plane", result: "Pass" },
-      { id: 5, name: "Tool Drawbar Clamping Retention Force", required: "12.0 kN ± 0.8 kN", actual: "12.2 kN", instrument: "ForceCheck Clamping Force Gauge", result: "Pass" },
-      { id: 6, name: "4-Hour Full-Speed Thermal Temp Rise", required: "≤ 18.0 °C", actual: "16.8 °C", instrument: "Calibrated PT100 Embedded Sensors", result: "Pass" },
-      { id: 7, name: "Vibration Velocity RMS @ 15,000 RPM", required: "≤ 0.50 mm/s", actual: "0.31 mm/s", instrument: "Bruel & Kjaer Triaxial Accelerometer", result: "Pass" },
-      { id: 8, name: "Stator Winding Phase Resistance Balance", required: "1.25 Ω ± 3%", actual: "1.24 Ω / 1.25 Ω / 1.25 Ω", instrument: "Hioki Micro-Ohm Meter 3540", result: "Pass" },
-      { id: 9, name: "Insulation Resistance @ 1000V DC", required: "≥ 500 MΩ", actual: "1,650 MΩ", instrument: "Megger MIT400/2 Insulation Tester", result: "Pass" },
+      { id: 1, parameter_name: "Spindle Nose Taper Dynamic Runout", name: "Spindle Nose Taper Dynamic Runout", required: "≤ 0.0010 mm", actual: "0.0007 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0007, unit_of_measure: "mm", instrument: "Mahr Federal Air Gauge & Mitutoyo 0.0001mm", result: "Pass", result_status: "Pass" },
+      { id: 2, parameter_name: "Dynamic Runout @ 300mm Test Arbor", name: "Dynamic Runout @ 300mm Test Arbor", required: "≤ 0.0030 mm", actual: "0.0022 mm", nominal_value: 0, tolerance_max: 0.0030, measured_value: 0.0022, unit_of_measure: "mm", instrument: "Mahr Concentricity Bench & Ultra Test Arbor", result: "Pass", result_status: "Pass" },
+      { id: 3, parameter_name: "Axial Float / End Play", name: "Axial Float / End Play", required: "≤ 0.0010 mm", actual: "0.0005 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0005, unit_of_measure: "mm", instrument: "Tesa Micro-Hite & Axial Load Fixture", result: "Pass", result_status: "Pass" },
+      { id: 4, parameter_name: "Dynamic Balance Grade (ISO 1940-1)", name: "Dynamic Balance Grade (ISO 1940-1)", required: "Grade G0.40", actual: "Grade G0.32 (0.14 g·mm)", nominal_value: 0.40, tolerance_max: 0.40, measured_value: 0.32, unit_of_measure: "ISO G", instrument: "Schenck SmartBalancing Rig Dual Plane", result: "Pass", result_status: "Pass" },
+      { id: 5, parameter_name: "Tool Drawbar Clamping Retention Force", name: "Tool Drawbar Clamping Retention Force", required: "12.0 kN ± 0.8 kN", actual: "12.2 kN", nominal_value: 12.0, tolerance_min: 11.2, tolerance_max: 12.8, measured_value: 12.2, unit_of_measure: "kN", instrument: "ForceCheck Clamping Force Gauge", result: "Pass", result_status: "Pass" },
+      { id: 6, parameter_name: "4-Hour Full-Speed Thermal Temp Rise", name: "4-Hour Full-Speed Thermal Temp Rise", required: "≤ 18.0 °C", actual: "16.8 °C", nominal_value: 18.0, tolerance_max: 18.0, measured_value: 16.8, unit_of_measure: "°C", instrument: "Calibrated PT100 Embedded Sensors", result: "Pass", result_status: "Pass" },
+      { id: 7, parameter_name: "Vibration Velocity RMS @ 15,000 RPM", name: "Vibration Velocity RMS @ 15,000 RPM", required: "≤ 0.50 mm/s", actual: "0.31 mm/s", nominal_value: 0.50, tolerance_max: 0.50, measured_value: 0.31, unit_of_measure: "mm/s", instrument: "Bruel & Kjaer Triaxial Accelerometer", result: "Pass", result_status: "Pass" },
+      { id: 8, parameter_name: "Stator Winding Phase Resistance Balance", name: "Stator Winding Phase Resistance Balance", required: "1.25 Ω ± 3%", actual: "1.24 Ω", nominal_value: 1.25, tolerance_min: 1.21, tolerance_max: 1.29, measured_value: 1.24, unit_of_measure: "Ω", instrument: "Hioki Micro-Ohm Meter 3540", result: "Pass", result_status: "Pass" },
+      { id: 9, parameter_name: "Insulation Resistance @ 1000V DC", name: "Insulation Resistance @ 1000V DC", required: "≥ 500 MΩ", actual: "1,650 MΩ", nominal_value: 500, tolerance_min: 500, measured_value: 1650, unit_of_measure: "MΩ", instrument: "Megger MIT400/2 Insulation Tester", result: "Pass", result_status: "Pass" },
     ]
   },
   {
     id: "QC-2026-091",
+    inspectionNumber: "QC-2026-091",
+    spindleCategory: "manufacture",
     workOrder: "WO-2026-102",
     spindleSerial: "GPS-2026-0840",
     spindleModel: "GPS-HF-60K",
     customer: "Godrej Aerospace",
+    inspectionType: "Final Metrology QA",
     inspector: "Milind Joshi",
     inspectionDate: "2026-02-25",
-    overallResult: "Passed",
+    overallResult: "Pass",
     approvalStatus: "Approved",
+    ambientTemp: 20.0,
+    ambient_temp_celsius: 20.0,
+    gaugeEquipment: "Laser Displacement Sensor Keyence & Schenck Micro Rig",
+    gauge_equipment_used: "Laser Displacement Sensor Keyence & Schenck Micro Rig",
     notes: "Ultra-precision micro-runout 0.0005 mm achieved at 60,000 RPM. Certified for aerospace titanium blisk machining.",
+    remarks: "Ultra-precision micro-runout 0.0005 mm achieved at 60,000 RPM. Certified for aerospace titanium blisk machining.",
     parameters: [
-      { id: 1, name: "Nose Taper Runout @ 60k RPM", required: "≤ 0.0008 mm", actual: "0.0005 mm", instrument: "Laser Displacement Sensor Keyence", result: "Pass" },
-      { id: 2, name: "Balance Grade @ 60,000 RPM", required: "Grade G0.40", actual: "Grade G0.20", instrument: "Schenck Micro High Speed Rig", result: "Pass" },
-      { id: 3, name: "Vibration Velocity RMS", required: "≤ 0.35 mm/s", actual: "0.19 mm/s", instrument: "Bruel & Kjaer Vibro-Analyzer", result: "Pass" },
-      { id: 4, name: "HSK-E25 Drawbar Force", required: "4.5 kN ± 0.5", actual: "4.8 kN", instrument: "ForceCheck Sensor", result: "Pass" },
+      { id: 1, parameter_name: "Nose Taper Runout @ 60k RPM", name: "Nose Taper Runout @ 60k RPM", required: "≤ 0.0008 mm", actual: "0.0005 mm", nominal_value: 0, tolerance_max: 0.0008, measured_value: 0.0005, unit_of_measure: "mm", instrument: "Laser Displacement Sensor Keyence", result: "Pass", result_status: "Pass" },
+      { id: 2, parameter_name: "Balance Grade @ 60,000 RPM", name: "Balance Grade @ 60,000 RPM", required: "Grade G0.40", actual: "Grade G0.20", nominal_value: 0.40, tolerance_max: 0.40, measured_value: 0.20, unit_of_measure: "ISO G", instrument: "Schenck Micro High Speed Rig", result: "Pass", result_status: "Pass" },
+      { id: 3, parameter_name: "Vibration Velocity RMS", name: "Vibration Velocity RMS", required: "≤ 0.35 mm/s", actual: "0.19 mm/s", nominal_value: 0.35, tolerance_max: 0.35, measured_value: 0.19, unit_of_measure: "mm/s", instrument: "Bruel & Kjaer Vibro-Analyzer", result: "Pass", result_status: "Pass" },
+      { id: 4, parameter_name: "HSK-E25 Drawbar Force", name: "HSK-E25 Drawbar Force", required: "4.5 kN ± 0.5", actual: "4.8 kN", nominal_value: 4.5, tolerance_min: 4.0, tolerance_max: 5.0, measured_value: 4.8, unit_of_measure: "kN", instrument: "ForceCheck Sensor", result: "Pass", result_status: "Pass" },
+    ]
+  },
+  {
+    id: "QC-2026-SR41",
+    inspectionNumber: "QC-2026-SR41",
+    spindleCategory: "service",
+    serviceJobNumber: "SR-2026-041",
+    serviceRequestId: "SR-2026-041",
+    spindleSerial: "GPS-2024-0512",
+    spindleModel: "GPS-BT40-15K",
+    customer: "Mahindra Heavy Engines",
+    inspectionType: "Post-Repair Metrology Acceptance",
+    inspector: "Milind Joshi (Quality Assurance Lead)",
+    inspectionDate: "2026-02-27",
+    overallResult: "Pass",
+    approvalStatus: "Approved",
+    ambientTemp: 20.0,
+    ambient_temp_celsius: 20.0,
+    gaugeEquipment: "Mahr Federal Air Gauge, Schenck Rig & Fluke IR Cam",
+    gauge_equipment_used: "Mahr Federal Air Gauge, Schenck Rig & Fluke IR Cam",
+    complaint: "Excessive bearing temperature (>78°C) within 15 minutes of startup. Axis servo trip on CNC machine.",
+    restorationSummary: {
+      preRunout: "14.2 µm",
+      postRunout: "0.8 µm",
+      preVibration: "4.60 mm/s",
+      postVibration: "0.26 mm/s",
+      preBalance: "Grade G3.8",
+      postBalance: "Grade G0.28",
+      repairsDone: "Replaced front ceramic hybrid bearing pack, reground taper seat on Studer S33, calibrated thermal rise."
+    },
+    notes: "Post-rebuild metrology acceptance passed. Taper runout reduced from 14.2 µm to 0.8 µm. 4-hour thermal run-in test verified stable at 14.5°C rise.",
+    remarks: "Post-rebuild metrology acceptance passed. Taper runout reduced from 14.2 µm to 0.8 µm. 4-hour thermal run-in test verified stable at 14.5°C rise.",
+    parameters: [
+      { id: 1, parameter_name: "Restored Nose Taper Dynamic Runout", name: "Restored Nose Taper Dynamic Runout", required: "≤ 0.0010 mm", actual: "0.0008 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0008, unit_of_measure: "mm", instrument: "Mahr Federal Air Gauge", result: "Pass", result_status: "Pass" },
+      { id: 2, parameter_name: "Dynamic Runout @ 300mm Test Arbor", name: "Dynamic Runout @ 300mm Test Arbor", required: "≤ 0.0030 mm", actual: "0.0021 mm", nominal_value: 0, tolerance_max: 0.0030, measured_value: 0.0021, unit_of_measure: "mm", instrument: "Mahr Concentricity Bench", result: "Pass", result_status: "Pass" },
+      { id: 3, parameter_name: "Ceramic Bearings Preload & Axial Play", name: "Ceramic Bearings Preload & Axial Play", required: "≤ 0.0010 mm", actual: "0.0006 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0006, unit_of_measure: "mm", instrument: "Tesa Micro-Hite & Axial Fixture", result: "Pass", result_status: "Pass" },
+      { id: 4, parameter_name: "Dynamic Balancing @ 15,000 RPM (ISO 1940-1)", name: "Dynamic Balancing @ 15,000 RPM (ISO 1940-1)", required: "Grade G0.40", actual: "Grade G0.28", nominal_value: 0.40, tolerance_max: 0.40, measured_value: 0.28, unit_of_measure: "ISO G", instrument: "Schenck SmartBalancing Rig", result: "Pass", result_status: "Pass" },
+      { id: 5, parameter_name: "Tool Drawbar Clamping Retention Force", name: "Tool Drawbar Clamping Retention Force", required: "12.0 kN ± 0.8 kN", actual: "12.3 kN", nominal_value: 12.0, tolerance_min: 11.2, tolerance_max: 12.8, measured_value: 12.3, unit_of_measure: "kN", instrument: "ForceCheck Clamping Sensor", result: "Pass", result_status: "Pass" },
+      { id: 6, parameter_name: "4-Hour Full-Speed Thermal Run-in (Bearing Temp Rise)", name: "4-Hour Full-Speed Thermal Run-in (Bearing Temp Rise)", required: "≤ 18.0 °C", actual: "14.5 °C", nominal_value: 18.0, tolerance_max: 18.0, measured_value: 14.5, unit_of_measure: "°C", instrument: "Calibrated PT100 Embedded Sensors", result: "Pass", result_status: "Pass" },
+      { id: 7, parameter_name: "Post-Rebuild Vibration Velocity RMS", name: "Post-Rebuild Vibration Velocity RMS", required: "≤ 0.50 mm/s", actual: "0.26 mm/s", nominal_value: 0.50, tolerance_max: 0.50, measured_value: 0.26, unit_of_measure: "mm/s", instrument: "Bruel & Kjaer Accelerometer", result: "Pass", result_status: "Pass" }
+    ]
+  },
+  {
+    id: "QC-2026-SR42",
+    inspectionNumber: "QC-2026-SR42",
+    spindleCategory: "service",
+    serviceJobNumber: "SR-2026-042",
+    serviceRequestId: "SR-2026-042",
+    spindleSerial: "GPS-2025-0721",
+    spindleModel: "GPS-HSK-A63-24K",
+    customer: "Kirloskar Oil Engines Ltd",
+    inspectionType: "Incoming Damage & Condition Audit",
+    inspector: "Milind Joshi (Quality Assurance Lead)",
+    inspectionDate: "2026-02-21",
+    overallResult: "Rework Required",
+    approvalStatus: "Rejected",
+    ambientTemp: 20.0,
+    ambient_temp_celsius: 20.0,
+    gaugeEquipment: "Mahr Federal Air Gauge & Schenck Balance Analyzer",
+    gauge_equipment_used: "Mahr Federal Air Gauge & Schenck Balance Analyzer",
+    complaint: "High vibration (>4.8 mm/s) & chatter marks during cylinder head boring at 16k RPM. Coolant ingress suspected.",
+    restorationSummary: {
+      preRunout: "5.8 µm",
+      postRunout: "Pending Rebuild",
+      preVibration: "4.85 mm/s",
+      postVibration: "Pending Rebuild",
+      preBalance: "Grade G3.2",
+      postBalance: "Pending Rebuild",
+      repairsDone: "Incoming teardown audit. Severe fretting in HSK cone; front ceramic bearings washed out."
+    },
+    notes: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Bay 2 for grinding & rebuild.",
+    remarks: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Bay 2 for grinding & rebuild.",
+    parameters: [
+      { id: 1, parameter_name: "Incoming Spindle Nose Taper Dynamic Runout", name: "Incoming Spindle Nose Taper Dynamic Runout", required: "≤ 0.0010 mm", actual: "0.0058 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0058, unit_of_measure: "mm", instrument: "Mahr Federal Air Gauge", result: "Fail", result_status: "Fail" },
+      { id: 2, parameter_name: "Incoming Dynamic Balance Grade (ISO 1940-1)", name: "Incoming Dynamic Balance Grade (ISO 1940-1)", required: "Grade G0.40", actual: "Grade G3.20", nominal_value: 0.40, tolerance_max: 0.40, measured_value: 3.20, unit_of_measure: "ISO G", instrument: "Schenck SmartBalancing Rig", result: "Fail", result_status: "Fail" },
+      { id: 3, parameter_name: "Front Bearings Radial & Axial Play", name: "Front Bearings Radial & Axial Play", required: "≤ 0.0010 mm", actual: "0.0084 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0084, unit_of_measure: "mm", instrument: "Tesa Dial Indicator", result: "Fail", result_status: "Fail" },
+      { id: 4, parameter_name: "Incoming Tool Drawbar Clamping Retention Force", name: "Incoming Tool Drawbar Clamping Retention Force", required: "18.0 kN ± 1.0 kN", actual: "13.8 kN", nominal_value: 18.0, tolerance_min: 17.0, tolerance_max: 19.0, measured_value: 13.8, unit_of_measure: "kN", instrument: "ForceCheck Clamping Gauge", result: "Fail", result_status: "Fail" },
+      { id: 5, parameter_name: "Incoming Vibration Velocity RMS @ 16k RPM", name: "Incoming Vibration Velocity RMS @ 16k RPM", required: "≤ 0.50 mm/s", actual: "4.85 mm/s", nominal_value: 0.50, tolerance_max: 0.50, measured_value: 4.85, unit_of_measure: "mm/s", instrument: "Bruel & Kjaer Vibro-Analyzer", result: "Fail", result_status: "Fail" }
     ]
   }
 ];
 
-export const QUOTATIONS = [
+const SEED_QUOTATIONS = [
   {
     id: "QTN/2026-27/294",
     estimateNo: "QTN/2026-27/294",
@@ -719,7 +1234,7 @@ export const QUOTATIONS = [
       { hsn: "998717", taxable: 255000, rate: "18%", igst: 45900, totalTax: 45900 },
       { hsn: "Others", taxable: 192000, rate: "18%", igst: 34560, totalTax: 34560 },
     ],
-    terms: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct. MSME (UDYAM ADHAR) NO-MH26A0189736. TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING."
+    terms: "We declare that this invoice shows the actual price of the goods\ndescribed and that all particulars are true and correct. MSME (UDYAM ADHAR) NO-MH26A0189736. TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING."
   },
   {
     id: "Q-2026-089",
@@ -770,7 +1285,7 @@ export const QUOTATIONS = [
   }
 ];
 
-export const CUSTOMERS = [
+const SEED_CUSTOMERS = [
   {
     id: "CUST-01",
     name: "Tata Advanced Systems Ltd",
@@ -863,50 +1378,120 @@ export const CUSTOMERS = [
   }
 ];
 
-export const SUPPLIERS = [
+const SEED_SUPPLIERS = [
+  {
+    id: "SUPP-00",
+    supplier_code: "SUPP-00",
+    name: "PREMIER INDUSTRIAL SOLUTIONS",
+    category: "Super Precision Spindle Bearings (NSK / FAG), Ceramic Hybrid Ball Bearings",
+    location: "Pimpri Chinchwad, Pune, Maharashtra",
+    city: "Pune",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    address: "P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune, Maharashtra-411019, India",
+    leadTime: "1-2 Weeks",
+    lead_time_days: 10,
+    rating: "Grade A+ (99.8% Quality)",
+    activePo: "PO/2025-26/00106",
+    contact_person: "Mr. Nilesh Deshmukh",
+    contact: "Mr. Nilesh Deshmukh (0124-4510000)",
+    email: "sales@premierindustrial.in",
+    phone: "0124-4510000",
+    gstin: "27ABDFP3172C1ZH",
+    paymentTerms: "Due on Receipt",
+    status: "Approved"
+  },
   {
     id: "SUPP-01",
+    supplier_code: "SUPP-01",
     name: "Schaeffler India Ltd (FAG Spindle Bearings)",
     category: "Precision Spindle Bearings (P4S / Ceramic)",
-    location: "Vadodara / Pune Distribution",
+    location: "Vadodara / Chakan MIDC, Pune",
+    city: "Pune",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    address: "Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra",
     leadTime: "3-4 Weeks",
+    lead_time_days: 21,
     rating: "Grade A (99.2% Quality)",
-    activePo: "PO-2026-088 (₹8,40,000)",
-    contact: "D. Mehta (+91 265 660 2000)"
+    activePo: "PO-2026-088",
+    contact_person: "Mr. Rajesh Nair",
+    contact: "Mr. Rajesh Nair (+91 20 6608 4100)",
+    email: "r.nair@schaeffler.com",
+    phone: "+91 20 6608 4100",
+    gstin: "27AAACS4821M1ZB",
+    paymentTerms: "Net 30 Days",
+    status: "Approved"
   },
   {
     id: "SUPP-02",
+    supplier_code: "SUPP-02",
     name: "Bharat Special Steels Ltd",
     category: "18CrNiMo7-6 & 42CrMo4 Vacuum Degassed Alloy Steel",
-    location: "Khopoli, Maharashtra",
+    location: "Bhosari / Khopoli, Maharashtra",
+    city: "Pune",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    address: "Plot 42, Bhosari Industrial Area, Pune - 411026, Maharashtra",
     leadTime: "1-2 Weeks",
+    lead_time_days: 14,
     rating: "Grade A (98.6% Quality)",
-    activePo: "PO-2026-085 (₹4,20,000)",
-    contact: "S. Agarwal (+91 2192 26 3000)"
+    activePo: "PO-2026-085",
+    contact_person: "Mr. Manoj Gokhale",
+    contact: "Mr. Manoj Gokhale (+91 20 2712 9182)",
+    email: "sales@bharatspecialsteel.com",
+    phone: "+91 20 2712 9182",
+    gstin: "27AABCB9182L1ZX",
+    paymentTerms: "Net 30 Days",
+    status: "Approved"
   },
   {
     id: "SUPP-03",
+    supplier_code: "SUPP-03",
     name: "OTT-Jakob Spanntechnik GmbH",
     category: "HSK / ISO Power Drawbar & Gripper Assemblies",
-    location: "Lenggries, Germany (India Office: Pune)",
+    location: "Bengaluru Technology Centre / Pune Rep",
+    city: "Bengaluru",
+    state: "29-Karnataka",
+    placeOfSupply: "29-Karnataka",
+    address: "Bengaluru Technology Centre, 4th Phase, Peenya Industrial Area, Bengaluru - 560058",
     leadTime: "4-6 Weeks",
+    lead_time_days: 35,
     rating: "Grade A+ (100% Quality)",
-    activePo: "PO-2026-079 (₹12,60,000)",
-    contact: "Frank Mueller / Pune Rep"
+    activePo: "PO-2026-079",
+    contact_person: "Mr. K. S. Raman",
+    contact: "Mr. K. S. Raman (+91 80 4112 0900)",
+    email: "raman@ottjakob-india.com",
+    phone: "+91 80 4112 0900",
+    gstin: "29AAACJ3918K1Z3",
+    paymentTerms: "50% Advance with Order",
+    status: "Approved"
   },
   {
     id: "SUPP-04",
+    supplier_code: "SUPP-04",
     name: "Heidenhain India Pvt Ltd",
     category: "Precision Rotary & Absolute Optical Encoders",
     location: "Bangalore / Pune Tech Center",
+    city: "Bangalore",
+    state: "29-Karnataka",
+    placeOfSupply: "29-Karnataka",
+    address: "Tech Park Phase 1, Whitefield, Bengaluru - 560066, Karnataka",
     leadTime: "2-3 Weeks",
+    lead_time_days: 18,
     rating: "Grade A+ (99.8% Quality)",
-    activePo: "PO-2026-092 (₹5,80,000)",
-    contact: "N. Murthy (+91 80 4000 8000)"
+    activePo: "PO-2026-092",
+    contact_person: "Mr. N. Murthy",
+    contact: "Mr. N. Murthy (+91 80 4000 8000)",
+    email: "info@heidenhain.in",
+    phone: "+91 80 4000 8000",
+    gstin: "29AABCH4918N1ZP",
+    paymentTerms: "Net 30 Days",
+    status: "Approved"
   }
 ];
 
-export const INVOICES = [
+const SEED_INVOICES = [
   {
     id: "INV-2026-051",
     customer: "Tata Advanced Systems Ltd",
@@ -957,7 +1542,7 @@ export const INVOICES = [
   }
 ];
 
-export const RECENT_ACTIVITY = [
+const SEED_RECENT_ACTIVITY = [
   { id: 1, time: "10 mins ago", type: "qc", text: "Spindle GPS-2026-0841 passed Final QC Inspection (Runout 0.0007 mm)", user: "Milind Joshi" },
   { id: 2, time: "35 mins ago", type: "prod", text: "Studer Grinding Bay 2 commenced nose taper grinding on WO-2026-104", user: "Suresh Sawant" },
   { id: 3, time: "1 hour ago", type: "service", text: "PO approval received for Service SR-2026-042 (Kirloskar Oil Engines)", user: "Sales Desk" },
@@ -965,13 +1550,13 @@ export const RECENT_ACTIVITY = [
   { id: 5, time: "3 hours ago", type: "dispatch", text: "Spindle GPS-2026-0840 crated and cleared for Godrej Aerospace dispatch", user: "D. More" },
 ];
 
-export const UPCOMING_DELIVERIES = [
+const SEED_UPCOMING_DELIVERIES = [
   { id: 1, customer: "Godrej Aerospace", serial: "GPS-2026-0840", model: "GPS-HF-60K", date: "Tomorrow, Feb 28", status: "Ready" },
   { id: 2, customer: "Bharat Forge Ltd", serial: "GPS-2026-0841", model: "GPS-BT40-15K", date: "Mar 02, 2026", status: "QC Pending" },
   { id: 3, customer: "Tata Advanced Systems", serial: "GPS-2026-0842", model: "GPS-HSK-A63-24K", date: "Mar 05, 2026", status: "In Progress" },
 ];
 
-export const WORKFORCE_KPIS = [
+const SEED_WORKFORCE_KPIS = [
   { id: "total_staff", label: "Total Staff", value: "42", trend: "Full Roster", isUp: true, icon: "Users" },
   { id: "working_now", label: "Working Now", value: "31", trend: "74% active on bays", isUp: true, icon: "Cpu" },
   { id: "on_break", label: "On Break", value: "4", trend: "Shift tea rotation", isUp: true, icon: "Clock" },
@@ -980,7 +1565,7 @@ export const WORKFORCE_KPIS = [
   { id: "tasks_done", label: "Tasks Completed Today", value: "27", trend: "+8 vs run rate", isUp: true, icon: "CheckSquare" }
 ];
 
-export const WORKFORCE_STAFF = [
+const SEED_WORKFORCE_STAFF = [
   {
     id: "EMP-021",
     name: "Rahul Patil",
@@ -1475,7 +2060,7 @@ export const WORKFORCE_STAFF = [
   }
 ];
 
-export const DEPARTMENTS_WORKLOAD = [
+const SEED_DEPARTMENTS_WORKLOAD = [
   { department: "Machining", staffCount: 8, activeTasks: 7, completedToday: 14, utilization: 88 },
   { department: "Grinding", staffCount: 8, activeTasks: 6, completedToday: 11, utilization: 92 },
   { department: "Assembly", staffCount: 6, activeTasks: 5, completedToday: 8, utilization: 85 },
@@ -1486,7 +2071,7 @@ export const DEPARTMENTS_WORKLOAD = [
   { department: "Stores", staffCount: 3, activeTasks: 1, completedToday: 7, utilization: 64 },
 ];
 
-export const BAY_ALLOCATIONS = [
+const SEED_BAY_ALLOCATIONS = [
   {
     bayId: 1,
     bayName: "Bay 1 — CNC Lathe / Okuma",
@@ -1555,7 +2140,7 @@ export const BAY_ALLOCATIONS = [
   }
 ];
 
-export const WORKFORCE_ALERTS = [
+const SEED_WORKFORCE_ALERTS = [
   { id: 1, type: "danger", title: "Rahul Patil is at 96% utilization", subtitle: "Continuous high-duty grinding on Bay 2 with zero queue buffer", icon: "AlertTriangle" },
   { id: 2, type: "warning", title: "Bay 2 has 2 queued operators", subtitle: "Suresh Sawant and Rahul Patil waiting for Studer CBN dressing wheel", icon: "Clock" },
   { id: 3, type: "warning", title: "3 grinding tasks are approaching their due time", subtitle: "WO-2026-104, WO-2026-105 require shift sign-off before 14:00", icon: "AlertCircle" },
@@ -1563,7 +2148,7 @@ export const WORKFORCE_ALERTS = [
   { id: 5, type: "success", title: "Assembly workload normalized", subtitle: "Cleanroom Bay 3 running smoothly at 85% optimal throughput", icon: "CheckCircle2" }
 ];
 
-export const SHIFT_SUMMARY = {
+const SEED_SHIFT_SUMMARY = {
   shiftName: "Morning Shift (Shift A)",
   timing: "06:00 — 14:00",
   supervisor: "V. R. Kulkarni (Production Head)",
@@ -1579,7 +2164,56 @@ export const SHIFT_SUMMARY = {
 // 3 COMMERCIAL MODULES MOCK DATA
 // ==========================================
 
-export const PURCHASE_ORDERS = [
+const SEED_PURCHASE_ORDERS = [
+  {
+    id: "PO/2025-26/00106",
+    poNumber: "PO/2025-26/00106",
+    supplier: "PREMIER INDUSTRIAL SOLUTIONS",
+    supplierContact: "0124-4510000",
+    supplierEmail: "sales@premierindustrial.in",
+    supplierPhone: "0124-4510000",
+    supplierGstin: "27ABDFP3172C1ZH",
+    supplierAddress: "P-84, D-II BLOCK MIDC Road Pimpri Chinchwad\nPune, Maharashtra-411019\nIndia",
+    date: "04-09-2026",
+    dueDate: "04-09-2026",
+    expectedDelivery: "04-09-2026",
+    placeOfSupply: "27-Maharashtra",
+    paymentTerms: "Due on Receipt",
+    deliveryAddress: "SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041",
+    status: "Sent",
+    subtotal: 58262.00,
+    taxRate: 18,
+    gstAmount: 10487.16,
+    cgstAmount: 5243.58,
+    sgstAmount: 5243.58,
+    roundOff: -0.16,
+    totalAmount: 68749.00,
+    advance: 0.00,
+    balance: 68749.00,
+    amountInWords: "Sixty Eight Thousand Seven Hundred Forty Nine Rupees only",
+    formattedTotal: "₹68,749.00",
+    notes: "Thanks for doing business with us!",
+    termsAndConditions: "Thanks for doing business with us!",
+    items: [
+      {
+        id: 1,
+        item: "120TAC20FME2DBCP5P01-NSK",
+        desc: "120TAC20FME2DBCP5P01-NSK",
+        hsn: "84821012",
+        qty: 1,
+        unit: "Nos",
+        rate: 58262.00,
+        unitPrice: 58262.00,
+        gst: 18,
+        total: 58262.00
+      }
+    ],
+    timeline: [
+      { id: 1, title: "Purchase Order Created", detail: "Generated for Premier Industrial Solutions", time: "04 Sep 2026, 10:00 AM", user: "Ganesh Pawar" },
+      { id: 2, title: "Technical Approval", detail: "Approved by Plant Director", time: "04 Sep 2026, 11:30 AM", user: "V. R. Kulkarni" },
+      { id: 3, title: "PO Transmitted Electronically", detail: "Sent via ERP Outlook system to sales@premierindustrial.in", time: "04 Sep 2026, 01:15 PM", user: "Rahul Patil" }
+    ]
+  },
   {
     id: "PO-2026-001",
     poNumber: "PO-2026-001",
@@ -1726,7 +2360,7 @@ export const PURCHASE_ORDERS = [
   }
 ];
 
-export const PROFORMA_INVOICES = [
+const SEED_PROFORMA_INVOICES = [
   {
     id: "PI-2026-018",
     piNumber: "PI-2026-018",
@@ -1929,7 +2563,7 @@ export const PROFORMA_INVOICES = [
   }
 ];
 
-export const E_WAY_BILLS = [
+const SEED_E_WAY_BILLS = [
   {
     id: "EWB-2026-0042",
     ewbNumber: "EWB-2026-0042",
@@ -2137,3 +2771,81 @@ export const E_WAY_BILLS = [
     ]
   }
 ];
+
+// ─── Conditional Exports (Clean Slate Mode vs Demo Seed Mode) ────────────────
+export const PRODUCTION_PIPELINE_STAGES = isCleanSlateMode()
+  ? [
+      { id: 1, key: "material", name: "Material", desc: "Bar stock inspection & sawing", count: 0 },
+      { id: 2, key: "machining", name: "Machining", desc: "CNC Turning & boring", count: 0 },
+      { id: 3, key: "grinding", name: "Grinding", desc: "Studer taper & journal grinding", count: 0 },
+      { id: 4, key: "assembly", name: "Assembly", desc: "Cleanroom Class 1000 fitting", count: 0 },
+      { id: 5, key: "balancing", name: "Balancing", desc: "Schenck dynamic dual-plane G0.4", count: 0 },
+      { id: 6, key: "testing", name: "Testing", desc: "4h dynamic run-in & thermal test", count: 0 },
+      { id: 7, key: "qc", name: "QC", desc: "Micron air gauging & runout", count: 0 },
+      { id: 8, key: "dispatch", name: "Dispatch", desc: "Anti-corrosion pack & shipping", count: 0 },
+    ]
+  : SEED_PRODUCTION_PIPELINE_STAGES;
+
+export const DASHBOARD_METRICS = isCleanSlateMode()
+  ? [
+      { id: "active_jobs", label: "Active Jobs", value: "0", trend: "0 in rotation", isUp: true, icon: "Cpu" },
+      { id: "in_prod", label: "In Production", value: "0", trend: "Bays idle", isUp: true, icon: "Cog" },
+      { id: "pending_qc", label: "Pending QC", value: "0", trend: "All certified", isUp: true, alert: false, icon: "CheckCircle2" },
+      { id: "ready_dispatch", label: "Ready Dispatch", value: "0", trend: "No pending pickup", isUp: true, icon: "Truck" },
+      { id: "active_service", label: "Active Service", value: "0", trend: "0 active jobs", isUp: true, icon: "Wrench" },
+      { id: "low_stock", label: "Low Stock Items", value: "0", trend: "Stock adequate", alert: false, isUp: true, icon: "AlertTriangle" },
+      { id: "receivables", label: "Outstanding Rec.", value: "₹0", trend: "₹0 due", isUp: true, icon: "DollarSign" },
+    ]
+  : SEED_DASHBOARD_METRICS;
+
+export const SPINDLES = isCleanSlateMode() ? [] : SEED_SPINDLES;
+export const WORK_ORDERS = isCleanSlateMode() ? [] : SEED_WORK_ORDERS;
+
+export const SHOP_BAYS = isCleanSlateMode()
+  ? [
+      { id: 1, name: "Bay 1 - CNC Turning & Boring", machine: "Okuma LB3000 Lathe", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+      { id: 2, name: "Bay 2 - Precision Grinding", machine: "Studer S33 Cylindrical Grinder", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+      { id: 3, name: "Bay 3 - Induction Hardening", machine: "Custom Induction Rig", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+      { id: 4, name: "Bay 4 - Cleanroom Assembly", machine: "Class 1000 Laminar Flow", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+      { id: 5, name: "Bay 5 - Dynamic Balancing", machine: "Schenck SmartBalancing Rig", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+      { id: 6, name: "Bay 6 - Dynamic Run-in Cell", machine: "Computerized Test Bench", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
+    ]
+  : SEED_SHOP_BAYS;
+
+export const SERVICE_JOBS = isCleanSlateMode() ? [] : SEED_SERVICE_JOBS;
+export const INVENTORY_ITEMS = isCleanSlateMode() ? [] : SEED_INVENTORY_ITEMS;
+export const QUALITY_INSPECTIONS = isCleanSlateMode() ? [] : SEED_QUALITY_INSPECTIONS;
+export const QUOTATIONS = isCleanSlateMode() ? [] : SEED_QUOTATIONS;
+export const CUSTOMERS = isCleanSlateMode() ? [] : SEED_CUSTOMERS;
+export const SUPPLIERS = isCleanSlateMode() ? [] : SEED_SUPPLIERS;
+export const INVOICES = isCleanSlateMode() ? [] : SEED_INVOICES;
+export const RECENT_ACTIVITY = isCleanSlateMode() ? [] : SEED_RECENT_ACTIVITY;
+export const UPCOMING_DELIVERIES = isCleanSlateMode() ? [] : SEED_UPCOMING_DELIVERIES;
+
+export const WORKFORCE_KPIS = isCleanSlateMode()
+  ? [
+      { id: "active_workers", label: "Active Technicians", value: "0", sub: "Shift A", isAlert: false },
+      { id: "overall_efficiency", label: "Plant Efficiency", value: "0%", sub: "Clean slate", isAlert: false },
+      { id: "bays_utilized", label: "Bays Operating", value: "0/6", sub: "0% active", isAlert: false },
+      { id: "delayed_ops", label: "Delayed Ops", value: "0", sub: "All clear", isAlert: false },
+    ]
+  : SEED_WORKFORCE_KPIS;
+
+export const WORKFORCE_STAFF = isCleanSlateMode() ? [] : SEED_WORKFORCE_STAFF;
+export const DEPARTMENTS_WORKLOAD = isCleanSlateMode() ? [] : SEED_DEPARTMENTS_WORKLOAD;
+export const BAY_ALLOCATIONS = isCleanSlateMode() ? [] : SEED_BAY_ALLOCATIONS;
+export const WORKFORCE_ALERTS = isCleanSlateMode() ? [] : SEED_WORKFORCE_ALERTS;
+
+export const SHIFT_SUMMARY = isCleanSlateMode()
+  ? {
+      activeOperators: 0,
+      wipSpindles: 0,
+      qcSignoffsPending: 0,
+      baysOperational: "0/6"
+    }
+  : SEED_SHIFT_SUMMARY;
+
+export const PURCHASE_ORDERS = isCleanSlateMode() ? [] : SEED_PURCHASE_ORDERS;
+export const PROFORMA_INVOICES = isCleanSlateMode() ? [] : SEED_PROFORMA_INVOICES;
+export const E_WAY_BILLS = isCleanSlateMode() ? [] : SEED_E_WAY_BILLS;
+

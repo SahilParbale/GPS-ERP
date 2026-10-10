@@ -202,36 +202,44 @@ export default function ReportsScreen({ onNotify }) {
             <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Target vs Actual</span>
           </div>
           <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', borderBottom: '1px solid var(--border-color)' }}>
-              {monthlyProduction.map((item, idx) => {
-                const heightPercent = Math.min(100, Math.max(10, (item.units / 32) * 100));
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
-                    <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>{item.units}</span>
-                    <div 
-                      style={{ 
-                        width: '32px', 
-                        height: `${heightPercent}%`, 
-                        background: 'var(--primary)', 
-                        borderRadius: '4px 4px 0 0',
-                        transition: 'height 0.3s'
-                      }} 
-                    />
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.month}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', background: 'var(--primary)', borderRadius: '2px' }} />
-                Units Built (Actual)
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '2px', background: '#d97706' }} />
-                Monthly Target Baseline
-              </span>
-            </div>
+            {monthlyProduction.length === 0 ? (
+              <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No completed monthly production batches recorded yet.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', borderBottom: '1px solid var(--border-color)' }}>
+                  {monthlyProduction.map((item, idx) => {
+                    const heightPercent = Math.min(100, Math.max(10, (item.units / 32) * 100));
+                    return (
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                        <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>{item.units}</span>
+                        <div 
+                          style={{ 
+                            width: '32px', 
+                            height: `${heightPercent}%`, 
+                            background: 'var(--primary)', 
+                            borderRadius: '4px 4px 0 0',
+                            transition: 'height 0.3s'
+                          }} 
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.month}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '10px', height: '10px', background: 'var(--primary)', borderRadius: '2px' }} />
+                    Units Built (Actual)
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '10px', height: '2px', background: '#d97706' }} />
+                    Monthly Target Baseline
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -241,17 +249,23 @@ export default function ReportsScreen({ onNotify }) {
             <div className="card-title">Spindle Model Family Volume Share</div>
           </div>
           <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {spindleDistribution.map((dist, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span style={{ fontWeight: 500 }}>{dist.model}</span>
-                  <span className="mono" style={{ fontWeight: 700 }}>{dist.percent}%</span>
-                </div>
-                <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${dist.percent}%`, height: '100%', background: dist.color, borderRadius: '4px' }} />
-                </div>
+            {spindleDistribution.length === 0 ? (
+              <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No spindle model manufacturing data in the selected period.
               </div>
-            ))}
+            ) : (
+              spindleDistribution.map((dist, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ fontWeight: 500 }}>{dist.model}</span>
+                    <span className="mono" style={{ fontWeight: 700 }}>{dist.percent}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${dist.percent}%`, height: '100%', background: dist.color, borderRadius: '4px' }} />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -261,17 +275,23 @@ export default function ReportsScreen({ onNotify }) {
             <div className="card-title">Metrology Quality Audit Pass Rates</div>
           </div>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {qualityPassRates.map((q, idx) => (
-              <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '13px' }}>{q.label}</div>
-                  <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{q.passed} of {q.inspected} units passed first inspection</div>
-                </div>
-                <span className="mono" style={{ fontWeight: 700, fontSize: '14px', color: '#059669' }}>
-                  {q.rate}
-                </span>
+            {qualityPassRates.length === 0 ? (
+              <div style={{ padding: '30px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No metrology inspection records available for quality analysis.
               </div>
-            ))}
+            ) : (
+              qualityPassRates.map((q, idx) => (
+                <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '13px' }}>{q.label}</div>
+                    <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{q.passed} of {q.inspected} units passed first inspection</div>
+                  </div>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '14px', color: '#059669' }}>
+                    {q.rate}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -281,15 +301,21 @@ export default function ReportsScreen({ onNotify }) {
             <div className="card-title">Service Overhaul Root Cause Categories</div>
           </div>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {serviceCauses.map((c, idx) => (
-              <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{c.cause}</div>
-                <div style={{ textAlign: 'right' }}>
-                  <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>{c.pct}</span>
-                  <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.count}</div>
-                </div>
+            {serviceCauses.length === 0 ? (
+              <div style={{ padding: '30px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No service overhaul failure modes logged.
               </div>
-            ))}
+            ) : (
+              serviceCauses.map((c, idx) => (
+                <div key={idx} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{c.cause}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>{c.pct}</span>
+                    <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.count}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

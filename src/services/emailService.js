@@ -47,6 +47,11 @@ export const CUSTOMER_EMAILS = {
 };
 
 export const SUPPLIER_EMAILS = {
+  'PREMIER INDUSTRIAL SOLUTIONS': {
+    primary: 'sales@premierindustrial.in',
+    cc: ['orders@premierindustrial.in'],
+    contact: 'Sales & Commercial Team'
+  },
   'Schaeffler India': {
     primary: 'r.nair@schaeffler.com',
     cc: ['orders@schaeffler.com', 'accounts@schaeffler.com'],
@@ -179,10 +184,12 @@ export function generateEmailContent({ type = 'quotation', doc = {}, templateId 
     const supplierInfo = getSupplierEmailInfo(supplierName);
     recipientEmail = doc.supplierEmail || supplierInfo.primary;
     recipientCc = supplierInfo.cc || [];
-    subject = `Purchase Order ${docId} — GPS Spindle`;
-    attachmentName = `${docId}.pdf`;
+    subject = `Purchase Order ${docId} — General Precision Spindles`;
+    const cleanDocTag = String(docId).replace(/[\/\\]/g, ' ');
+    const firstWordSupplier = (supplierName || 'VENDOR').split(' ')[0].toUpperCase();
+    attachmentName = `Purchase Order_${cleanDocTag}_${firstWordSupplier}.pdf`;
     attachmentType = 'Purchase Order';
-    attachmentSize = '198 KB';
+    attachmentSize = '134 KB';
     body = `Dear ${supplierInfo.contact},
 
 Please find attached official Purchase Order ${docId} from General Precision Spindles Pvt. Ltd.

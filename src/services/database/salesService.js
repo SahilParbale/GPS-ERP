@@ -66,7 +66,9 @@ export const salesService = {
         id: it.id || idx + 1,
         name: it.item_name,
         desc: it.description || it.item_name,
-        hsn: it.hsn_sac_code || '84669390',
+        hsn: (it.item_name && it.item_name.includes('HC7014') && it.hsn_sac_code === '84669390')
+          ? ''
+          : (it.hsn_sac_code != null ? String(it.hsn_sac_code).trim() : ''),
         qty: it.quantity || 1,
         unitPrice: Number(it.unit_price || 0),
         total: Number(it.total_amount || 0)
@@ -149,12 +151,54 @@ export const salesService = {
   },
 
   /**
-   * Create a new quotation and its items transactionally
+   * Find a customer UUID by company name, or create a minimal customer record and return the new UUID.
+   * This is required because quotations.customer_id is NOT NULL (FK to customers).
+   */
+  async findOrCreateCustomer({ customerName, customerAddress, customerGstin, placeOfSupply }) {
+    const nameTrimmed = (customerName || '').trim();
+    if (!nameTrimmed) {
+      return { data: null, error: { message: 'Customer name is required.' } };
+    }
+
+    // 1. Try to find existing customer by company_name (case-insensitive)
+    const { data: existing, error: fetchErr } = await baseService.select('customers', {
+      select: 'id, company_name',
+      ilike: { company_name: nameTrimmed }
+    });
+
+    if (fetchErr) return { data: null, error: fetchErr };
+    if (existing && existing.length > 0) {
+      return { data: existing[0], error: null };
+    }
+
+    // 2. Customer not found — create a minimal record so the quotation FK can be satisfied
+    const stateStr = placeOfSupply || 'Maharashtra';
+    const stateName = stateStr.includes('-') ? stateStr.split('-').slice(1).join('-').trim() : stateStr;
+    const code = 'CUST-' + nameTrimmed.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 8) + '-' + String(Date.now()).slice(-4);
+
+    const newCustomer = {
+      customer_code: code,
+      company_name: nameTrimmed,
+      billing_address: customerAddress || 'Address not provided',
+      state: stateName,
+      gstin: customerGstin || null,
+      is_active: true
+    };
+
+    const { data: created, error: createErr } = await baseService.insert('customers', newCustomer);
+    if (createErr) return { data: null, error: createErr };
+    return { data: created?.[0] || null, error: null };
+  },
+
+  /**
+   * Create a new quotation and its items transactionally.
+   * Resolves customer_id via findOrCreateCustomer before inserting,
+   * because quotations.customer_id is NOT NULL (DB constraint).
    */
   async createQuotation(quoteData) {
     const {
       quotationNumber,
-      customerId,
+      customerId: passedCustomerId,
       customerName,
       customerAddress,
       customerGstin,
@@ -169,9 +213,27 @@ export const salesService = {
       notes
     } = quoteData;
 
+    // Resolve a real customer UUID — required by the NOT NULL FK constraint
+    let resolvedCustomerId = passedCustomerId;
+    if (!resolvedCustomerId) {
+      const custRes = await this.findOrCreateCustomer({
+        customerName,
+        customerAddress,
+        customerGstin,
+        placeOfSupply
+      });
+      if (custRes.error || !custRes.data) {
+        return {
+          data: null,
+          error: custRes.error || { message: 'Could not resolve a customer record for this quotation.' }
+        };
+      }
+      resolvedCustomerId = custRes.data.id;
+    }
+
     const record = {
       quotation_number: quotationNumber,
-      customer_id: customerId,
+      customer_id: resolvedCustomerId,
       customer_name: customerName,
       customer_address: customerAddress,
       customer_gstin: customerGstin,
@@ -197,7 +259,7 @@ export const salesService = {
         quotation_id: createdQuote.id,
         item_name: it.name || it.desc || 'Spindle Service Item',
         description: it.desc || it.name,
-        hsn_sac_code: it.hsn || '84669390',
+        hsn_sac_code: it.hsn != null ? String(it.hsn).trim() : '',
         quantity: it.qty || 1,
         unit_price: it.unitPrice || it.rate || 0,
         gst_percent: 18.0,
@@ -220,6 +282,45 @@ export const salesService = {
       status: dbStatus,
       updated_at: new Date().toISOString()
     });
+  },
+
+  /**
+   * Delete a quotation and its associated line items
+   */
+  async deleteQuotation(id) {
+    if (!id) return { error: { message: 'Quotation ID is required for deletion' } };
+    const isUuid = typeof id === 'string' && id.includes('-') && id.length === 36;
+    let quoteDbId = id;
+
+    if (!isUuid) {
+      const q = await this.getQuotationById(id);
+      if (q.data && q.data.id) {
+        quoteDbId = q.data.id;
+      }
+    }
+
+    // 1. Delete associated line items first to respect foreign key constraints
+    try {
+      if (supabase) {
+        await supabase.from('quotation_items').delete().eq('quotation_id', quoteDbId);
+      }
+    } catch (_e) {}
+
+    // 2. Unlink any proforma invoices or sales orders that point to this quotation
+    try {
+      if (supabase) {
+        await supabase.from('proforma_invoices').update({ quotation_id: null }).eq('quotation_id', quoteDbId);
+      }
+    } catch (_e) {}
+
+    try {
+      if (supabase) {
+        await supabase.from('sales_orders').update({ quotation_id: null }).eq('quotation_id', quoteDbId);
+      }
+    } catch (_e) {}
+
+    // 3. Delete quotation record from database
+    return await baseService.delete('quotations', quoteDbId, false, 'id');
   },
 
   /**

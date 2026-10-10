@@ -422,6 +422,16 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
         </div>
       )}
 
+      {activeTab === 'detail' && !selectedJob && (
+        <div className="section-card" style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Wrench size={48} style={{ opacity: 0.25, margin: '0 auto 16px', color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>No Service Ticket Selected</h3>
+          <p style={{ fontSize: '13px', maxWidth: '380px', margin: '0 auto' }}>
+            Select a service ticket from the Active Service Jobs list or log a new service overhaul request.
+          </p>
+        </div>
+      )}
+
       {/* Tab 3: Plant Assets Registry */}
       {activeTab === 'assets' && (
         <div className="section-card">
@@ -448,18 +458,26 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
                 </tr>
               </thead>
               <tbody>
-                {plantAssets.map((ast) => (
-                  <tr key={ast.id}>
-                    <td className="mono font-bold text-primary">{ast.assetTag}</td>
-                    <td style={{ fontWeight: 500 }}>{ast.name}</td>
-                    <td><span className="badge badge-neutral">{ast.category}</span></td>
-                    <td>{ast.bay}</td>
-                    <td className="mono" style={{ fontSize: '12px' }}>{ast.purchaseDate}</td>
-                    <td className="mono" style={{ fontWeight: 600 }}>{ast.costFormatted}</td>
-                    <td className="mono" style={{ fontSize: '12px' }}>{ast.calibrationCycleDays} Days</td>
-                    <td><StatusBadge status={ast.status} /></td>
+                {plantAssets.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No plant machinery or balancing assets registered.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  plantAssets.map((ast) => (
+                    <tr key={ast.id}>
+                      <td className="mono font-bold text-primary">{ast.assetTag}</td>
+                      <td style={{ fontWeight: 500 }}>{ast.name}</td>
+                      <td><span className="badge badge-neutral">{ast.category}</span></td>
+                      <td>{ast.bay}</td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{ast.purchaseDate}</td>
+                      <td className="mono" style={{ fontWeight: 600 }}>{ast.costFormatted}</td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{ast.calibrationCycleDays} Days</td>
+                      <td><StatusBadge status={ast.status} /></td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -493,36 +511,44 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
                 </tr>
               </thead>
               <tbody>
-                {maintenanceOrders.map((mnt) => (
-                  <tr key={mnt.id}>
-                    <td className="mono font-bold text-primary">{mnt.orderNumber}</td>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{mnt.assetName}</div>
-                      <div className="mono text-muted" style={{ fontSize: '11px' }}>{mnt.assetTag}</div>
-                    </td>
-                    <td><span className="badge badge-neutral">{mnt.orderType}</span></td>
-                    <td className="mono" style={{ fontSize: '12px' }}>{mnt.scheduledDate}</td>
-                    <td style={{ fontSize: '12px' }}>{mnt.technician}</td>
-                    <td className="mono" style={{ fontSize: '12px' }}>{mnt.downtimeHours} hrs</td>
-                    <td className="mono" style={{ fontWeight: 600 }}>{mnt.costFormatted}</td>
-                    <td><StatusBadge status={mnt.status} /></td>
-                    <td>
-                      {mnt.status !== 'Completed' ? (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleCompleteMaintenance(mnt.dbId)}
-                          title="Execute SOP and sign off maintenance order"
-                        >
-                          <CheckSquare size={13} />
-                          <span>Complete</span>
-                        </button>
-                      ) : (
-                        <span className="mono text-muted" style={{ fontSize: '11px' }}>Signed Off</span>
-                      )}
+                {maintenanceOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No maintenance orders recorded.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  maintenanceOrders.map((mnt) => (
+                    <tr key={mnt.id}>
+                      <td className="mono font-bold text-primary">{mnt.orderNumber}</td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{mnt.assetName}</div>
+                        <div className="mono text-muted" style={{ fontSize: '11px' }}>{mnt.assetTag}</div>
+                      </td>
+                      <td><span className="badge badge-neutral">{mnt.orderType}</span></td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{mnt.scheduledDate}</td>
+                      <td style={{ fontSize: '12px' }}>{mnt.technician}</td>
+                      <td className="mono" style={{ fontSize: '12px' }}>{mnt.downtimeHours} hrs</td>
+                      <td className="mono" style={{ fontWeight: 600 }}>{mnt.costFormatted}</td>
+                      <td><StatusBadge status={mnt.status} /></td>
+                      <td>
+                        {mnt.status !== 'Completed' ? (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleCompleteMaintenance(mnt.dbId)}
+                            title="Execute SOP and sign off maintenance order"
+                          >
+                            <CheckSquare size={13} />
+                            <span>Complete</span>
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Completed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

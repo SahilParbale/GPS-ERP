@@ -5,6 +5,10 @@ export default function StatusBadge({ status, size = 'normal' }) {
 
   const getStatusType = (str) => {
     const s = String(str).toLowerCase();
+    // Sent / Transmitted -> Info Blue
+    if (s.includes('sent')) {
+      return 'badge-info';
+    }
     // Working / In Progress / Production Operations -> Pale Maroon
     if (s.includes('work') || s.includes('progress') || s.includes('machin') || s.includes('assembl') || s.includes('grind') || s.includes('balanc') || s.includes('test') || s.includes('repair') || s.includes('service') || s.includes('meet')) {
       return 'badge-maroon';

@@ -1,4 +1,41 @@
 import { supabase, isConfigured } from '../supabase/supabaseClient.js';
+import { isCleanSlateMode } from '../../utils/dataMode.js';
+
+// Operational tables suppressed in Clean Slate (Empty Data) mode
+const OPERATIONAL_TABLES = new Set([
+  'work_orders',
+  'spindles',
+  'customers',
+  'customer_contacts',
+  'suppliers',
+  'supplier_contacts',
+  'products',
+  'stock',
+  'stock_movements',
+  'invoices',
+  'invoice_items',
+  'proforma_invoices',
+  'proforma_invoice_items',
+  'quotations',
+  'quotation_items',
+  'purchase_orders',
+  'purchase_order_items',
+  'inspections',
+  'inspection_checkpoints',
+  'service_requests',
+  'service_jobs',
+  'service_items',
+  'service_history',
+  'dispatches',
+  'dispatch_items',
+  'eway_bills',
+  'eway_bill_items',
+  'work_logs',
+  'maintenance_orders',
+  'assets',
+  'audit_logs',
+  'notifications'
+]);
 
 /**
  * Normalizes database errors and sanitizes PostgreSQL / Row Level Security errors.
@@ -58,6 +95,11 @@ export const baseService = {
     const start = performance.now();
     if (!isConfigured) {
       return { data: [], error: null, count: 0, isMock: true, latencyMs: 0 };
+    }
+
+    // In Clean Slate (Empty Data) mode, return zero rows for operational tables without touching DB
+    if (isCleanSlateMode() && OPERATIONAL_TABLES.has(table)) {
+      return { data: [], error: null, count: 0, isMock: false, latencyMs: 0 };
     }
 
     try {
@@ -131,6 +173,8 @@ export const baseService = {
 
       if (error) {
         const normalized = normalizeDatabaseError(error);
+        // Log raw error for debugging (code, message, details, hint)
+        console.warn(`[GPS-ERP Auth/DB Notice] insert on "${table}" [raw]:`, { code: error.code, msg: error.message, details: error.details, hint: error.hint });
         console.warn(`[GPS-ERP Auth/DB Notice] insert on "${table}":`, normalized.message);
         return { data: null, error: normalized, isMock: false };
       }

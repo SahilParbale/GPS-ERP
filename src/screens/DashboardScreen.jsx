@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import MetricCard from '../components/common/MetricCard';
 import StatusBadge from '../components/common/StatusBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import PipelineVisualizer from '../components/common/PipelineVisualizer';
 import PageHeader from '../components/common/PageHeader';
 import { dashboardService } from '../services/database';
+import { workOrderService } from '../services/database/workOrderService';
 import { DashboardSkeleton } from '../components/common/Skeleton';
-import { exportShiftReportPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import { isCleanSlateMode, toggleCleanSlateMode } from '../utils/dataMode';
 import { 
   purchaseOrderService, 
   saveRaisedMaterial, 
@@ -18,10 +19,11 @@ import {
 import { 
   ArrowUpRight, AlertTriangle, Clock, Eye, 
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
-  AlertCircle, ShoppingCart, ExternalLink, ShieldCheck, Truck,
-  Search, X, Factory, FileText, Receipt, Package, Building2, Wrench, ArrowRight
+  AlertCircle, ShoppingCart, ShieldCheck, Truck,
+  Search, X, Factory, FileText, Receipt, Package, Building2, Wrench, ArrowRight,
+  Activity, Gauge, Flame, Thermometer, Radio, Check, ChevronRight, Layers,
+  Sparkles, Cog, Cpu, DollarSign, Calendar, Sliders
 } from 'lucide-react';
-import { universalSearchService, SEARCH_CATEGORIES } from '../services/universalSearchService';
 
 const PRESET_SUPPLIERS = [
   {
@@ -66,16 +68,31 @@ const PRESET_SUPPLIERS = [
   }
 ];
 
+const SPINDLE_MODELS = [
+  { code: 'GPS-HSK-A63-24K', name: 'GPS-HSK-A63-24K (24,000 RPM Motorized Spindle)' },
+  { code: 'GPS-BT50-10K', name: 'GPS-BT50-10K (10,000 RPM Heavy-Duty Direct Spindle)' },
+  { code: 'GPS-BT40-12K', name: 'GPS-BT40-12K (12,000 RPM Belt-Driven VMC Spindle)' },
+  { code: 'GPS-HF-60K', name: 'GPS-HF-60K (60,000 RPM Ultra-High-Speed Micro Spindle)' },
+  { code: 'GPS-HSK-E40-42K', name: 'GPS-HSK-E40-42K (42,000 RPM Graphite/Die Milling)' }
+];
+
 export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
   // Live Dashboard Data States
   const [metrics, setMetrics] = useState([]);
   const [pipelineStages, setPipelineStages] = useState([]);
+  const [servicePipelineStages, setServicePipelineStages] = useState([]);
+  const [activePipelineType, setActivePipelineType] = useState('manufacturing'); // 'manufacturing' | 'service'
   const [workOrders, setWorkOrders] = useState([]);
   const [totalWoCount, setTotalWoCount] = useState(0);
   const [criticalMaterials, setCriticalMaterials] = useState([]);
   const [upcomingDeliveries, setUpcomingDeliveries] = useState([]);
   const [shopBays, setShopBays] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [operationalSummary, setOperationalSummary] = useState(null);
+
+  // Filters & Sub-states
+  const [woFilter, setWoFilter] = useState('all');
+  const [woSearch, setWoSearch] = useState('');
 
   // Lifecycle States
   const [isLoading, setIsLoading] = useState(true);
@@ -84,36 +101,19 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // Universal Software Search Bar State on Dashboard
-  const [dashSearchQuery, setDashSearchQuery] = useState('');
-  const [dashActiveCategory, setDashActiveCategory] = useState('all');
-  const [isDashSearchOpen, setIsDashSearchOpen] = useState(false);
-  const dashSearchContainerRef = React.useRef(null);
-
-  const { results: dashSearchResults, totalCount: dashTotalCount, isSuggestion: isDashSuggestion, categoryCounts: dashCategoryCounts } = useMemo(() => {
-    return universalSearchService.search(dashSearchQuery, dashActiveCategory, 18);
-  }, [dashSearchQuery, dashActiveCategory]);
-
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (dashSearchContainerRef.current && !dashSearchContainerRef.current.contains(e.target)) {
-        setIsDashSearchOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
-
-  const handleSelectDashSearchResult = (res) => {
-    if (onNavigate) {
-      onNavigate(res.targetScreen);
-    }
-    if (onNotify) {
-      onNotify(`Opened ${res.docType || 'record'}: ${res.docNumber || res.title}`);
-    }
-    setIsDashSearchOpen(false);
-    setDashSearchQuery('');
-  };
+  // Quick Modal States
+  const [selectedBayTelemetry, setSelectedBayTelemetry] = useState(null);
+  const [isNewWoModalOpen, setIsNewWoModalOpen] = useState(false);
+  const [isCreatingWo, setIsCreatingWo] = useState(false);
+  const [newWoForm, setNewWoForm] = useState({
+    spindleModel: 'GPS-HSK-A63-24K',
+    customer: 'Tata Advanced Systems Ltd',
+    serial: `GPS-2026-${Math.floor(850 + Math.random() * 100)}`,
+    priority: 'High',
+    dueDate: new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0],
+    initialStage: 'machining',
+    notes: 'Precision spindle batch for aerospace machining workcell'
+  });
 
   // Raise PO Modal State
   const [selectedMaterialForPo, setSelectedMaterialForPo] = useState(null);
@@ -132,13 +132,15 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     notes: ''
   });
 
+  const isClean = isCleanSlateMode();
+
   const handleOpenRaisePo = (material) => {
     const itemSku = (material.sku || '').toUpperCase();
     const itemName = (material.name || '').toUpperCase();
     let defaultSupplier = PRESET_SUPPLIERS[0]; // Schaeffler
     let defaultRate = material.unitCost || 38500;
 
-    if (itemSku.includes('STL') || itemName.includes('STEEL') || itemName.includes('SHAFT') || itemName.includes('42CR')) {
+    if (itemSku.includes('STL') || itemName.includes('STEEL') || itemName.includes('SHAFT') || itemName.includes('42CR') || itemName.includes('18CR')) {
       defaultSupplier = PRESET_SUPPLIERS[1]; // Bharat Special Steel
       defaultRate = material.unitCost || 18500;
     } else if (itemSku.includes('OTT') || itemName.includes('COLLET') || itemName.includes('DRAWBAR') || itemName.includes('SPRING')) {
@@ -225,15 +227,12 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       };
 
       await purchaseOrderService.createPurchaseOrder(poPayload);
-
-      // Persist raised material record so it is excluded from dashboard shortage alerts
       saveRaisedMaterial(selectedMaterialForPo, poNum);
 
       if (onNotify) {
         onNotify(`Purchase Order ${poNum} successfully generated for ${selectedMaterialForPo.sku} (Total: ₹${total.toLocaleString('en-IN')})`);
       }
 
-      // Remove respective material shortage order / alert from dashboard
       const targetMat = selectedMaterialForPo;
       setCriticalMaterials(prev => prev.filter(m => 
         m.id !== targetMat.id &&
@@ -241,7 +240,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         (!targetMat.productId || m.productId !== targetMat.productId)
       ));
 
-      // Decrement low_stock KPI card count if present
       setMetrics(prev => prev.map(m => {
         if (m.id === 'low_stock') {
           const count = Math.max(0, (parseInt(m.value, 10) || 0) - 1);
@@ -269,6 +267,42 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     }
   };
 
+  // Launch New Work Order from Dashboard
+  const handleLaunchWorkOrder = async (e) => {
+    e.preventDefault();
+    setIsCreatingWo(true);
+
+    try {
+      const generatedWoNo = `WO-2026-${Math.floor(110 + Math.random() * 890)}`;
+      const woPayload = {
+        work_order_no: generatedWoNo,
+        customer_name: newWoForm.customer,
+        spindle_model: newWoForm.spindleModel,
+        spindle_serial: newWoForm.serial,
+        priority: newWoForm.priority,
+        target_delivery_date: newWoForm.dueDate,
+        current_stage: newWoForm.initialStage,
+        status: 'In Progress',
+        notes: newWoForm.notes
+      };
+
+      await workOrderService.createWorkOrder(woPayload);
+
+      if (onNotify) {
+        onNotify(`Work Order ${generatedWoNo} launched successfully! Spindle ${newWoForm.serial} assigned to shop floor.`);
+      }
+
+      setIsNewWoModalOpen(false);
+      // Refresh dashboard
+      await fetchDashboardData(false);
+    } catch (err) {
+      console.error('[DashboardScreen] Failed to create work order:', err);
+      if (onNotify) onNotify(`Failed to create work order: ${err.message}`);
+    } finally {
+      setIsCreatingWo(false);
+    }
+  };
+
   // Fetch all live dashboard data in parallel from PostgreSQL
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -282,31 +316,33 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       const [
         metricsRes,
         pipelineRes,
+        srvPipelineRes,
         woRes,
         materialsRes,
         deliveriesRes,
         baysRes,
-        activityRes
+        activityRes,
+        summaryRes
       ] = await Promise.all([
         dashboardService.getDashboardMetrics(),
         dashboardService.getProductionPipelineStages(),
-        dashboardService.getRecentWorkOrders(5),
+        dashboardService.getServicePipelineStages(),
+        dashboardService.getRecentWorkOrders(6),
         dashboardService.getCriticalMaterials(10),
         dashboardService.getUpcomingDeliveries(4),
-        dashboardService.getShopBayUtilization(4),
-        dashboardService.getRecentActivityFeed(5)
+        dashboardService.getShopBayUtilization(6),
+        dashboardService.getRecentActivityFeed(6),
+        dashboardService.getPlantOperationalSummary()
       ]);
 
       if (metricsRes.error) {
         throw new Error(metricsRes.error.message || 'Failed to load KPI metrics');
       }
 
-      // Filter out materials that already have a PO raised so their alerts are not seen on the dashboard
       const rawMaterials = materialsRes.data || [];
       const unaddressedMaterials = rawMaterials.filter(m => !isMaterialPoRaised(m));
       const displayMaterials = unaddressedMaterials.slice(0, 5);
 
-      // Adjust low_stock metric to reflect only materials without PO raised
       const raisedCount = rawMaterials.length - unaddressedMaterials.length;
       const adjustedMetrics = (metricsRes.data || []).map(metric => {
         if (metric.id === 'low_stock') {
@@ -325,18 +361,20 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
       setMetrics(adjustedMetrics);
       setPipelineStages(pipelineRes.data || []);
+      setServicePipelineStages(srvPipelineRes.data || []);
       setWorkOrders(woRes.data || []);
       setTotalWoCount(woRes.totalCount || (woRes.data ? woRes.data.length : 0));
       setCriticalMaterials(displayMaterials);
       setUpcomingDeliveries(deliveriesRes.data || []);
       setShopBays(baysRes.data || []);
       setRecentActivity(activityRes.data || []);
+      setOperationalSummary(summaryRes || null);
 
       if (isRefresh && onNotify) {
-        onNotify('Manufacturing Operations Dashboard updated with live PostgreSQL metrics');
+        onNotify('Manufacturing Operations Dashboard updated with live metrics');
       }
     } catch (err) {
-      console.warn('[GPS-ERP Dashboard] Error loading live dashboard:', err.message);
+      console.warn('[GPS-ERP Dashboard] Error loading dashboard:', err.message);
       setError('Unable to load dashboard data. Please try again.');
     } finally {
       setIsLoading(false);
@@ -348,10 +386,10 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Synchronize dashboard whenever entities change (e.g. PO raised, deleted, cancelled)
+  // Synchronize dashboard whenever entities change
   useEffect(() => {
     const handleEntityUpdate = (e) => {
-      if (e?.detail?.entity === 'purchase-orders') {
+      if (['purchase-orders', 'work-orders', 'spindles', 'invoices'].includes(e?.detail?.entity)) {
         fetchDashboardData(false);
       }
     };
@@ -361,22 +399,44 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     };
   }, [fetchDashboardData]);
 
+  // Filtered work orders
+  const filteredWorkOrders = useMemo(() => {
+    return workOrders.filter(wo => {
+      const q = woSearch.toLowerCase().trim();
+      const matchesSearch = !q || 
+        (wo.id || '').toLowerCase().includes(q) ||
+        (wo.spindleSerial || '').toLowerCase().includes(q) ||
+        (wo.spindleModel || '').toLowerCase().includes(q) ||
+        (wo.customer || '').toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      if (woFilter === 'all') return true;
+      if (woFilter === 'machining') return (wo.currentStage || '').toLowerCase().includes('machin') || (wo.shopBay || '').toLowerCase().includes('turn');
+      if (woFilter === 'grinding') return (wo.currentStage || '').toLowerCase().includes('grind');
+      if (woFilter === 'assembly') return (wo.currentStage || '').toLowerCase().includes('assembl') || (wo.shopBay || '').toLowerCase().includes('clean');
+      if (woFilter === 'balancing') return (wo.currentStage || '').toLowerCase().includes('balanc');
+      if (woFilter === 'qc') return (wo.status || '').toLowerCase() === 'qc' || (wo.currentStage || '').toLowerCase().includes('qc');
+      return true;
+    });
+  }, [workOrders, woFilter, woSearch]);
+
   // Loading Skeleton State
   if (isLoading) {
     return <DashboardSkeleton />;
   }
 
-  // Error State with Retry (Zero Mock Fallback)
+  // Error State with Retry
   if (error) {
     return (
       <div className="content-area">
         <PageHeader
           title="Manufacturing Operations Dashboard"
-          subtitle="GPS Spindle Nanded City Unit 1 • Live PostgreSQL Metrics"
+          subtitle="GPS Spindle Nanded City Unit 1 • High-Precision Industrial Spindle Facility"
         />
         <div className="section-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
           <AlertCircle size={40} style={{ color: '#dc2626', margin: '0 auto 16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Connection Notice</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Database Notice</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
             {error}
           </p>
@@ -396,10 +456,10 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
   return (
     <div className="content-area">
-      {/* Top Page Header */}
+      {/* Top Header with Plant Information and Actions */}
       <PageHeader
-        title="Manufacturing Operations Dashboard"
-        subtitle="GPS Spindle Nanded City Unit 1 • Shift A Live Metrics"
+        title="Manufacturing Operations Command Center"
+        subtitle="General Precision Spindles • Nanded City Unit 1 • CNC/VMC/HMC Precision Engineering"
       >
         <button 
           type="button" 
@@ -423,17 +483,17 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
               metrics: [
                 { label: 'Active Spindle Orders', value: totalWoCount || workOrders.length },
                 { label: 'Critical Deliveries', value: upcomingDeliveries.length },
-                { label: 'Active Shop Cells', value: `${shopBays.filter(b => b.status === 'Active').length} Bays` }
+                { label: 'Active Shop Cells', value: `${shopBays.filter(b => b.status === 'Active' || b.status === 'Operating').length} Bays` }
               ],
               headers: ['#', 'WO Number', 'Spindle Model & Serial', 'Customer', 'Current Cell', 'Target Date', 'Status'],
               rows: workOrders.map((wo, idx) => [
                 idx + 1,
                 wo.id || wo.workOrderNumber,
-                `${wo.spindleModel} (${wo.serial || '—'})`,
+                `${wo.spindleModel} (${wo.spindleSerial || wo.serial || '—'})`,
                 wo.customer,
-                wo.currentStage || wo.bay || 'Machining',
+                wo.currentStage || wo.shopBay || 'Machining',
                 wo.dueDate || '—',
-                wo.priority || 'Normal'
+                wo.status || 'In Progress'
               ])
             });
             setIsPreviewOpen(true);
@@ -442,700 +502,806 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           <Download size={14} />
           <span>Shift Report (PDF)</span>
         </button>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setIsNewWoModalOpen(true)}
+          title="Launch new work order on shop floor"
+        >
+          <Plus size={14} />
+          <span>Launch Work Order</span>
+        </button>
       </PageHeader>
 
       <div className="content-body">
-        {/* Universal Software Search Bar on Dashboard */}
-        <div 
-          ref={dashSearchContainerRef}
-          className="section-card dashboard-search-omnibar"
-          style={{
-            padding: '14px 18px',
-            marginBottom: '16px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #fafbfc 100%)',
-            border: '1px solid var(--border-color)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-            borderRadius: 'var(--radius-lg)',
-            position: 'relative'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '6px',
-                background: '#F5E8ED',
-                color: '#7A1F3D',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Search size={14} />
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                Universal Software Search
+        {/* Plant Environment & Shift Operations Bar */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '10px 16px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '18px',
+          boxShadow: 'var(--shadow-xs)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)' }} />
+              <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>Plant 1 Active</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>• Shift A (06:00 - 14:30)</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <span className="nav-badge" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontWeight: 600 }}>
+                ISO 9001:2015 Certified
               </span>
-              <span style={{ fontSize: '10px', background: 'var(--bg-surface-subtle)', color: 'var(--text-muted)', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 600 }}>
-                Full Software Index
+              <span className="nav-badge" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontWeight: 600 }}>
+                Class 1000 Cleanroom
+              </span>
+              <span className="nav-badge" style={{ background: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff', fontWeight: 600 }}>
+                ISO 1940-1 G0.4 Balancing
               </span>
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Search across Work Orders, Quotations, Invoices, Spindles, Customers & POs
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              Lead Supervisor: <strong style={{ color: 'var(--text-main)' }}>Rameshwar Kulkarni</strong>
             </span>
-          </div>
-
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
-            <input 
-              type="text" 
-              className="form-control"
-              placeholder="Search anything across entire software (e.g. WO-2026-104, Linamar, HC7008, Schaeffler, GPS-0842, Invoices...)"
-              value={dashSearchQuery}
-              onChange={(e) => {
-                setDashSearchQuery(e.target.value);
-                setIsDashSearchOpen(true);
-              }}
-              onFocus={() => setIsDashSearchOpen(true)}
+            <button
+              type="button"
+              onClick={() => toggleCleanSlateMode(true)}
               style={{
-                height: '40px',
-                fontSize: '12.5px',
-                paddingLeft: '38px',
-                paddingRight: dashSearchQuery ? '36px' : '40px',
-                background: '#ffffff',
-                border: '1.5px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: isDashSearchOpen ? '0 0 0 3px rgba(122, 31, 61, 0.12)' : 'none',
-                borderColor: isDashSearchOpen ? 'var(--primary)' : 'var(--border-color)'
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '3px 8px',
+                borderRadius: '12px',
+                background: isClean ? '#ecfdf5' : '#fef3c7',
+                color: isClean ? '#047857' : '#92400e',
+                border: isClean ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                cursor: 'pointer'
               }}
-            />
-            {dashSearchQuery ? (
-              <button 
-                type="button" 
-                onClick={() => { setDashSearchQuery(''); setIsDashSearchOpen(false); }}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  padding: '4px'
-                }}
-                title="Clear search"
-              >
-                <X size={14} />
-              </button>
-            ) : (
-              <span className="search-shortcut" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>⌘K</span>
-            )}
+              title="Click to toggle between clean slate and demo dataset"
+            >
+              {isClean ? '🌿 Clean Slate View' : '📦 Demo Mode Loaded'}
+            </button>
           </div>
+        </div>
 
-          {/* Quick jump tags below search bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Quick Jump:</span>
-            {[
-              { label: 'WO-2026-104 (Tata TASL)', query: 'WO-2026-104' },
-              { label: 'Linamar Quotation', query: 'Linamar' },
-              { label: 'Schaeffler Bearings PO', query: 'Schaeffler' },
-              { label: 'Ceramic Bearings (HC7008)', query: 'HC7008' },
-              { label: 'Spindle Twin (0842)', query: 'GPS-2026-0842' },
-              { label: 'Tax Invoices', query: 'INV-2026' }
-            ].map((tag, tIdx) => (
-              <button
-                key={tIdx}
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setDashSearchQuery(tag.query);
-                  setIsDashSearchOpen(true);
-                }}
-                style={{ height: '22px', fontSize: '10.5px', padding: '0 8px', borderRadius: '4px' }}
-              >
-                {tag.label}
-              </button>
-            ))}
-          </div>
+        {/* Clean Slate Onboarding Launchpad Banner (When Zero Data) */}
+        {isClean && (
+          <div style={{
+            background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+            border: '1px solid #a7f3d0',
+            borderRadius: 'var(--radius-md)',
+            padding: '20px 24px',
+            marginBottom: '20px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} color="#059669" />
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#065f46', margin: 0 }}>
+                    Fresh Clean Slate Active: All Demonstration Data Hidden
+                  </h3>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#047857', marginTop: '6px', maxWidth: '680px', lineHeight: '1.5' }}>
+                  Your ERP software is in a clean, production-ready zero-record state without permanently deleting any configuration. Launch shop floor operations below or switch to demo mode anytime.
+                </p>
+              </div>
 
-          {/* Live Full-Software Search Results Panel on Dashboard */}
-          {isDashSearchOpen && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: '0',
-              right: '0',
-              background: '#ffffff',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: '0 16px 36px -4px rgba(0,0,0,0.18), 0 6px 16px -4px rgba(0,0,0,0.1)',
-              zIndex: 1050,
-              marginTop: '6px',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              {/* Category Filter Pills Bar */}
-              <div style={{
-                padding: '8px 12px',
-                background: 'var(--bg-surface-subtle)',
-                borderBottom: '1px solid var(--border-color)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                overflowX: 'auto',
-                scrollbarWidth: 'none'
-              }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => setDashActiveCategory('all')}
+                  className="btn btn-sm"
+                  onClick={() => setIsNewWoModalOpen(true)}
+                  style={{ background: '#059669', color: '#fff', border: 'none', fontWeight: 600 }}
+                >
+                  <Plus size={13} />
+                  <span>Launch First Work Order</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onNavigate && onNavigate('sales')}
+                >
+                  <Plus size={13} />
+                  <span>Create Quotation</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => toggleCleanSlateMode(true)}
+                  style={{ background: '#fff', borderColor: '#a7f3d0', color: '#065f46' }}
+                >
+                  <span>Restore Demo Dataset</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Setup Shortcuts */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '12px',
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              <div 
+                onClick={() => setIsNewWoModalOpen(true)}
+                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>1. MANUFACTURING</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ New Spindle Job Traveler</div>
+              </div>
+              <div 
+                onClick={() => onNavigate && onNavigate('spindles')}
+                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>2. ASSET REGISTRY</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Register Spindle Serial</div>
+              </div>
+              <div 
+                onClick={() => onNavigate && onNavigate('service')}
+                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>3. RMA SERVICE</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Inward Spindle for Repair</div>
+              </div>
+              <div 
+                onClick={() => onNavigate && onNavigate('inventory')}
+                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>4. STORES CONTROL</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Add Bearing Stock / Material</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* The 4 Core GPS ERP Operational Pillars Summary */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '14px',
+          marginBottom: '20px'
+        }}>
+          {/* Pillar 1: Manufacturing & Shop Floor */}
+          <div 
+            className="section-card" 
+            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+            onClick={() => onNavigate && onNavigate('production')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fdf2f8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A1F3D' }}>
+                  <Cog size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 1 · Manufacturing</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Production Rotation</div>
+                </div>
+              </div>
+              <ArrowUpRight size={14} color="var(--text-muted)" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
+              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#7A1F3D' }}>
+                {isClean ? '0' : (workOrders.length || '18')}
+              </span>
+              <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
+                {isClean ? '0 active work orders' : 'Floor bays operating'}
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              CNC Lathes, Studer Grinding & Cleanroom Assembly
+            </div>
+          </div>
+
+          {/* Pillar 2: RMA Spindle Service & Overhaul */}
+          <div 
+            className="section-card" 
+            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+            onClick={() => onNavigate && onNavigate('service')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c' }}>
+                  <Wrench size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 2 · Overhaul & RMA</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Service Workshop</div>
+                </div>
+              </div>
+              <ArrowUpRight size={14} color="var(--text-muted)" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
+              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#ea580c' }}>
+                {isClean ? '0' : '7'}
+              </span>
+              <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
+                {isClean ? '0 repair dockets' : 'Avg TAT: 4.2 Days'}
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Teardown diagnosis, ceramic bearing replacement
+            </div>
+          </div>
+
+          {/* Pillar 3: Metrology & Quality Acceptance */}
+          <div 
+            className="section-card" 
+            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+            onClick={() => onNavigate && onNavigate('quality')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 3 · Quality & Lab</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Metrology Acceptance</div>
+                </div>
+              </div>
+              <ArrowUpRight size={14} color="var(--text-muted)" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
+              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
+                {isClean ? '0' : '98.4%'}
+              </span>
+              <span style={{ fontSize: '11.5px', color: isClean ? 'var(--text-muted)' : '#b45309', fontWeight: 600 }}>
+                {isClean ? '0 pending sign-offs' : '4 Pending Sign-offs'}
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Taper runout &lt;1.0 µm • ISO 1940-1 G0.4 verified
+            </div>
+          </div>
+
+          {/* Pillar 4: Commercial & Billing Stream */}
+          <div 
+            className="section-card" 
+            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+            onClick={() => onNavigate && onNavigate('invoices')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+                  <DollarSign size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 4 · Commercial</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Billing & Receivables</div>
+                </div>
+              </div>
+              <ArrowUpRight size={14} color="var(--text-muted)" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
+              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb' }}>
+                {isClean ? '₹0' : '₹18.4L'}
+              </span>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {isClean ? '0 pending invoices' : '₹48.6L in quotes'}
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              GST 18% Tax Invoices with UPI QR & ICICI Bank
+            </div>
+          </div>
+        </div>
+
+        {/* Standard 7 KPI Cards Grid */}
+        <div className="metrics-grid">
+          {metrics.map((metric) => (
+            <MetricCard 
+              key={metric.id}
+              label={metric.label}
+              value={metric.value}
+              trend={metric.trend}
+              isUp={metric.isUp}
+              alert={metric.alert}
+              icon={metric.icon}
+              onClick={() => {
+                if (!onNavigate) return;
+                if (metric.id === 'pending_qc') onNavigate('quality');
+                else if (metric.id === 'low_stock') onNavigate('inventory');
+                else if (metric.id === 'active_service') onNavigate('service');
+                else if (metric.id === 'receivables') onNavigate('invoices');
+                else onNavigate('production');
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Dual Pipeline Visualizer (Manufacturing vs Service Overhaul) */}
+        <div className="section-card">
+          <div className="card-header" style={{ flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="card-title">
+                <span>Precision Spindle Routing Pipeline</span>
+              </div>
+              <div style={{ display: 'flex', background: 'var(--bg-surface-subtle)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => setActivePipelineType('manufacturing')}
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '9999px',
+                    padding: '4px 10px',
                     fontSize: '11px',
                     fontWeight: 600,
-                    border: '1px solid',
-                    borderColor: dashActiveCategory === 'all' ? 'var(--primary)' : 'var(--border-color)',
-                    background: dashActiveCategory === 'all' ? 'var(--primary)' : '#ffffff',
-                    color: dashActiveCategory === 'all' ? '#ffffff' : 'var(--text-secondary)',
+                    borderRadius: '4px',
+                    border: 'none',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    background: activePipelineType === 'manufacturing' ? '#ffffff' : 'transparent',
+                    color: activePipelineType === 'manufacturing' ? '#7A1F3D' : 'var(--text-muted)',
+                    boxShadow: activePipelineType === 'manufacturing' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                   }}
                 >
-                  All ({dashTotalCount})
+                  ⚙️ OEM Manufacturing (8 Stages)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePipelineType('service')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: activePipelineType === 'service' ? '#ffffff' : 'transparent',
+                    color: activePipelineType === 'service' ? '#7A1F3D' : 'var(--text-muted)',
+                    boxShadow: activePipelineType === 'service' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                  }}
+                >
+                  🔧 RMA Service Overhaul (9 Stages)
+                </button>
+              </div>
+            </div>
 
-                {SEARCH_CATEGORIES.filter(c => c.id !== 'all').map(cat => {
-                  const count = dashCategoryCounts[cat.id] || 0;
-                  if (!isDashSuggestion && count === 0 && dashActiveCategory !== cat.id) return null;
-                  const isActive = dashActiveCategory === cat.id;
-                  const CatIcon = cat.icon;
+            <button 
+              type="button" 
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate && onNavigate(activePipelineType === 'manufacturing' ? 'production' : 'service')}
+            >
+              <span>View Full {activePipelineType === 'manufacturing' ? 'Production Board' : 'Service Board'}</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+          <div style={{ padding: '8px 16px' }}>
+            <PipelineVisualizer 
+              stages={activePipelineType === 'manufacturing' ? pipelineStages : servicePipelineStages} 
+              activeStage={activePipelineType === 'manufacturing' ? 'grinding' : 'balancing'}
+              onSelectStage={() => onNavigate && onNavigate(activePipelineType === 'manufacturing' ? 'production' : 'service')}
+            />
+          </div>
+        </div>
 
-                  return (
+        {/* Interactive Shop Floor Bays (6 Precision Workcells) */}
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-title">
+              <Factory size={16} color="#7A1F3D" />
+              <span>Shop Floor Workcells & Machine Bay Telemetry (6 Active Precision Cells)</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate && onNavigate('production')}
+            >
+              <span>Manage Bays</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+          <div style={{ padding: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              {shopBays.map((bay) => (
+                <div 
+                  key={bay.id}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-surface-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                        {bay.name ? bay.name.split(' - ')[0] : `Bay ${bay.id}`}
+                      </span>
+                      <span 
+                        className="nav-badge"
+                        style={{
+                          background: bay.status === 'Active' || bay.status === 'Operating' ? '#ecfdf5' : '#fef3c7',
+                          color: bay.status === 'Active' || bay.status === 'Operating' ? '#047857' : '#92400e',
+                          fontWeight: 600,
+                          fontSize: '10px'
+                        }}
+                      >
+                        {bay.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {bay.machine || 'Precision Rig'} • {bay.operator || 'Master Machinist'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Cell Load / Capacity</span>
+                      <strong className="mono" style={{ color: 'var(--primary)' }}>{bay.utilization || bay.load || '0%'}</strong>
+                    </div>
+                    <ProgressBar progress={parseInt(bay.utilization || bay.load, 10) || 0} showLabel={false} height={6} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px dashed var(--border-color)', fontSize: '11px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      Active: <strong className="mono" style={{ color: 'var(--text-main)' }}>{bay.spindleSerial || bay.workOrder || 'Standby'}</strong>
+                    </span>
                     <button
-                      key={cat.id}
                       type="button"
-                      onClick={() => setDashActiveCategory(cat.id)}
+                      onClick={() => setSelectedBayTelemetry(bay)}
                       style={{
-                        padding: '3px 9px',
-                        borderRadius: '9999px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '2px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                      title="Inspect live temperature, vibration, and runout sensors"
+                    >
+                      <Activity size={12} />
+                      <span>Telemetry</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Two-Column Layout */}
+        <div className="grid-2col">
+          {/* Left Column: Recent Work Orders & Low Stock Alert */}
+          <div className="grid-col">
+            {/* Active Work Orders in Floor Rotation */}
+            <div className="section-card">
+              <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                <div className="card-title">
+                  <Cog size={16} color="#7A1F3D" />
+                  <span>Active Work Orders in Floor Rotation</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => onNavigate && onNavigate('production')}
+                  >
+                    <span>All Orders ({totalWoCount})</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setIsNewWoModalOpen(true)}
+                  >
+                    <Plus size={13} />
+                    <span>New WO</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Filter Bar */}
+              <div style={{ padding: '8px 16px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: 'All Jobs' },
+                    { id: 'machining', label: 'Machining' },
+                    { id: 'grinding', label: 'Grinding' },
+                    { id: 'assembly', label: 'Assembly' },
+                    { id: 'balancing', label: 'Balancing' },
+                    { id: 'qc', label: 'In QC' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setWoFilter(f.id)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: 600,
                         border: '1px solid',
-                        borderColor: isActive ? cat.color : 'var(--border-color)',
-                        background: isActive ? cat.bg : '#ffffff',
-                        color: isActive ? cat.color : 'var(--text-secondary)',
                         cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        whiteSpace: 'nowrap'
+                        borderColor: woFilter === f.id ? 'var(--primary)' : 'var(--border-color)',
+                        background: woFilter === f.id ? '#FAF0F3' : '#ffffff',
+                        color: woFilter === f.id ? 'var(--primary)' : 'var(--text-secondary)'
                       }}
                     >
-                      <CatIcon size={11} color={isActive ? cat.color : 'var(--text-muted)'} />
-                      <span>{cat.label}</span>
-                      {!isDashSuggestion && count > 0 && (
-                        <span style={{
-                          fontSize: '9.5px',
-                          background: isActive ? cat.color : 'var(--border-subtle)',
-                          color: isActive ? '#ffffff' : 'var(--text-muted)',
-                          padding: '0 4px',
-                          borderRadius: '8px',
-                          marginLeft: '2px'
-                        }}>
-                          {count}
-                        </span>
-                      )}
+                      {f.label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+
+                <div style={{ position: 'relative', width: '160px' }}>
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    value={woSearch}
+                    onChange={(e) => setWoSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 8px 4px 24px',
+                      fontSize: '11.5px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      background: '#fff'
+                    }}
+                  />
+                  <Search size={12} style={{ position: 'absolute', left: '7px', top: '7px', color: 'var(--text-muted)' }} />
+                </div>
               </div>
 
-              {/* Status Header */}
-              <div style={{
-                padding: '6px 14px',
-                background: '#fafafa',
-                borderBottom: '1px solid var(--border-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '10.5px',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                letterSpacing: '0.03em',
-                textTransform: 'uppercase'
-              }}>
-                <span>
-                  {isDashSuggestion 
-                    ? '⚡ Priority Shortcuts & Active Records' 
-                    : `Found ${dashSearchResults.length} matching records across ERP software`}
-                </span>
-                {dashSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => { setDashSearchQuery(''); setDashActiveCategory('all'); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '10.5px', fontWeight: 600 }}
-                  >
-                    Clear Filter
-                  </button>
-                )}
-              </div>
-
-              {/* Scrollable Results List */}
-              <div style={{
-                overflowY: 'auto',
-                maxHeight: '360px',
-                padding: '6px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px'
-              }}>
-                {dashSearchResults.length === 0 ? (
-                  <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <Search size={28} style={{ margin: '0 auto 8px', color: '#94a3b8' }} />
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
-                      No matches found for "{dashSearchQuery}"
-                    </div>
-                    <div style={{ fontSize: '11px', maxWidth: '420px', margin: '0 auto' }}>
-                      Try searching by Work Order # (WO-2026-104), Spindle Serial (GPS-0842), Quote (QTN-294), Customer (Linamar, Tata), Vendor (Schaeffler), or Bearing (HC7008).
-                    </div>
-                  </div>
-                ) : (
-                  dashSearchResults.map((res, idx) => {
-                    const IconComponent = res.icon || Factory;
-
-                    return (
-                      <div
-                        key={`${res.category}-${res.id}-${idx}`}
-                        onClick={() => handleSelectDashSearchResult(res)}
-                        style={{
-                          padding: '9px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                          transition: 'all 0.12s ease',
-                          fontSize: '12px',
-                          background: '#ffffff'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#FAF0F3'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '6px',
-                            background: res.badgeBg || '#F5E8ED',
-                            color: res.badgeColor || '#7A1F3D',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                          }}>
-                            <IconComponent size={16} />
-                          </div>
-
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
-                                {res.docNumber || res.id}
-                              </span>
-                              <span style={{
-                                fontSize: '9.5px',
-                                fontWeight: 700,
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: res.badgeBg || 'var(--status-neutral-bg)',
-                                color: res.badgeColor || 'var(--text-muted)'
-                              }}>
-                                {res.docType}
-                              </span>
-                              {res.status && (
-                                <span style={{
-                                  fontSize: '9.5px',
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  background: 'var(--border-subtle)',
-                                  color: 'var(--text-secondary)'
-                                }}>
-                                  {res.status}
-                                </span>
-                              )}
-                            </div>
-
-                            <div style={{
-                              fontSize: '11px',
-                              color: 'var(--text-muted)',
-                              marginTop: '2px',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}>
-                              {res.subtitle || res.title}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div>
-                            {res.metaPrimary && (
-                              <div className="mono" style={{ fontWeight: 700, color: res.badgeColor || 'var(--text-main)', fontSize: '11.5px' }}>
-                                {res.metaPrimary}
-                              </div>
-                            )}
-                            {res.metaSecondary && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                {res.metaSecondary}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '50%',
-                            background: 'var(--bg-surface-subtle)',
-                            color: 'var(--text-muted)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <ArrowRight size={12} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* KPI Cards Grid */}
-      <div className="metrics-grid">
-        {metrics.map((metric) => (
-          <MetricCard 
-            key={metric.id}
-            label={metric.label}
-            value={metric.value}
-            trend={metric.trend}
-            isUp={metric.isUp}
-            alert={metric.alert}
-            icon={metric.icon}
-            onClick={() => {
-              if (!onNavigate) return;
-              if (metric.id === 'pending_qc') onNavigate('quality');
-              else if (metric.id === 'low_stock') onNavigate('inventory');
-              else if (metric.id === 'active_service') onNavigate('service');
-              else if (metric.id === 'receivables') onNavigate('invoices');
-              else onNavigate('production');
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Visual Production Pipeline */}
-      <div className="section-card">
-        <div className="card-header">
-          <div className="card-title">
-            <span>Precision Spindle Manufacturing Pipeline (Active Work Orders)</span>
-          </div>
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-sm"
-            onClick={() => onNavigate && onNavigate('production')}
-          >
-            <span>View Full Board</span>
-            <ArrowUpRight size={13} />
-          </button>
-        </div>
-        <div style={{ padding: '8px 16px' }}>
-          <PipelineVisualizer 
-            stages={pipelineStages} 
-            activeStage="grinding"
-            onSelectStage={() => onNavigate && onNavigate('production')}
-          />
-        </div>
-      </div>
-
-      {/* Main Two-Column Layout */}
-      <div className="grid-2col">
-        {/* Left Column: Recent Work Orders & Low Stock */}
-        <div className="grid-col">
-          {/* Recent Work Orders */}
-          <div className="section-card">
-            <div className="card-header">
-              <div className="card-title">
-                <span>Active Work Orders in Floor Rotation</span>
-              </div>
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-sm"
-                onClick={() => onNavigate && onNavigate('production')}
-              >
-                <span>All Orders ({totalWoCount})</span>
-              </button>
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>WO Number</th>
-                    <th>Spindle Serial</th>
-                    <th>Model</th>
-                    <th>Customer</th>
-                    <th>Bay / Operation</th>
-                    <th>Due Date</th>
-                    <th>Progress</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workOrders.length === 0 ? (
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                        No active work orders in floor rotation.
-                      </td>
+                      <th>WO Number</th>
+                      <th>Spindle Model & Serial</th>
+                      <th>Customer</th>
+                      <th>Bay / Operation</th>
+                      <th>Due Date</th>
+                      <th>Progress</th>
+                      <th>Status</th>
+                      <th>Action</th>
                     </tr>
-                  ) : (
-                    workOrders.map((wo) => (
-                      <tr key={wo.id}>
-                        <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                          {wo.id}
-                        </td>
-                        <td className="mono">{wo.spindleSerial}</td>
-                        <td style={{ fontWeight: 500 }}>{wo.spindleModel}</td>
-                        <td>{wo.customer}</td>
-                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {wo.shopBay ? wo.shopBay.split(' - ')[0] : 'Shop Floor'}
-                        </td>
-                        <td className="mono" style={{ fontSize: '12px' }}>{wo.dueDate}</td>
-                        <td style={{ minWidth: '100px' }}>
-                          <ProgressBar progress={wo.progress} />
-                        </td>
-                        <td>
-                          <StatusBadge status={wo.status} />
-                        </td>
-                        <td>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              if (onSelectWorkOrder) onSelectWorkOrder(wo.raw || wo);
-                              if (onNavigate) onNavigate('work-order-detail');
-                            }}
-                            title="View Details"
-                          >
-                            <Eye size={13} />
-                            <span>View</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Low-Stock Critical Materials */}
-          <div className="section-card">
-            <div className="card-header" style={{ borderLeft: '3px solid #f59e0b' }}>
-              <div className="card-title" style={{ color: '#b45309' }}>
-                <AlertTriangle size={16} />
-                <span>Critical Materials & Bearings Alert</span>
-              </div>
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-sm"
-                onClick={() => onNavigate && onNavigate('inventory')}
-              >
-                <span>Open Inventory</span>
-              </button>
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Part Name & SKU</th>
-                    <th>Category</th>
-                    <th>In Stock</th>
-                    <th>Reserved</th>
-                    <th>Min Threshold</th>
-                    <th>Status</th>
-                    <th>Quick Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {criticalMaterials.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                        All critical materials and bearings meet safety thresholds.
-                      </td>
-                    </tr>
-                  ) : (
-                    criticalMaterials.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{item.name}</div>
-                          <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.sku}</div>
-                        </td>
-                        <td style={{ fontSize: '12px' }}>{item.category}</td>
-                        <td className="mono" style={{ fontWeight: 700, color: item.status.includes('Critical') ? '#dc2626' : '#b45309' }}>
-                          {item.availableQty} {item.unit}
-                        </td>
-                        <td className="mono" style={{ color: 'var(--text-secondary)' }}>{item.reservedQty}</td>
-                        <td className="mono">{item.minStock}</td>
-                        <td>
-                          <StatusBadge status={item.status} />
-                        </td>
-                        <td>
-                          {item.status === 'PO Raised' ? (
-                            <span style={{ fontSize: '12px', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                              <CheckCircle2 size={14} /> PO Raised
-                            </span>
-                          ) : (
-                            <button 
-                              type="button" 
+                  </thead>
+                  <tbody>
+                    {filteredWorkOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
+                          <Cog size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: 'var(--primary)' }} />
+                          <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                            {isClean ? 'No Active Work Orders in System' : 'No work orders match the filter'}
+                          </div>
+                          <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                            {isClean ? 'Create your first production job traveler using the button below.' : 'Try selecting another stage filter or clearing the search term.'}
+                          </div>
+                          {isClean && (
+                            <button
+                              type="button"
                               className="btn btn-primary btn-sm"
-                              onClick={() => handleOpenRaisePo(item)}
-                              title={`Raise Purchase Requisition / PO for ${item.sku}`}
+                              onClick={() => setIsNewWoModalOpen(true)}
+                              style={{ marginTop: '12px' }}
                             >
-                              Raise PO
+                              <Plus size={13} />
+                              <span>Launch First Work Order</span>
                             </button>
                           )}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Upcoming Deliveries, Bays & Plant Activity */}
-        <div className="grid-col">
-          {/* Upcoming Deliveries */}
-          <div className="section-card">
-            <div className="card-header">
-              <div className="card-title">
-                <CheckCircle2 size={16} color="#059669" />
-                <span>Upcoming Dispatch Schedule</span>
+                    ) : (
+                      filteredWorkOrders.map((wo) => (
+                        <tr key={wo.id || wo.workOrderNo}>
+                          <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                            {wo.id || wo.workOrderNo}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{wo.spindleModel}</div>
+                            <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {wo.spindleSerial || wo.serial || '—'}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '12px', maxWidth: '140px' }}>
+                            {wo.customer}
+                          </td>
+                          <td style={{ fontSize: '12px' }}>
+                            {wo.shopBay || wo.currentStage || 'Bay 1 - Machining'}
+                          </td>
+                          <td className="mono" style={{ fontSize: '12px' }}>
+                            {wo.dueDate}
+                          </td>
+                          <td>
+                            <div style={{ minWidth: '90px' }}>
+                              <ProgressBar progress={wo.progress} height={6} />
+                            </div>
+                          </td>
+                          <td>
+                            <StatusBadge status={wo.status} size="sm" />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => {
+                                if (onSelectWorkOrder) onSelectWorkOrder(wo);
+                                if (onNavigate) onNavigate('work-order-detail');
+                              }}
+                              title="Open Job Traveler"
+                            >
+                              <Eye size={12} />
+                              <span>Traveler</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {upcomingDeliveries.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No upcoming dispatches scheduled.
+
+            {/* Critical Materials & Bearings Alert */}
+            <div className="section-card">
+              <div className="card-header" style={{ borderLeft: '3px solid #f59e0b' }}>
+                <div className="card-title" style={{ color: '#b45309' }}>
+                  <AlertTriangle size={16} />
+                  <span>Critical Materials & Spindle Bearings Shortage Alert</span>
                 </div>
-              ) : (
-                upcomingDeliveries.map((del) => (
-                  <div 
-                    key={del.id}
-                    style={{
-                      padding: '10px 12px',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface-subtle)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px' }}>{del.customer}</div>
-                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        {del.serial} • {del.model}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px' }}>
-                        Target: {del.date}
-                      </div>
-                    </div>
-                    <StatusBadge status={del.status} size="sm" />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onNavigate && onNavigate('inventory')}
+                >
+                  <span>Open Stores</span>
+                </button>
+              </div>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Part Name & SKU</th>
+                      <th>Category</th>
+                      <th>In Stock</th>
+                      <th>Reserved</th>
+                      <th>Min Threshold</th>
+                      <th>Status</th>
+                      <th>Quick Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {criticalMaterials.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                          <CheckCircle2 size={24} style={{ opacity: 0.4, margin: '0 auto 6px', color: '#059669' }} />
+                          <div>All critical bearings, alloy shafts, and sensors meet safety thresholds.</div>
+                        </td>
+                      </tr>
+                    ) : (
+                      criticalMaterials.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{item.name}</div>
+                            <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.sku}</div>
+                          </td>
+                          <td style={{ fontSize: '12px' }}>{item.category}</td>
+                          <td className="mono" style={{ fontWeight: 700, color: item.status.includes('Critical') ? '#dc2626' : '#b45309' }}>
+                            {item.availableQty} {item.unit}
+                          </td>
+                          <td className="mono" style={{ color: 'var(--text-secondary)' }}>{item.reservedQty}</td>
+                          <td className="mono">{item.minStock}</td>
+                          <td>
+                            <StatusBadge status={item.status} size="sm" />
+                          </td>
+                          <td>
+                            <button 
+                              type="button" 
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleOpenRaisePo(item)}
+                              title={`Raise Purchase Order for ${item.sku}`}
+                              style={{ padding: '3px 8px', fontSize: '11px' }}
+                            >
+                              Raise PO
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Upcoming Deliveries, Telemetry & Plant Activity */}
+          <div className="grid-col">
+            {/* Upcoming Deliveries & Logistics */}
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Truck size={16} color="#059669" />
+                  <span>Upcoming Dispatch Schedule & Logistics Intimations</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onNavigate && onNavigate('e-way-bills')}
+                >
+                  <span>E-Way Bills</span>
+                </button>
+              </div>
+              <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {upcomingDeliveries.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No upcoming dispatches scheduled.
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Shop Bay Live Status */}
-          <div className="section-card">
-            <div className="card-header">
-              <div className="card-title">
-                <span>Shop Floor Bay Utilization</span>
+                ) : (
+                  upcomingDeliveries.map((del) => (
+                    <div 
+                      key={del.id}
+                      style={{
+                        padding: '10px 12px',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-surface-subtle)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '13px' }}>{del.customer}</div>
+                        <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {del.serial} • {del.model}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px' }}>
+                          Target: {del.date}
+                        </div>
+                      </div>
+                      <StatusBadge status={del.status} size="sm" />
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {shopBays.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No active production bays found.
+
+            {/* Plant Activity Feed */}
+            <div className="section-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <Clock size={16} />
+                  <span>Real-Time Plant Operations Activity Feed</span>
                 </div>
-              ) : (
-                shopBays.map((bay) => (
-                  <div 
-                    key={bay.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom: '1px solid var(--border-subtle)'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '12px' }}>
-                        {bay.name ? bay.name.split(' - ')[0] : 'Bay'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{bay.operator}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
-                        {bay.utilization}
-                      </span>
-                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 600 }}>{bay.status}</div>
-                    </div>
+              </div>
+              <div style={{ padding: '16px' }}>
+                {recentActivity.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No recent audit log activity recorded.
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Recent Activity Feed */}
-          <div className="section-card">
-            <div className="card-header">
-              <div className="card-title">
-                <Clock size={16} />
-                <span>Plant Activity Feed</span>
-              </div>
-            </div>
-            <div style={{ padding: '16px' }}>
-              {recentActivity.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No recent audit log activity recorded.
-                </div>
-              ) : (
-                <div className="timeline">
-                  {recentActivity.map((act) => (
-                    <div key={act.id} className="timeline-item">
-                      <div className="timeline-point active" />
-                      <div className="timeline-content">
-                        <div className="timeline-title" style={{ fontSize: '12px', fontWeight: 500 }}>
-                          {act.text}
-                        </div>
-                        <div className="timeline-meta" style={{ marginTop: '2px' }}>
-                          <span className="mono">{act.time}</span> • {act.user}
+                ) : (
+                  <div className="timeline">
+                    {recentActivity.map((act) => (
+                      <div key={act.id} className="timeline-item">
+                        <div className="timeline-point active" />
+                        <div className="timeline-content">
+                          <div className="timeline-title" style={{ fontSize: '12px', fontWeight: 500 }}>
+                            {act.text}
+                          </div>
+                          <div className="timeline-meta" style={{ marginTop: '2px' }}>
+                            <span className="mono">{act.time}</span> • {act.user}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1180,7 +1346,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Shortage Alert Dossier */}
             <div style={{ 
               padding: '12px 16px', 
               background: '#fef2f2', 
@@ -1216,7 +1381,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
             </div>
 
-            {/* PO Form Fields */}
             <div className="form-grid">
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label">Approved OEM / Authorized Supplier</label>
@@ -1239,9 +1403,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                   value={poForm.quantity}
                   onChange={(e) => setPoForm({ ...poForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
                 />
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  Recommended deficit replenishment: {Math.max(1, (selectedMaterialForPo.minStock * 2) - selectedMaterialForPo.availableQty)} {selectedMaterialForPo.unit}
-                </div>
               </div>
 
               <div className="form-group">
@@ -1252,9 +1413,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                   value={poForm.unitPrice}
                   onChange={(e) => setPoForm({ ...poForm, unitPrice: Math.max(0, parseFloat(e.target.value) || 0) })}
                 />
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  Exclusive of 18% GST
-                </div>
               </div>
 
               <div className="form-group">
@@ -1283,7 +1441,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
             </div>
 
-            {/* Commercial Calculation Summary */}
             <div style={{ 
               padding: '12px 16px', 
               background: 'var(--bg-surface-subtle)', 
@@ -1303,21 +1460,215 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                 ₹{Math.round(((Number(poForm.quantity) || 0) * (Number(poForm.unitPrice) || 0)) * 1.18).toLocaleString('en-IN')}
               </div>
             </div>
+          </div>
+        </Modal>
+      )}
 
-            {/* Notes */}
+      {/* Launch New Work Order Modal */}
+      {isNewWoModalOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => setIsNewWoModalOpen(false)}
+          title="Launch New Spindle Manufacturing Work Order"
+          maxWidth="640px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsNewWoModalOpen(false)}
+                disabled={isCreatingWo}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleLaunchWorkOrder}
+                disabled={isCreatingWo}
+              >
+                {isCreatingWo ? 'Creating...' : 'Launch Work Order'}
+              </button>
+            </div>
+          }
+        >
+          <form onSubmit={handleLaunchWorkOrder} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="form-group">
+              <label className="form-label">Spindle Engineering Model</label>
+              <CustomSelect 
+                value={newWoForm.spindleModel}
+                onChange={(e) => setNewWoForm({ ...newWoForm, spindleModel: e.target.value })}
+                options={SPINDLE_MODELS.map(m => ({ value: m.code, label: m.name }))}
+              />
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Assigned Spindle Serial Number</label>
+                <input 
+                  type="text" 
+                  className="form-control mono" 
+                  value={newWoForm.serial}
+                  onChange={(e) => setNewWoForm({ ...newWoForm, serial: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Priority Rating</label>
+                <CustomSelect 
+                  value={newWoForm.priority}
+                  onChange={(e) => setNewWoForm({ ...newWoForm, priority: e.target.value })}
+                  options={[
+                    { value: 'Normal', label: 'Normal Priority' },
+                    { value: 'High', label: 'High Priority (Standard Batch)' },
+                    { value: 'Urgent', label: 'Urgent (Line-Down Emergency)' }
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Customer Legal Entity</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={newWoForm.customer}
+                  onChange={(e) => setNewWoForm({ ...newWoForm, customer: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Target Completion & Delivery Date</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={newWoForm.dueDate}
+                  onChange={(e) => setNewWoForm({ ...newWoForm, dueDate: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Initial Manufacturing Stage</label>
+              <CustomSelect 
+                value={newWoForm.initialStage}
+                onChange={(e) => setNewWoForm({ ...newWoForm, initialStage: e.target.value })}
+                options={[
+                  { value: 'material', label: '01. Material Sawing & Inspection' },
+                  { value: 'machining', label: '02. CNC Lathe Turning & Boring (Bay 1)' },
+                  { value: 'grinding', label: '03. Studer Precision Cylindrical Grinding (Bay 2)' },
+                  { value: 'assembly', label: '04. Class 1000 Cleanroom Bearing Assembly (Bay 4)' }
+                ]}
+              />
+            </div>
+
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Procurement Specification & Notes</label>
+              <label className="form-label">Technical Notes & Specification Details</label>
               <textarea 
                 className="form-control" 
                 rows="2"
-                value={poForm.notes}
-                onChange={(e) => setPoForm({ ...poForm, notes: e.target.value })}
+                value={newWoForm.notes}
+                onChange={(e) => setNewWoForm({ ...newWoForm, notes: e.target.value })}
               />
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Bay Sensor Telemetry Modal */}
+      {selectedBayTelemetry && (
+        <Modal
+          isOpen={true}
+          onClose={() => setSelectedBayTelemetry(null)}
+          title={`Shop Cell Sensor Telemetry: ${selectedBayTelemetry.name || selectedBayTelemetry.bayName || 'Bay Inspection'}`}
+          maxWidth="640px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Live IoT Telemetry • Sensor update every 1,000ms
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setSelectedBayTelemetry(null)}
+              >
+                Close Telemetry
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header info */}
+            <div style={{ padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong style={{ fontSize: '14px' }}>{selectedBayTelemetry.machine || 'Okuma LB3000 Lathe'}</strong>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Operator: <strong>{selectedBayTelemetry.operator || 'Master Machinist'}</strong> • Status: <span style={{ color: '#059669', fontWeight: 600 }}>{selectedBayTelemetry.status}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span className="mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>
+                  {selectedBayTelemetry.utilization || selectedBayTelemetry.load || '88%'}
+                </span>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Workcell Load</div>
+              </div>
+            </div>
+
+            {/* Live Sensor Metrics Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Gauge size={18} color="#7A1F3D" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Spindle Speed</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>24,000 RPM</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>Synchronized</span>
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Thermometer size={18} color="#dc2626" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Front Bearing</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>31.4 °C</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>Delta &lt;15°C</span>
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Thermometer size={18} color="#ea580c" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rear Bearing</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>29.8 °C</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>Optimal</span>
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Activity size={18} color="#059669" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vibration RMS</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>0.28 mm/s</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>ISO G0.4</span>
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Sliders size={18} color="#2563eb" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Air-Oil Mist</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>4.8 Bar</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>Regulated</span>
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                <Radio size={18} color="#9333ea" style={{ margin: '0 auto 4px' }} />
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Motor Current</div>
+                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>8.4 A</div>
+                <span style={{ fontSize: '10px', color: '#059669' }}>Nominal</span>
+              </div>
+            </div>
+
+            <div style={{ padding: '10px 14px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0', fontSize: '12px', color: '#166534' }}>
+              ✓ Cell is calibrated and operating within micron tolerances. No thermal runout spikes detected during current shift rotation.
             </div>
           </div>
         </Modal>
       )}
-      </div>
     </div>
   );
 }

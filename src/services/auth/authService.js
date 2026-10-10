@@ -158,14 +158,73 @@ export const DEMO_USERS = [
  */
 export const authService = {
   /**
+   * Retrieve custom users generated from the Settings Access Control screen
+   * @returns {Array}
+   */
+  getCustomUsers() {
+    try {
+      const stored = localStorage.getItem('gps_erp_custom_users');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Register a newly generated user ID with assigned RBAC role and credentials
+   * @param {object} user
+   */
+  registerCustomUser(user) {
+    try {
+      const existing = this.getCustomUsers();
+      const updated = existing.filter((u) => u.email.toLowerCase() !== user.email.toLowerCase());
+      updated.push(user);
+      localStorage.setItem('gps_erp_custom_users', JSON.stringify(updated));
+      return { success: true, data: user };
+    } catch (err) {
+      console.error('[Auth] Failed to register custom user:', err);
+      return { success: false, error: err };
+    }
+  },
+
+  /**
+   * Update an existing user's assigned RBAC role
+   * @param {string} email
+   * @param {string} newRoleCode
+   * @param {string} designation
+   */
+  updateCustomUserRole(email, newRoleCode, designation) {
+    try {
+      const existing = this.getCustomUsers();
+      const updated = existing.map((u) => {
+        if (u.email.toLowerCase() === email.toLowerCase()) {
+          return {
+            ...u,
+            role: newRoleCode,
+            designation: designation || u.designation
+          };
+        }
+        return u;
+      });
+      localStorage.setItem('gps_erp_custom_users', JSON.stringify(updated));
+      return { success: true };
+    } catch (err) {
+      console.error('[Auth] Failed to update custom user role:', err);
+      return { success: false, error: err };
+    }
+  },
+
+  /**
    * Sign in with email and password
    * @param {{ email: string, password: string }} credentials
    */
   async signIn({ email, password }) {
     const trimmedEmail = (email || '').trim().toLowerCase();
 
-    // 1. Check if matching a pre-configured development demo user
-    const demoMatch = DEMO_USERS.find(
+    // 1. Check if matching a pre-configured demo user or generated custom user
+    const customUsers = this.getCustomUsers();
+    const allUsers = [...customUsers, ...DEMO_USERS];
+    const demoMatch = allUsers.find(
       (u) => u.email.toLowerCase() === trimmedEmail && (password === u.password || password === 'demo' || password === 'Password123!')
     );
 
@@ -192,17 +251,43 @@ export const authService = {
           };
         }
 
+        // If remote Supabase sign-in fails but user matches local generated credentials, allow local access
+        if (demoMatch) {
+          return {
+            data: {
+              user: { id: demoMatch.id, email: demoMatch.email },
+              session: { access_token: 'local-token', expires_at: Date.now() + 3600000 },
+              profile: demoMatch,
+              employee: demoMatch,
+              role: demoMatch.role
+            },
+            error: null
+          };
+        }
+
         // Return user-friendly error if Supabase authentication fails
         return {
           data: null,
           error: new Error(error?.message === 'Invalid login credentials' ? 'Invalid email or password.' : (error?.message || 'Authentication failed.'))
         };
       } catch (err) {
+        if (demoMatch) {
+          return {
+            data: {
+              user: { id: demoMatch.id, email: demoMatch.email },
+              session: { access_token: 'offline-token', expires_at: Date.now() + 3600000 },
+              profile: demoMatch,
+              employee: demoMatch,
+              role: demoMatch.role
+            },
+            error: null
+          };
+        }
         return { data: null, error: new Error('Network error connecting to authentication server.') };
       }
     }
 
-    // 3. Fallback when offline or not configured: verify demo users
+    // 3. Fallback when offline or not configured: verify demo & generated users
     if (demoMatch) {
       return {
         data: {
@@ -292,9 +377,10 @@ export const authService = {
         };
       }
 
-      // 3. If no matching database record found, check demo users as fallback
-      const demo = DEMO_USERS.find((u) => u.email.toLowerCase() === authUser.email?.toLowerCase());
-      if (demo) return demo;
+      // 3. If no matching database record found, check custom users & demo users as fallback
+      const customAndDemo = [...this.getCustomUsers(), ...DEMO_USERS];
+      const match = customAndDemo.find((u) => u.email.toLowerCase() === authUser.email?.toLowerCase());
+      if (match) return match;
 
       // Default fallback profile for new authenticated user
       return {
@@ -311,8 +397,9 @@ export const authService = {
       };
     } catch (err) {
       console.warn('[Auth] Error resolving user profile from database:', err.message);
-      const demo = DEMO_USERS.find((u) => u.email.toLowerCase() === authUser.email?.toLowerCase());
-      return demo || null;
+      const customAndDemo = [...this.getCustomUsers(), ...DEMO_USERS];
+      const match = customAndDemo.find((u) => u.email.toLowerCase() === authUser.email?.toLowerCase());
+      return match || null;
     }
   },
 

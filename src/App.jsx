@@ -246,12 +246,14 @@ function AppContent() {
       case 'suppliers':
         return (
           <SuppliersScreen 
+            onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
         );
       case 'invoices':
         return (
           <InvoicesScreen 
+            onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
         );
@@ -368,6 +370,7 @@ function AppContent() {
           onSearch={handleGlobalSearch}
           searchQuery={searchQuery}
           onNavigate={handleSelectSearchResult}
+          onNotify={addToast}
         />
 
         {/* Dynamic Screen View */}

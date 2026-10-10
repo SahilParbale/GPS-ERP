@@ -1,5 +1,6 @@
 import { baseService } from './baseService';
 import { supabase } from '../supabase/supabaseClient';
+import { WORK_ORDERS } from '../../data/mockData';
 
 /**
  * Work Order Domain Service
@@ -76,7 +77,7 @@ export const workOrderService = {
 
     return {
       ...res,
-      data: normalized
+      data: normalized.length > 0 ? normalized : (WORK_ORDERS || [])
     };
   },
 

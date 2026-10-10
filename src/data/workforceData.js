@@ -1,6 +1,7 @@
 // GPS Spindle ERP — Workforce & Employee Work Log Mock Data Layer
+import { isCleanSlateMode } from '../utils/dataMode';
 
-export const INITIAL_WORKFORCE_KPIS = [
+const SEED_WORKFORCE_KPIS = [
   { id: "total_employees", label: "Total Employees", value: "42", trend: "Full Roster", isUp: true, icon: "Users" },
   { id: "working_now", label: "Working Now", value: "31", trend: "74% active on bays", isUp: true, icon: "Cpu" },
   { id: "on_break", label: "On Break", value: "4", trend: "Shift tea rotation", isUp: true, icon: "Clock" },
@@ -11,7 +12,7 @@ export const INITIAL_WORKFORCE_KPIS = [
   { id: "overdue_tasks", label: "Overdue Tasks", value: "2", trend: "Action required", alert: true, isUp: false, icon: "AlertTriangle" }
 ];
 
-export const INITIAL_WORKFORCE_STAFF = [
+const SEED_WORKFORCE_STAFF = [
   {
     id: "GPS-EMP-104",
     legacyId: "EMP-021",
@@ -944,7 +945,7 @@ export const INITIAL_WORKFORCE_STAFF = [
   }
 ];
 
-export const INITIAL_WORK_LOGS = [
+const SEED_WORK_LOGS = [
   // Rahul Patil - Today (matches user prompt exactly)
   {
     id: "WL-2026-101",
@@ -1407,7 +1408,7 @@ export const INITIAL_WORK_LOGS = [
   }
 ];
 
-export const INITIAL_ACTIVITY_FEED = [
+const SEED_ACTIVITY_FEED = [
   {
     id: "act-1",
     time: "10:05 AM",
@@ -1546,7 +1547,7 @@ export const INITIAL_ACTIVITY_FEED = [
   }
 ];
 
-export const INITIAL_DEPARTMENTS_WORKLOAD = [
+const SEED_DEPARTMENTS_WORKLOAD = [
   { department: "Production", staffCount: 12, activeTasks: 18, completedToday: 24, hoursLogged: "82h 15m", utilization: 92, status: "Operating" },
   { department: "Assembly", staffCount: 6, activeTasks: 7, completedToday: 11, hoursLogged: "38h 20m", utilization: 88, status: "Operating" },
   { department: "Quality", staffCount: 5, activeTasks: 6, completedToday: 14, hoursLogged: "34h 10m", utilization: 90, status: "Operating" },
@@ -1557,7 +1558,7 @@ export const INITIAL_DEPARTMENTS_WORKLOAD = [
   { department: "Engineering", staffCount: 3, activeTasks: 3, completedToday: 4, hoursLogged: "14h 20m", utilization: 72, status: "Available" }
 ];
 
-export const INITIAL_BAY_ALLOCATIONS = [
+const SEED_BAY_ALLOCATIONS = [
   {
     bayId: "bay-1",
     bayName: "Bay 1 — CNC Lathe / Turning",
@@ -1680,7 +1681,7 @@ export const INITIAL_BAY_ALLOCATIONS = [
   }
 ];
 
-export const INITIAL_WORKFORCE_ALERTS = [
+const SEED_WORKFORCE_ALERTS = [
   {
     id: "alt-1",
     type: "warning",
@@ -1718,7 +1719,7 @@ export const INITIAL_WORKFORCE_ALERTS = [
   }
 ];
 
-export const INITIAL_SHIFT_SUMMARY = {
+const SEED_SHIFT_SUMMARY = {
   shiftName: "First Shift",
   timing: "06:00 AM - 02:30 PM",
   staffScheduled: 34,
@@ -1735,3 +1736,58 @@ export const INITIAL_SHIFT_SUMMARY = {
   supervisor: "Rameshwar Kulkarni (Plant Lead)",
   openTasks: 16
 };
+
+// ─── Conditional Exports (Clean Slate Mode vs Demo Seed Mode) ────────────────
+export const INITIAL_WORKFORCE_KPIS = isCleanSlateMode()
+  ? [
+      { id: "total_employees", label: "Total Employees", value: "0", trend: "Clean Slate", isUp: true, icon: "Users" },
+      { id: "working_now", label: "Working Now", value: "0", trend: "0 active on bays", isUp: true, icon: "Cpu" },
+      { id: "on_break", label: "On Break", value: "0", trend: "None", isUp: true, icon: "Clock" },
+      { id: "available", label: "Available", value: "0", trend: "None", isUp: true, icon: "CheckCircle2" },
+      { id: "tasks_today", label: "Tasks Today", value: "0", trend: "0 tasks", isUp: true, icon: "CheckSquare" },
+      { id: "completed_today", label: "Completed Today", value: "0", trend: "0% completion", isUp: true, icon: "CheckCircle2" },
+      { id: "total_work_hours", label: "Total Work Hours", value: "0h 00m", trend: "0h avg", isUp: true, icon: "Clock" },
+      { id: "overdue_tasks", label: "Overdue Tasks", value: "0", trend: "All clear", alert: false, isUp: true, icon: "AlertTriangle" }
+    ]
+  : SEED_WORKFORCE_KPIS;
+
+export const INITIAL_WORKFORCE_STAFF = isCleanSlateMode() ? [] : SEED_WORKFORCE_STAFF;
+export const INITIAL_WORK_LOGS = isCleanSlateMode() ? [] : SEED_WORK_LOGS;
+export const INITIAL_ACTIVITY_FEED = isCleanSlateMode() ? [] : SEED_ACTIVITY_FEED;
+
+export const INITIAL_DEPARTMENTS_WORKLOAD = isCleanSlateMode()
+  ? [
+      { department: "Production", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Assembly", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Quality", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Testing", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Balancing", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Service", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Stores", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" },
+      { department: "Engineering", staffCount: 0, activeTasks: 0, completedToday: 0, hoursLogged: "0h", utilization: 0, status: "Available" }
+    ]
+  : SEED_DEPARTMENTS_WORKLOAD;
+
+export const INITIAL_BAY_ALLOCATIONS = isCleanSlateMode() ? [] : SEED_BAY_ALLOCATIONS;
+export const INITIAL_WORKFORCE_ALERTS = isCleanSlateMode() ? [] : SEED_WORKFORCE_ALERTS;
+
+export const INITIAL_SHIFT_SUMMARY = isCleanSlateMode()
+  ? {
+      shiftName: "First Shift",
+      timing: "06:00 AM - 02:30 PM",
+      staffScheduled: 0,
+      staffPresent: 0,
+      staffWorking: 0,
+      staffOnBreak: 0,
+      staffAvailable: 0,
+      completedTasks: 0,
+      tasksInProgress: 0,
+      hoursLogged: "0h",
+      overtimeHours: "0h",
+      delayedTasks: 0,
+      progressPercentage: 0,
+      supervisor: "Rameshwar Kulkarni (Plant Lead)",
+      openTasks: 0
+    }
+  : SEED_SHIFT_SUMMARY;
+

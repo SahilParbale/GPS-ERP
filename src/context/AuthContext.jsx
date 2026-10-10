@@ -233,14 +233,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Quick switch between demo roles (for testing & development verification)
+  // Quick switch between demo roles (STRICTLY restricted to ADMIN for system testing)
   const switchDemoRole = useCallback(async (roleCode) => {
-    const target = DEMO_USERS.find((u) => u.role === roleCode) || DEMO_USERS[0];
+    if (role !== 'ADMIN') {
+      console.warn(`[RBAC Security] Blocked unauthorized role switch attempt by non-admin role: ${role}`);
+      return { error: new Error('Access Denied: Only administrators can switch roles.') };
+    }
+    const allUsers = [...authService.getCustomUsers(), ...DEMO_USERS];
+    const target = allUsers.find((u) => u.role === roleCode) || DEMO_USERS[0];
     return await signIn({
       email: target.email,
       password: target.password || 'Password123!'
     });
-  }, [signIn]);
+  }, [role, signIn]);
 
   // Check if current user role can access a screen
   const canAccessScreen = useCallback((screenId) => {

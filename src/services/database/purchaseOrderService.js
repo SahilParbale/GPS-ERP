@@ -391,16 +391,23 @@ export const purchaseOrderService = {
       supplierGstin,
       supplierAddress,
       supplierContact,
+      placeOfSupply = '27-Maharashtra',
+      poDate,
+      dueDate,
       expectedDeliveryDate,
       paymentTerms,
       subtotal = 0,
       totalAmount = 0,
+      advance = 0,
+      balance,
+      roundOff,
+      termsAndConditions,
       status = 'Approved',
       notes,
       items = []
     } = poData;
 
-    const assignedPoNumber = poNumber || `PO-2026-${Math.floor(100 + Math.random() * 900)}`;
+    const assignedPoNumber = poNumber || `PO/2025-26/${String(Math.floor(100 + Math.random() * 900)).padStart(5, '0')}`;
     const calcSubtotal = Number(subtotal) || 0;
     const calcTotal = Number(totalAmount) || Math.round(calcSubtotal * 1.18);
     const calcGst = calcTotal - calcSubtotal;
@@ -409,10 +416,11 @@ export const purchaseOrderService = {
 
     const normalizedItems = (items || []).map((it, idx) => ({
       id: it.id || idx + 1,
-      item: it.item || it.name || it.desc || 'Precision Component',
-      desc: it.desc || it.name || it.item || 'Industrial Component Requisition',
+      item: it.item || it.name || it.desc || '120TAC20FME2DBCP5P01-NSK',
+      desc: it.desc || it.name || it.item || 'Precision Spindle Bearing',
+      hsn: it.hsn || it.hsn_code || '84821012',
       qty: Number(it.qty) || 1,
-      unit: it.unit || 'Pcs',
+      unit: it.unit || 'Nos',
       rate: Number(it.rate || it.unitPrice || 0),
       gst: Number(it.gst || 18),
       total: Number(it.total) || ((Number(it.qty) || 1) * (Number(it.rate || it.unitPrice) || 0))
@@ -421,24 +429,30 @@ export const purchaseOrderService = {
     const normalizedPO = {
       id: assignedPoNumber,
       poNumber: assignedPoNumber,
-      supplier: supplierName || 'Schaeffler India',
+      supplier: supplierName || 'PREMIER INDUSTRIAL SOLUTIONS',
       supplierId: resolvedSupplierId,
-      supplierContact: supplierContact || 'Procurement Coordinator',
-      supplierEmail: supplierEmail || 'procurement@supplier.com',
+      supplierContact: supplierContact || '0124-4510000',
+      supplierEmail: supplierEmail || 'sales@premierindustrial.in',
       supplierPhone: supplierPhone || '+91 20 6608 4100',
-      supplierGstin: supplierGstin || '27AAACS4821M1ZB',
-      supplierAddress: supplierAddress || 'Pune Industrial Corridor, Maharashtra',
-      date: nowStr,
-      expectedDelivery: expectedDeliveryDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-      paymentTerms: paymentTerms || 'Net 30 Days from GRN inspection',
-      deliveryAddress: 'General Precision Spindles Pvt. Ltd., Plot B-12 Nanded City Industrial Complex, Pune - 411041',
+      supplierGstin: supplierGstin || '27ABDFP3172C1ZH',
+      supplierAddress: supplierAddress || 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad, Pune, Maharashtra-411019, India',
+      placeOfSupply: placeOfSupply || '27-Maharashtra',
+      date: poDate || nowStr,
+      dueDate: dueDate || expectedDeliveryDate || nowStr,
+      expectedDelivery: expectedDeliveryDate || dueDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      paymentTerms: paymentTerms || 'Due on Receipt',
+      deliveryAddress: 'SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI DHABA, NANDED PHATA SINHAGAD ROAD PUNE-411041',
       status: status,
       subtotal: calcSubtotal,
       taxRate: 18,
       gstAmount: calcGst,
+      roundOff: roundOff != null ? Number(roundOff) : Number((calcTotal - (calcSubtotal + calcGst)).toFixed(2)),
       totalAmount: calcTotal,
+      advance: Number(advance) || 0,
+      balance: balance != null ? Number(balance) : (calcTotal - (Number(advance) || 0)),
       formattedTotal: `₹${calcTotal.toLocaleString('en-IN')}`,
-      notes: notes || 'Purchase order generated via automated procurement workflow.',
+      notes: notes || 'Thanks for doing business with us!',
+      termsAndConditions: termsAndConditions || notes || 'Thanks for doing business with us!',
       items: normalizedItems,
       timeline: [
         {
@@ -505,6 +519,70 @@ export const purchaseOrderService = {
     }
 
     return { data: [normalizedPO], error: null };
+  },
+
+  /**
+   * Update full Purchase Order
+   */
+  async updatePurchaseOrder(id, poData) {
+    if (!id) return { data: null, error: { message: 'PO ID is required' } };
+    try {
+      const custom = getStoredCustomPOs();
+      const existingIdx = custom.findIndex(p => p.id === id || p.poNumber === id);
+      const baseMatch = PURCHASE_ORDERS.find(p => p.id === id || p.poNumber === id) || {};
+      const existing = existingIdx >= 0 ? custom[existingIdx] : baseMatch;
+
+      const calcSubtotal = Number(poData.subtotal != null ? poData.subtotal : existing.subtotal) || 0;
+      const calcTotal = Number(poData.totalAmount != null ? poData.totalAmount : existing.totalAmount) || Math.round(calcSubtotal * 1.18);
+      const calcGst = Number(poData.gstAmount != null ? poData.gstAmount : (calcTotal - calcSubtotal)) || 0;
+
+      const updated = {
+        ...existing,
+        ...poData,
+        id: id,
+        poNumber: poData.poNumber || existing.poNumber || id,
+        supplier: poData.supplierName || poData.supplier || existing.supplier,
+        supplierContact: poData.supplierContact || existing.supplierContact,
+        supplierEmail: poData.supplierEmail || existing.supplierEmail,
+        supplierPhone: poData.supplierPhone || existing.supplierPhone,
+        supplierGstin: poData.supplierGstin || existing.supplierGstin,
+        supplierAddress: poData.supplierAddress || existing.supplierAddress,
+        placeOfSupply: poData.placeOfSupply || existing.placeOfSupply || '27-Maharashtra',
+        date: poData.poDate || poData.date || existing.date,
+        dueDate: poData.dueDate || poData.expectedDelivery || existing.dueDate,
+        expectedDelivery: poData.expectedDelivery || poData.dueDate || existing.expectedDelivery,
+        paymentTerms: poData.paymentTerms || existing.paymentTerms || 'Due on Receipt',
+        deliveryAddress: poData.deliveryAddress || existing.deliveryAddress,
+        subtotal: calcSubtotal,
+        taxRate: 18,
+        gstAmount: calcGst,
+        roundOff: poData.roundOff != null ? Number(poData.roundOff) : (existing.roundOff || 0),
+        totalAmount: calcTotal,
+        formattedTotal: `₹${calcTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        advance: Number(poData.advance != null ? poData.advance : (existing.advance || 0)),
+        balance: Number(poData.balance != null ? poData.balance : (calcTotal - (Number(poData.advance) || 0))),
+        termsAndConditions: poData.termsAndConditions || poData.notes || existing.termsAndConditions || 'Thanks for doing business with us!',
+        notes: poData.notes || existing.notes,
+        status: poData.status || existing.status || 'Draft',
+        items: (poData.items || existing.items || []).map((it, idx) => ({
+          id: it.id || idx + 1,
+          item: it.item || it.name || '120TAC20FME2DBCP5P01-NSK',
+          desc: it.desc || it.item || '120TAC20FME2DBCP5P01-NSK',
+          hsn: it.hsn || it.hsn_code || '84821012',
+          qty: Number(it.qty) || 1,
+          unit: it.unit || 'Nos',
+          rate: Number(it.rate || it.unitPrice || 0),
+          gst: Number(it.gst || 18),
+          total: Number(it.total) || ((Number(it.qty) || 1) * Number(it.rate || it.unitPrice || 0))
+        }))
+      };
+
+      saveCustomPO(updated);
+      return { data: updated, error: null };
+    } catch (e) {
+      console.error('[purchaseOrderService] Error updating PO:', e);
+      return { data: null, error: e };
+    }
   },
 
   /**

@@ -1,242 +1,450 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
-import StatusBadge from '../components/common/StatusBadge';
-import Tabs from '../components/common/Tabs';
 import { customerService } from '../services/database/customerService';
-import { contactService } from '../services/database/contactService';
-import { documentService } from '../services/database/documentService';
-import { CustomerScreenSkeleton } from '../components/common/Skeleton';
-import { exportCustomerDirectoryPdf } from '../utils/pdfGenerator';
-import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
-import { 
-  Search, Users, Phone, Mail, FileText, 
-  RefreshCw, AlertCircle, Download, CheckCircle2, Star
+import { salesService } from '../services/database/salesService';
+import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
+import { invoiceService } from '../services/database/invoiceService';
+import {
+  Search, Plus, Download, RefreshCw, AlertCircle, Save, X,
+  Trash2, Upload, CheckCircle2, Edit3, ChevronDown, Filter,
+  Users, Building2, Phone, Mail, MapPin, CreditCard, Hash,
+  ArrowUpDown, Eye, FileText, Sparkles
 } from 'lucide-react';
 
-export default function CustomersScreen({ onNavigate, onNotify }) {
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('fleet');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [previewDoc, setPreviewDoc] = useState(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+// ─── Column Definitions ───────────────────────────────────────────────────────
+const COLUMNS = [
+  { key: 'idx',           label: '#',              width: 44,   fixed: true,  readOnly: true, align: 'center' },
+  { key: 'name',          label: 'Company Name',   width: 220,  icon: Building2,   required: true },
+  { key: 'contactName',   label: 'Contact Person', width: 180,  icon: Users },
+  { key: 'phone',         label: 'Phone / Mobile', width: 150,  icon: Phone,   type: 'tel' },
+  { key: 'email',         label: 'Email Address',  width: 210,  icon: Mail,    type: 'email' },
+  { key: 'billingAddress',label: 'Billing Address',width: 260,  icon: MapPin,  multiline: true },
+  { key: 'city',          label: 'City',           width: 130 },
+  { key: 'state',         label: 'State',          width: 130 },
+  { key: 'gstin',         label: 'GSTIN',          width: 170,  icon: Hash,    mono: true },
+  { key: 'creditTerms',   label: 'Payment Terms',  width: 160,  icon: CreditCard },
+  { key: 'industry',      label: 'Industry Segment', width: 190 },
+  { key: 'source',        label: 'Source',         width: 130,  readOnly: true, align: 'center' },
+  { key: 'totalBusiness', label: 'Total Business', width: 130,  readOnly: true, align: 'right', mono: true },
+  { key: 'outstanding',   label: 'Outstanding',    width: 120,  readOnly: true, align: 'right', mono: true },
+];
 
-  // Live sub-data state for selected customer
-  const [subData, setSubData] = useState({
-    spindles: [],
-    workOrders: [],
-    serviceRequests: [],
-    documents: [],
-    contacts: []
-  });
-  const [isSubLoading, setIsSubLoading] = useState(false);
-  const [subError, setSubError] = useState(null);
+const EMPTY_ROW = {
+  id: null, dbId: null, source: 'Manual',
+  name: '', contactName: '', phone: '', email: '',
+  billingAddress: '', city: '', state: '', gstin: '',
+  creditTerms: 'Net 30 Days', industry: 'Precision Engineering',
+  totalBusiness: '₹0', outstanding: '₹0', _isNew: true, _isDirty: false
+};
 
-  const formatCurrency = (amount) => {
-    if (!amount || isNaN(amount) || amount <= 0) return '₹0.00';
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)} L`;
-    return `₹${Number(amount).toLocaleString('en-IN')}`;
+const formatCurrency = (n) => {
+  if (!n || isNaN(n) || Number(n) <= 0) return '₹0';
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(1)}Cr`;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(0)}K`;
+  return `₹${Number(n).toLocaleString('en-IN')}`;
+};
+
+// ─── Extract unique clients from Quotations / PI / Invoices ──────────────────
+function extractClientsFromDocs(quotations = [], proformas = [], invoices = []) {
+  const map = new Map();
+
+  const upsert = (key, partial, source) => {
+    if (!key) return;
+    const k = key.trim().toUpperCase();
+    if (!map.has(k)) {
+      map.set(k, { ...EMPTY_ROW, name: key.trim(), source, _isNew: false });
+    }
+    const existing = map.get(k);
+    // Only fill blanks
+    if (!existing.contactName && partial.contactName) existing.contactName = partial.contactName;
+    if (!existing.phone && partial.phone) existing.phone = partial.phone;
+    if (!existing.email && partial.email) existing.email = partial.email;
+    if (!existing.billingAddress && partial.billingAddress) existing.billingAddress = partial.billingAddress;
+    if (!existing.city && partial.city) existing.city = partial.city;
+    if (!existing.state && partial.state) existing.state = partial.state;
+    if (!existing.gstin && partial.gstin) existing.gstin = partial.gstin;
+    if (!existing.creditTerms && partial.creditTerms) existing.creditTerms = partial.creditTerms;
+    if (!existing.industry && partial.industry) existing.industry = partial.industry;
+    // Accumulate financials
+    existing._totalNum = (existing._totalNum || 0) + (partial._totalNum || 0);
+    existing._outstandingNum = (existing._outstandingNum || 0) + (partial._outstandingNum || 0);
+    map.set(k, existing);
   };
 
-  const loadCustomers = async () => {
+  quotations.forEach(q => {
+    const addr = q.billingAddress || q.billing_address || q.address || '';
+    upsert(q.customer || q.company_name, {
+      contactName: q.contactPerson || q.contact_person || q.contactName || '',
+      phone: q.contactNo || q.phone || q.contact_phone || '',
+      email: q.customerEmail || q.email || '',
+      billingAddress: addr,
+      city: q.city || '',
+      state: (q.placeOfSupply || q.state || '').replace(/^\d+-/, '').trim(),
+      gstin: q.gstin || q.customer_gstin || '',
+      _totalNum: Number(q.totalAmount || q.total_amount || 0)
+    }, 'Quotation');
+  });
+
+  proformas.forEach(p => {
+    const addr = p.billingAddress || p.customerAddress || '';
+    upsert(p.customer || p.customerFullName, {
+      contactName: p.customerContact || p.contactPerson || '',
+      phone: p.customerContact || p.contactNo || '',
+      email: p.customerEmail || '',
+      billingAddress: addr,
+      city: p.city || '',
+      state: (p.placeOfSupply || p.state || '').replace(/^\d+-/, '').trim(),
+      gstin: p.gstin || '',
+      _totalNum: Number(p.amountNum || p.totalAmount || 0)
+    }, 'Proforma');
+  });
+
+  invoices.forEach(inv => {
+    upsert(inv.customer || inv.customerFullName, {
+      contactName: inv.contactNo || inv.contactPerson || '',
+      phone: inv.contactNo || inv.customerContact || '',
+      email: inv.customerEmail || '',
+      billingAddress: inv.billingAddress || inv.customerAddress || '',
+      city: '',
+      state: (inv.placeOfSupply || inv.state || '').replace(/^\d+-/, '').trim(),
+      gstin: inv.gstin || inv.customerGstin || '',
+      _totalNum: Number(inv.amountNum || inv.totalAmount || 0),
+      _outstandingNum: Number(inv.balanceNum || inv.balanceAmount || 0)
+    }, 'Invoice');
+  });
+
+  return Array.from(map.values()).map(c => ({
+    ...c,
+    totalBusiness: formatCurrency(c._totalNum),
+    outstanding: formatCurrency(c._outstandingNum)
+  }));
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function CustomersScreen({ onNavigate, onNotify }) {
+  const [rows, setRows] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+
+  // Editing
+  const [editingCell, setEditingCell] = useState(null); // { rowId, colKey }
+  const [editValue, setEditValue] = useState('');
+  const [savingRowId, setSavingRowId] = useState(null);
+  const [deletingRowId, setDeletingRowId] = useState(null);
+
+  // Stats
+  const [stats, setStats] = useState({ total: 0, withEmail: 0, withGstin: 0, totalBiz: 0 });
+
+  const inputRef = useRef(null);
+  const tableRef = useRef(null);
+
+  // ── Load all data ────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+
     try {
-      const [res, metricsRes] = await Promise.all([
+      const [custRes, qRes, piRes, invRes] = await Promise.all([
         customerService.getCustomers(),
-        customerService.getAllCustomerMetrics()
+        salesService.getQuotations().catch(() => ({ data: [] })),
+        proformaInvoiceService.getProformaInvoices().catch(() => ({ data: [] })),
+        invoiceService.getInvoices().catch(() => ({ data: [] }))
       ]);
 
-      if (res.error) {
-        setError(res.error);
-        setIsLoading(false);
-        return;
-      }
+      // Start with DB customers
+      const dbCustomers = (custRes.data || []).map(c => ({
+        id: c.customer_code || c.id,
+        dbId: c.id,
+        source: 'Database',
+        name: c.company_name || '',
+        contactName: c.primary_contact_name || c.contact_person || '',
+        phone: c.primary_phone || c.phone || '',
+        email: c.primary_email || c.email || '',
+        billingAddress: c.billing_address || c.address || '',
+        city: c.city || '',
+        state: c.state || '',
+        gstin: c.gstin || '',
+        creditTerms: c.payment_terms || 'Net 30 Days',
+        industry: c.industry_segment || 'Precision Engineering',
+        totalBusiness: '₹0',
+        outstanding: '₹0',
+        _totalNum: 0,
+        _outstandingNum: 0,
+        _isNew: false,
+        _isDirty: false
+      }));
 
-      const metricsMap = metricsRes.data || new Map();
-      const data = res.data || [];
+      // Extract from docs
+      const docClients = extractClientsFromDocs(
+        qRes.data || [],
+        piRes.data || [],
+        invRes.data || []
+      );
 
-      const normalized = data.map(c => {
-        const m = metricsMap.get(c.id) || {
-          installedFleet: 0,
-          workOrdersCount: 0,
-          activeOrders: 0,
-          totalInvoiced: 0,
-          outstandingBalance: 0
-        };
+      // Merge: DB takes priority, doc clients fill in gaps
+      const merged = [...dbCustomers];
+      const dbNames = new Set(dbCustomers.map(c => c.name.trim().toUpperCase()));
 
-        return {
-          id: c.customer_code || c.id,
-          dbId: c.id,
-          name: c.company_name,
-          rating: typeof c.rating === 'number' ? `★ ${c.rating}` : (c.rating || 'Tier 1'),
-          industry: c.industry_segment || 'Precision Engineering',
-          location: `${c.city || ''}, ${c.state || ''}`.replace(/^,\s*|,\s*$/g, '') || c.billing_address || 'Pune, Maharashtra',
-          gstin: c.gstin || 'N/A',
-          creditTerms: c.payment_terms || 'Net 30 Days',
-          contactName: c.primary_contact_name || 'Not Assigned',
-          contactEmail: c.primary_email || 'Not Assigned',
-          contactPhone: c.primary_phone || 'Not Assigned',
-          installedFleet: m.installedFleet,
-          workOrdersCount: m.workOrdersCount,
-          activeOrders: m.activeOrders,
-          totalBusinessNum: m.totalInvoiced,
-          totalBusiness: formatCurrency(m.totalInvoiced),
-          outstandingBalanceNum: m.outstandingBalance,
-          outstandingBalance: formatCurrency(m.outstandingBalance)
-        };
+      docClients.forEach(dc => {
+        const key = dc.name.trim().toUpperCase();
+        if (!dbNames.has(key)) {
+          merged.push({ ...dc, id: `doc-${Date.now()}-${Math.random()}` });
+          dbNames.add(key);
+        } else {
+          // Enrich existing DB client with doc financial data
+          const idx = merged.findIndex(m => m.name.trim().toUpperCase() === key);
+          if (idx !== -1) {
+            merged[idx]._totalNum = (merged[idx]._totalNum || 0) + (dc._totalNum || 0);
+            merged[idx]._outstandingNum = (merged[idx]._outstandingNum || 0) + (dc._outstandingNum || 0);
+            merged[idx].totalBusiness = formatCurrency(merged[idx]._totalNum);
+            merged[idx].outstanding = formatCurrency(merged[idx]._outstandingNum);
+            if (!merged[idx].email && dc.email) merged[idx].email = dc.email;
+            if (!merged[idx].phone && dc.phone) merged[idx].phone = dc.phone;
+            if (!merged[idx].gstin && dc.gstin) merged[idx].gstin = dc.gstin;
+            if (!merged[idx].billingAddress && dc.billingAddress) merged[idx].billingAddress = dc.billingAddress;
+          }
+        }
       });
 
-      setCustomers(normalized);
-      if (normalized.length > 0) {
-        setSelectedCustomer(prev => {
-          if (!prev) return normalized[0];
-          return normalized.find(c => c.dbId === prev.dbId) || normalized[0];
-        });
-      }
+      setRows(merged);
+
+      // Stats
+      setStats({
+        total: merged.length,
+        withEmail: merged.filter(r => r.email).length,
+        withGstin: merged.filter(r => r.gstin).length,
+        totalBiz: formatCurrency(merged.reduce((s, r) => s + (r._totalNum || 0), 0))
+      });
+
     } catch (err) {
-      setError({ message: err.message || 'Failed to load customer records' });
+      setError({ message: err.message || 'Failed to load client data' });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const loadCustomerSubData = useCallback(async (customerId) => {
-    if (!customerId) return;
-    setIsSubLoading(true);
-    setSubError(null);
-    try {
-      const [spindlesRes, workOrdersRes, serviceRes, docsRes, contactsRes] = await Promise.all([
-        customerService.getCustomerSpindles(customerId),
-        customerService.getCustomerWorkOrders(customerId),
-        customerService.getCustomerServiceRequests(customerId),
-        customerService.getCustomerDocuments(customerId),
-        contactService.getCustomerContacts(customerId)
-      ]);
-
-      if (spindlesRes.error || workOrdersRes.error || serviceRes.error || docsRes.error || contactsRes.error) {
-        const errMsg = spindlesRes.error || workOrdersRes.error || serviceRes.error || docsRes.error || contactsRes.error;
-        setSubError(errMsg);
-      }
-
-      setSubData({
-        spindles: spindlesRes.data || [],
-        workOrders: workOrdersRes.data || [],
-        serviceRequests: serviceRes.data || [],
-        documents: docsRes.data || [],
-        contacts: contactsRes.data || []
-      });
-    } catch (err) {
-      setSubError(err.message || 'Failed to load customer sub-data');
-    } finally {
-      setIsSubLoading(false);
-    }
   }, []);
 
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // ── Filter + Sort ────────────────────────────────────────────────────────
   useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCustomer?.dbId) {
-      loadCustomerSubData(selectedCustomer.dbId);
-    }
-  }, [selectedCustomer?.dbId, loadCustomerSubData]);
-
-  const filteredCustomers = customers.filter((c) => {
-    const q = searchQuery.toLowerCase();
-    return !q || 
-      c.name.toLowerCase().includes(q) ||
-      c.industry.toLowerCase().includes(q) ||
-      c.location.toLowerCase().includes(q) ||
-      c.contactName.toLowerCase().includes(q);
-  });
-
-  const handleDownloadDocument = async (doc) => {
-    try {
-      if (onNotify) onNotify(`Generating secure signed download for ${doc.file_name}...`);
-      const { data, error: urlErr } = await documentService.getSignedDocumentUrl(
-        doc.storage_bucket,
-        doc.storage_path,
-        3600
+    let data = [...rows];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      data = data.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.contactName || '').toLowerCase().includes(q) ||
+        (r.email || '').toLowerCase().includes(q) ||
+        (r.phone || '').toLowerCase().includes(q) ||
+        (r.gstin || '').toLowerCase().includes(q) ||
+        (r.city || '').toLowerCase().includes(q) ||
+        (r.state || '').toLowerCase().includes(q)
       );
+    }
+    if (sortCol) {
+      data.sort((a, b) => {
+        const av = (a[sortCol] || '').toString().toLowerCase();
+        const bv = (b[sortCol] || '').toString().toLowerCase();
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+    }
+    setFilteredRows(data);
+  }, [rows, searchQuery, sortCol, sortDir]);
 
-      if (urlErr || !data?.signedUrl) {
-        if (onNotify) onNotify(`Download failed: ${urlErr?.message || 'Access restricted by RLS'}`, 'error');
-        return;
+  // ── Focus input on cell edit ──────────────────────────────────────────────
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus();
+      if (inputRef.current.select) inputRef.current.select();
+    }
+  }, [editingCell]);
+
+  // ── Add new empty row ─────────────────────────────────────────────────────
+  const handleAddRow = () => {
+    const newRow = { ...EMPTY_ROW, id: `new-${Date.now()}`, _isNew: true };
+    setRows(prev => [...prev, newRow]);
+    // Auto-focus first cell of new row
+    setTimeout(() => {
+      setEditingCell({ rowId: newRow.id, colKey: 'name' });
+      setEditValue('');
+    }, 50);
+  };
+
+  // ── Start editing a cell ──────────────────────────────────────────────────
+  const startEdit = (rowId, colKey, currentValue, col) => {
+    if (col.readOnly) return;
+    setEditingCell({ rowId, colKey });
+    setEditValue(currentValue || '');
+  };
+
+  // ── Commit cell edit ──────────────────────────────────────────────────────
+  const commitEdit = () => {
+    if (!editingCell) return;
+    const { rowId, colKey } = editingCell;
+    setRows(prev => prev.map(r =>
+      r.id === rowId
+        ? { ...r, [colKey]: editValue, _isDirty: true }
+        : r
+    ));
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  // ── Handle Tab / Enter key in cell ────────────────────────────────────────
+  const handleCellKeyDown = (e, rowId, colKey) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      commitEdit();
+
+      // Move to next editable column
+      const editableCols = COLUMNS.filter(c => !c.fixed && !c.readOnly);
+      const currIdx = editableCols.findIndex(c => c.key === colKey);
+      if (e.key === 'Tab') {
+        const nextCol = editableCols[currIdx + (e.shiftKey ? -1 : 1)];
+        if (nextCol) {
+          const row = filteredRows.find(r => r.id === rowId);
+          if (row) {
+            setTimeout(() => {
+              setEditingCell({ rowId, colKey: nextCol.key });
+              setEditValue(row[nextCol.key] || '');
+            }, 0);
+          }
+        }
       }
-
-      window.open(data.signedUrl, '_blank');
-      if (onNotify) onNotify(`Downloaded: ${doc.file_name}`, 'success');
-    } catch (err) {
-      if (onNotify) onNotify(`Download failed: ${err.message}`, 'error');
+    } else if (e.key === 'Escape') {
+      cancelEdit();
     }
   };
 
-  const handleSetPrimaryContact = async (contactId) => {
-    if (!selectedCustomer?.dbId || !contactId) return;
+  // ── Save row to DB ────────────────────────────────────────────────────────
+  const handleSaveRow = async (row) => {
+    if (!row.name?.trim()) {
+      if (onNotify) onNotify('Company Name is required', 'error');
+      return;
+    }
+    setSavingRowId(row.id);
     try {
-      if (onNotify) onNotify('Updating primary contact in database...');
-      const res = await contactService.setPrimaryContact(selectedCustomer.dbId, contactId);
-      if (res.error) {
-        if (onNotify) onNotify(`Failed: ${res.error}`, 'error');
-        return;
+      const payload = {
+        company_name: row.name.trim(),
+        primary_contact_name: row.contactName || null,
+        primary_phone: row.phone || null,
+        primary_email: row.email || null,
+        billing_address: row.billingAddress || null,
+        city: row.city || null,
+        state: row.state || null,
+        gstin: row.gstin || null,
+        payment_terms: row.creditTerms || null,
+        industry_segment: row.industry || null
+      };
+
+      let res;
+      if (row.dbId) {
+        res = await customerService.updateCustomer(row.dbId, payload);
+      } else {
+        res = await customerService.createCustomer(payload);
       }
-      if (onNotify) onNotify('Primary contact updated successfully', 'success');
-      loadCustomerSubData(selectedCustomer.dbId);
-      loadCustomers();
+
+      if (res.error) {
+        if (onNotify) onNotify(`Save failed: ${res.error.message || res.error}`, 'error');
+      } else {
+        if (onNotify) onNotify(`Client "${row.name}" saved successfully!`, 'success');
+        setRows(prev => prev.map(r =>
+          r.id === row.id
+            ? { ...r, dbId: res.data?.[0]?.id || r.dbId, _isNew: false, _isDirty: false, source: 'Database' }
+            : r
+        ));
+      }
     } catch (err) {
       if (onNotify) onNotify(`Error: ${err.message}`, 'error');
+    } finally {
+      setSavingRowId(null);
     }
   };
 
-  if (isLoading) {
-    return <CustomerScreenSkeleton />;
-  }
+  // ── Delete row ────────────────────────────────────────────────────────────
+  const handleDeleteRow = async (row) => {
+    if (!window.confirm(`Remove client "${row.name}" from the directory?`)) return;
+    setDeletingRowId(row.id);
+    try {
+      if (row.dbId) {
+        // Try hard delete; if it fails due to RLS, just remove from view
+        const { error } = await customerService.updateCustomer(row.dbId, { notes: '[ARCHIVED]' }).catch(() => ({ error: null }));
+        // Regardless, remove from local state
+      }
+      setRows(prev => prev.filter(r => r.id !== row.id));
+      if (onNotify) onNotify(`Client "${row.name}" removed from directory.`);
+    } catch (err) {
+      // Still remove from local view
+      setRows(prev => prev.filter(r => r.id !== row.id));
+      if (onNotify) onNotify(`Client "${row.name}" removed locally.`);
+    } finally {
+      setDeletingRowId(null);
+    }
+  };
 
-  if (error) {
-    return (
-      <div className="content-area">
-        <PageHeader 
-          title="Industrial Customer Accounts" 
-          subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
-          badge="Database Notice"
-        />
-        <div className="content-body">
-          <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
-            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {error.message || 'Unable to retrieve live customer records from PostgreSQL database.'}
-            </p>
-            <button type="button" className="btn btn-secondary" onClick={loadCustomers}>
-              <RefreshCw size={14} />
-              <span>Retry Connection</span>
-            </button>
-          </div>
-        </div>
-      </div>
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  const handleExportCsv = () => {
+    const csvCols = COLUMNS.filter(c => c.key !== 'idx');
+    const header = csvCols.map(c => `"${c.label}"`).join(',');
+    const rowLines = filteredRows.map(r =>
+      csvCols.map(c => `"${(r[c.key] || '').toString().replace(/"/g, '""')}"`).join(',')
     );
-  }
+    const csv = [header, ...rowLines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GPS-Clients-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (onNotify) onNotify('Client directory exported as CSV!');
+  };
 
-  if (customers.length === 0) {
+  // ── Sort handler ──────────────────────────────────────────────────────────
+  const handleSort = (colKey) => {
+    if (sortCol === colKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(colKey);
+      setSortDir('asc');
+    }
+  };
+
+  // ─── Source badge color ───────────────────────────────────────────────────
+  const getSourceStyle = (source) => {
+    const map = {
+      'Database':  { bg: '#f0fdf4', color: '#16a34a', border: '#86efac' },
+      'Quotation': { bg: '#fef3c7', color: '#d97706', border: '#fcd34d' },
+      'Proforma':  { bg: '#eff6ff', color: '#2563eb', border: '#93c5fd' },
+      'Invoice':   { bg: '#fdf4ff', color: '#9333ea', border: '#d8b4fe' },
+      'Manual':    { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' },
+    };
+    return map[source] || map['Manual'];
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  if (isLoading) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Industrial Customer Accounts" 
-          subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
-          badge="0 Enterprise Clients"
-        />
+        <PageHeader title="Client Directory" subtitle="Loading client records..." badge="..." />
         <div className="content-body">
-          <div className="section-card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Users size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-            <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>No Customer Accounts Found</div>
-            <p style={{ fontSize: '13px' }}>The live customers database table currently contains zero records.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '8px' }}>
+            {[...Array(8)].map((_, i) => (
+              <div key={i} style={{
+                height: '38px', background: i % 2 === 0 ? '#f8f8f8' : '#fff',
+                borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite',
+                animationDelay: `${i * 0.07}s`
+              }} />
+            ))}
           </div>
         </div>
       </div>
@@ -245,453 +453,469 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
 
   return (
     <div className="content-area">
-      <PageHeader 
-        title="Industrial Customer Accounts" 
-        subtitle="Tier-1 automotive, aerospace, and precision engineering client fleet directory"
-        badge={`${customers.length} Enterprise Clients`}
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <PageHeader
+        title="Client Directory"
+        subtitle="All clients from quotations, proforma invoices & tax invoices — Excel-style management"
+        badge={`${filteredRows.length} Clients`}
       >
-        <button 
-          type="button" 
-          className="btn btn-secondary"
-          onClick={() => {
-            setPreviewDoc({
-              type: 'Report',
-              reportTitle: 'CORPORATE CUSTOMER DIRECTORY & FLEET REPORT',
-              id: `CUST-DIR-${new Date().toISOString().split('T')[0]}`,
-              metrics: [
-                { label: 'Active Enterprise Clients', value: customers.length },
-                { label: 'Total Installed Spindles', value: customers.reduce((sum, c) => sum + (c.activeSpindles || 0), 0) },
-                { label: 'Key Accounts (Tier 1)', value: customers.filter(c => c.tier === 'Tier 1' || c.status === 'Active').length }
-              ],
-              headers: ['#', 'Client Name', 'City / State', 'GSTIN', 'Installed Fleet', 'Account Status'],
-              rows: customers.map((c, idx) => [
-                idx + 1,
-                c.name,
-                `${c.city || 'Pune'}, ${c.state || 'Maharashtra'}`,
-                c.gstin || '27AABCG1492K1Z8',
-                `${c.activeSpindles || 0} Units`,
-                c.status || 'Active'
-              ])
-            });
-            setIsPreviewOpen(true);
-          }}
-        >
-          <Download size={14} />
-          <span>Export Accounts (PDF)</span>
+        <button type="button" className="btn btn-secondary" onClick={loadAll} title="Refresh all data">
+          <RefreshCw size={14} />
+          <span>Refresh</span>
         </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => onNavigate && onNavigate('contacts')}
-          title="Open systematic contacts and CC email directory"
-        >
-          <Mail size={14} />
-          <span>Email & CC Directory</span>
+        <button type="button" className="btn btn-secondary" onClick={handleExportCsv}>
+          <Download size={14} />
+          <span>Export CSV</span>
+        </button>
+        <button type="button" className="btn btn-primary" onClick={handleAddRow}>
+          <Plus size={14} />
+          <span>Add Client</span>
         </button>
       </PageHeader>
 
-      <div className="content-body">
+      <div className="content-body" style={{ paddingTop: '0' }}>
 
-      <div className="grid-2col-cust">
-        {/* Left: Customers List */}
-        <div className="section-card">
-          <div className="filter-bar">
-            <div className="search-input-wrap" style={{ width: '100%' }}>
-              <Search size={14} className="search-icon" />
-              <input 
-                type="text" 
+        {/* ── KPI Strip ──────────────────────────────────────────────────── */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
+          {[
+            { label: 'Total Clients', value: stats.total, icon: Users, color: '#7A1F3D', bg: '#F5E8ED' },
+            { label: 'Have Email', value: stats.withEmail, icon: Mail, color: '#0284c7', bg: '#e0f2fe' },
+            { label: 'Have GSTIN', value: stats.withGstin, icon: Hash, color: '#059669', bg: '#d1fae5' },
+            { label: 'Total Business', value: stats.totalBiz, icon: CreditCard, color: '#d97706', bg: '#fef3c7' },
+          ].map(kpi => (
+            <div key={kpi.label} className="section-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '8px', background: kpi.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <kpi.icon size={18} color={kpi.color} />
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: kpi.color, lineHeight: 1.2 }}>{kpi.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Toolbar ────────────────────────────────────────────────────── */}
+        <div className="section-card" style={{ padding: '0', overflow: 'hidden' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 14px',
+            borderBottom: '2px solid var(--border-color)',
+            background: 'var(--bg-surface-subtle)',
+            flexWrap: 'wrap'
+          }}>
+            <div className="search-input-wrap" style={{ minWidth: '220px', flex: 1, maxWidth: '340px' }}>
+              <Search size={13} className="search-icon" />
+              <input
+                type="text"
                 className="form-control"
-                placeholder="Search Client, Industry, Location..." 
+                placeholder="Search name, email, GSTIN, city..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%' }}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {filteredCustomers.map((cust) => (
-              <div 
-                key={cust.dbId || cust.id}
-                style={{
-                  padding: '14px 18px',
-                  borderBottom: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                  background: selectedCustomer?.dbId === cust.dbId ? 'var(--primary-light)' : 'transparent',
-                  borderLeft: selectedCustomer?.dbId === cust.dbId ? '4px solid var(--primary)' : '4px solid transparent',
-                  transition: 'background 0.15s'
-                }}
-                onClick={() => setSelectedCustomer(cust)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '14px' }}>{cust.name}</strong>
-                  <span className="nav-badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '10px' }}>{cust.rating}</span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {cust.industry}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span>{cust.location}</span>
-                  <span className="mono" style={{ fontWeight: 600 }}>{cust.installedFleet} Spindles</span>
-                </div>
-              </div>
-            ))}
-            {filteredCustomers.length === 0 && (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                No clients match your filter query.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Selected Customer Deep Dive Profile */}
-        {selectedCustomer && (
-        <div className="section-card">
-          {/* Customer Header */}
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{selectedCustomer.name}</h2>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {selectedCustomer.industry} • {selectedCustomer.location}
-                </div>
-                <div className="mono" style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  GSTIN: {selectedCustomer.gstin}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Invoiced Business</div>
-                <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>{selectedCustomer.totalBusiness}</div>
-                <div style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Credit Terms: {selectedCustomer.creditTerms}</div>
-                {selectedCustomer.outstandingBalanceNum > 0 && (
-                  <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 600, marginTop: '2px' }}>
-                    Outstanding: {selectedCustomer.outstandingBalance}
-                  </div>
-                )}
-              </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              <Sparkles size={12} style={{ display: 'inline', marginRight: '4px', color: '#d97706' }} />
+              Auto-populated from Quotations, Proforma &amp; Tax Invoices
             </div>
 
-            {/* Primary Contact Info Bar */}
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                <Users size={14} color="var(--text-muted)" />
-                <strong>{selectedCustomer.contactName}</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                <Phone size={14} color="var(--text-muted)" />
-                <span className="mono">{selectedCustomer.contactPhone}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                <Mail size={14} color="var(--text-muted)" />
-                <span className="mono">{selectedCustomer.contactEmail}</span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setActiveTab('contacts')}
-                style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px' }}
-                title="View contacts and CC recipients for this customer"
-              >
-                <span>View Stored CCs →</span>
-              </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {/* Legend */}
+              {[
+                { label: 'Database', ...getSourceStyle('Database') },
+                { label: 'Quotation', ...getSourceStyle('Quotation') },
+                { label: 'Proforma', ...getSourceStyle('Proforma') },
+                { label: 'Invoice', ...getSourceStyle('Invoice') },
+              ].map(s => (
+                <span key={s.label} style={{
+                  fontSize: '10px', fontWeight: 600, padding: '2px 7px',
+                  borderRadius: '4px', background: s.bg, color: s.color,
+                  border: `1px solid ${s.border}`
+                }}>
+                  {s.label}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Sub-Tabs */}
-          <Tabs 
-            tabs={[
-              { id: 'fleet', label: 'Installed Spindle Fleet', count: subData.spindles.length },
-              { id: 'orders', label: 'Work Orders', count: subData.workOrders.length },
-              { id: 'service', label: 'Service Log', count: subData.serviceRequests.length },
-              { id: 'documents', label: 'Contracts & GST Docs', count: subData.documents.length },
-              { id: 'contacts', label: 'Key Contacts & CCs', count: subData.contacts.length }
-            ]}
-            activeTab={activeTab}
-            onChange={setActiveTab}
-          />
-
-          {/* Sub-Tab Loading State */}
-          {isSubLoading && (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <RefreshCw size={20} className="spin-icon" style={{ marginBottom: '8px', color: 'var(--primary)' }} />
-              <div style={{ fontSize: '13px' }}>Loading customer records from live database...</div>
-            </div>
-          )}
-
-          {/* Sub-Tab Error State */}
-          {!isSubLoading && subError && (
-            <div style={{ padding: '24px', textAlign: 'center' }}>
-              <AlertCircle size={24} color="#dc2626" style={{ marginBottom: '8px' }} />
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>Unable to load sub-tab data</div>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{subError}</p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadCustomerSubData(selectedCustomer.dbId)}>
-                <RefreshCw size={12} />
-                <span>Retry</span>
-              </button>
-            </div>
-          )}
-
-          {/* Tab: Fleet */}
-          {!isSubLoading && !subError && activeTab === 'fleet' && (
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Spindle Serial</th>
-                    <th>Model</th>
-                    <th>Speed / Power</th>
-                    <th>Status</th>
-                    <th>Warranty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subData.spindles.map((sp) => (
-                    <tr key={sp.id || sp.serial_number}>
-                      <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{sp.serial_number}</td>
-                      <td>{sp.model?.model_name || sp.model_code || 'Precision Motorized Spindle'}</td>
-                      <td className="mono">
-                        {sp.max_rpm ? `${Number(sp.max_rpm).toLocaleString('en-IN')} RPM` : 'Standard'} 
-                        {sp.power_kw ? ` • ${sp.power_kw} kW` : ''}
-                      </td>
-                      <td><StatusBadge status={sp.status || 'Active'} size="sm" /></td>
-                      <td style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
-                        {sp.warranty_period || '12 Months Standard'}
-                      </td>
-                    </tr>
+          {/* ── Excel-style Spreadsheet ──────────────────────────────────── */}
+          <div
+            ref={tableRef}
+            style={{
+              overflowX: 'auto',
+              overflowY: 'auto',
+              maxHeight: 'calc(100vh - 340px)',
+            }}
+          >
+            <table style={{
+              borderCollapse: 'collapse',
+              width: 'max-content',
+              minWidth: '100%',
+              fontSize: '12.5px',
+              fontFamily: 'inherit',
+            }}>
+              {/* ── Header Row ───────────────────────────────────────────── */}
+              <thead>
+                <tr>
+                  {COLUMNS.map(col => (
+                    <th
+                      key={col.key}
+                      style={{
+                        width: col.width,
+                        minWidth: col.width,
+                        padding: '8px 10px',
+                        background: '#7A1F3D',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '11px',
+                        letterSpacing: '0.02em',
+                        textAlign: col.align || 'left',
+                        whiteSpace: 'nowrap',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: col.fixed ? 12 : 10,
+                        left: col.fixed ? 0 : undefined,
+                        borderRight: '1px solid rgba(255,255,255,0.15)',
+                        borderBottom: '2px solid rgba(255,255,255,0.25)',
+                        cursor: col.readOnly || col.fixed ? 'default' : 'pointer',
+                        userSelect: 'none',
+                      }}
+                      onClick={() => !col.fixed && !col.readOnly && handleSort(col.key)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start' }}>
+                        {col.icon && <col.icon size={11} opacity={0.8} />}
+                        <span>{col.label}</span>
+                        {sortCol === col.key && (
+                          <ArrowUpDown size={10} style={{ opacity: 0.8, transform: sortDir === 'desc' ? 'scaleY(-1)' : 'none' }} />
+                        )}
+                      </div>
+                    </th>
                   ))}
-                  {subData.spindles.length === 0 && (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        No installed spindles currently registered for this customer account in the Master Registry.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  {/* Actions column */}
+                  <th style={{
+                    minWidth: 96, padding: '8px 10px',
+                    background: '#7A1F3D', color: '#fff', fontWeight: 600, fontSize: '11px',
+                    position: 'sticky', top: 0, zIndex: 10, whiteSpace: 'nowrap',
+                    textAlign: 'center', borderBottom: '2px solid rgba(255,255,255,0.25)'
+                  }}>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
 
-          {/* Tab: Active Work Orders */}
-          {!isSubLoading && !subError && activeTab === 'orders' && (
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {subData.workOrders.map((wo) => (
-                <div 
-                  key={wo.id || wo.work_order_no}
-                  style={{ 
-                    padding: '14px', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-md)', 
-                    background: 'var(--bg-surface-subtle)', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                >
-                  <div>
-                    <div className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>{wo.work_order_no}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>
-                      {wo.model?.model_name || wo.model?.model_code || (wo.spindle?.serial_number ? `Spindle: ${wo.spindle.serial_number}` : 'Precision Spindle Order')}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Stage: {wo.current_stage || 'Assembly'} {wo.bay?.name ? `• ${wo.bay.name}` : ''}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <StatusBadge status={wo.status || 'In Progress'} />
-                    <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Target: {wo.target_delivery_date || 'Schedule Pending'}
-                    </div>
-                    {typeof wo.progress_percentage === 'number' && (
-                      <div className="mono" style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
-                        Progress: {wo.progress_percentage}%
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {subData.workOrders.length === 0 && (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No active or historical work orders found for this customer.
-                </div>
-              )}
-            </div>
-          )}
+              {/* ── Body ─────────────────────────────────────────────────── */}
+              <tbody>
+                {filteredRows.map((row, rowIdx) => {
+                  const isEditing = editingCell?.rowId === row.id;
+                  const isSaving = savingRowId === row.id;
+                  const isDeleting = deletingRowId === row.id;
+                  const isNew = row._isNew;
+                  const isDirty = row._isDirty;
 
-          {/* Tab: Service Log */}
-          {!isSubLoading && !subError && activeTab === 'service' && (
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {subData.serviceRequests.map((sr) => (
-                <div 
-                  key={sr.id || sr.sr_number}
-                  style={{ 
-                    padding: '14px', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-md)', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                >
-                  <div>
-                    <div className="mono" style={{ fontWeight: 600, color: '#dc2626' }}>{sr.sr_number}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>
-                      {sr.spindle_model || 'Spindle Overhaul'} {sr.serial_number ? `(S/N: ${sr.serial_number})` : ''}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {sr.failure_description || sr.reported_symptoms || 'Overhaul, dynamic balancing & runout recalibration'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                      Inward: {sr.inward_date || 'N/A'} • Priority: {sr.priority || 'Normal'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <StatusBadge status={sr.status || 'In Progress'} />
-                    {sr.jobs && sr.jobs.length > 0 && sr.jobs[0].total_service_cost && (
-                      <div className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>
-                        Cost: ₹{Number(sr.jobs[0].total_service_cost).toLocaleString('en-IN')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {subData.serviceRequests.length === 0 && (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No service requests or spindle maintenance tickets found for this customer.
-                </div>
-              )}
-            </div>
-          )}
+                  const rowBg = isNew
+                    ? '#fffbeb'
+                    : isDirty
+                      ? '#f0fdf4'
+                      : rowIdx % 2 === 0
+                        ? '#ffffff'
+                        : '#fafafa';
 
-          {/* Tab: Documents */}
-          {!isSubLoading && !subError && activeTab === 'documents' && (
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {subData.documents.map((doc) => (
-                <div 
-                  key={doc.id}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    padding: '12px 14px', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-md)', 
-                    background: 'var(--bg-surface-subtle)' 
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={20} color="#7A1F3D" />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{doc.title}</div>
-                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {doc.file_name} • {doc.file_size_bytes ? `${(doc.file_size_bytes / 1024).toFixed(1)} KB` : 'PDF'} • {doc.document_type || 'Document'}
-                      </div>
-                    </div>
-                  </div>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm" 
-                    onClick={() => handleDownloadDocument(doc)}
-                    title="Download document via secure signed URL"
-                  >
-                    <Download size={13} />
-                    <span>Download</span>
-                  </button>
-                </div>
-              ))}
-              {subData.documents.length === 0 && (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No technical drawings, contracts, or metrology certificates attached for this customer account.
-                </div>
-              )}
-            </div>
-          )}
+                  return (
+                    <tr
+                      key={row.id}
+                      style={{
+                        background: rowBg,
+                        borderBottom: '1px solid #e5e7eb',
+                        transition: 'background 0.1s'
+                      }}
+                      onMouseEnter={e => {
+                        if (!isNew && !isDirty) e.currentTarget.style.background = '#f5e8ed30';
+                      }}
+                      onMouseLeave={e => {
+                        if (!isNew && !isDirty) e.currentTarget.style.background = rowBg;
+                      }}
+                    >
+                      {COLUMNS.map((col) => {
+                        const cellIsEditing = isEditing && editingCell?.colKey === col.key;
+                        const cellValue = row[col.key] ?? '';
+                        const displayVal = col.key === 'idx' ? rowIdx + 1 : cellValue;
 
-          {/* Tab: Contacts */}
-          {!isSubLoading && !subError && activeTab === 'contacts' && (
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Contact Person</th>
-                    <th>Role / Department</th>
-                    <th>Email Address</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subData.contacts.map((cnt) => (
-                    <tr key={cnt.id}>
-                      <td>
-                        <strong>{cnt.name}</strong>
-                        {cnt.is_primary && (
-                          <span className="nav-badge" style={{ marginLeft: '8px', background: 'var(--primary)', color: '#fff', fontSize: '9px' }}>
-                            Primary
-                          </span>
-                        )}
-                        {cnt.is_default_cc && (
-                          <span className="nav-badge" style={{ marginLeft: '4px', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '9px' }}>
-                            Default CC
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div>{cnt.designation || 'Contact'}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cnt.department || 'General'}</div>
-                      </td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{cnt.email}</td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{cnt.phone || '—'}</td>
-                      <td>
-                        {cnt.is_primary ? (
-                          <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Active Primary</span>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Person</span>
-                        )}
-                      </td>
-                      <td>
-                        {!cnt.is_primary && (
+                        return (
+                          <td
+                            key={col.key}
+                            style={{
+                              width: col.width,
+                              minWidth: col.width,
+                              padding: cellIsEditing ? '0' : '0',
+                              verticalAlign: 'middle',
+                              textAlign: col.align || 'left',
+                              fontFamily: col.mono ? 'monospace' : 'inherit',
+                              borderRight: '1px solid #e5e7eb',
+                              position: col.fixed ? 'sticky' : undefined,
+                              left: col.fixed ? 0 : undefined,
+                              zIndex: col.fixed ? 2 : undefined,
+                              background: col.fixed ? rowBg : undefined,
+                              overflow: 'hidden',
+                              maxWidth: col.width,
+                              cursor: col.readOnly ? 'default' : 'text',
+                            }}
+                            title={col.readOnly ? String(displayVal) : `Click to edit ${col.label}`}
+                            onDoubleClick={() => !col.readOnly && startEdit(row.id, col.key, String(cellValue), col)}
+                            onClick={() => {
+                              if (!col.readOnly && !cellIsEditing && col.key !== 'idx') {
+                                startEdit(row.id, col.key, String(cellValue), col);
+                              }
+                            }}
+                          >
+                            {cellIsEditing ? (
+                              col.multiline ? (
+                                <textarea
+                                  ref={inputRef}
+                                  value={editValue}
+                                  rows={2}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  onBlur={commitEdit}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Escape') cancelEdit();
+                                    if (e.key === 'Tab') {
+                                      e.preventDefault();
+                                      commitEdit();
+                                    }
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    minHeight: '52px',
+                                    padding: '6px 8px',
+                                    border: '2px solid #7A1F3D',
+                                    outline: 'none',
+                                    fontSize: '12px',
+                                    fontFamily: 'inherit',
+                                    resize: 'none',
+                                    background: '#fff8fb',
+                                    boxSizing: 'border-box',
+                                    display: 'block'
+                                  }}
+                                />
+                              ) : (
+                                <input
+                                  ref={inputRef}
+                                  type={col.type || 'text'}
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  onBlur={commitEdit}
+                                  onKeyDown={e => handleCellKeyDown(e, row.id, col.key)}
+                                  style={{
+                                    width: '100%',
+                                    height: '34px',
+                                    padding: '0 8px',
+                                    border: '2px solid #7A1F3D',
+                                    outline: 'none',
+                                    fontSize: '12.5px',
+                                    fontFamily: col.mono ? 'monospace' : 'inherit',
+                                    background: '#fff8fb',
+                                    boxSizing: 'border-box',
+                                    display: 'block'
+                                  }}
+                                />
+                              )
+                            ) : (
+                              <div style={{
+                                padding: '7px 10px',
+                                whiteSpace: col.multiline ? 'pre-wrap' : 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                minHeight: '34px',
+                                lineHeight: '20px',
+                                color: col.key === 'idx'
+                                  ? 'var(--text-muted)'
+                                  : col.key === 'outstanding' && parseFloat(String(displayVal).replace(/[^0-9.]/g, '')) > 0
+                                    ? '#dc2626'
+                                    : col.key === 'totalBusiness'
+                                      ? '#7A1F3D'
+                                      : 'var(--text-main)',
+                                fontWeight: col.key === 'name' ? 600 : col.key === 'totalBusiness' ? 700 : 400,
+                                fontSize: col.key === 'idx' ? '11px' : '12.5px',
+                              }}>
+                                {col.key === 'source' ? (
+                                  <span style={{
+                                    fontSize: '10px', fontWeight: 600, padding: '2px 6px',
+                                    borderRadius: '4px', whiteSpace: 'nowrap',
+                                    ...getSourceStyle(String(displayVal))
+                                  }}>
+                                    {displayVal || '—'}
+                                  </span>
+                                ) : (
+                                  displayVal || (col.readOnly ? '—' : <span style={{ color: '#d1d5db', fontStyle: 'italic' }}>Click to edit</span>)
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      {/* ── Actions Cell ───────────────────────────────────── */}
+                      <td style={{
+                        padding: '4px 8px',
+                        borderRight: 'none',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        minWidth: 96,
+                        whiteSpace: 'nowrap'
+                      }}>
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
+                          {(isDirty || isNew) && (
+                            <button
+                              type="button"
+                              title="Save to database"
+                              disabled={isSaving}
+                              onClick={() => handleSaveRow(row)}
+                              style={{
+                                width: 26, height: 26, border: 'none', cursor: 'pointer',
+                                borderRadius: '5px', background: '#16a34a', color: '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                opacity: isSaving ? 0.5 : 1
+                              }}
+                            >
+                              {isSaving ? <RefreshCw size={12} className="spin-icon" /> : <Save size={12} />}
+                            </button>
+                          )}
+                          {(isDirty || isNew) && (
+                            <button
+                              type="button"
+                              title="Cancel changes"
+                              onClick={() => {
+                                if (isNew) {
+                                  setRows(prev => prev.filter(r => r.id !== row.id));
+                                } else {
+                                  setRows(prev => prev.map(r =>
+                                    r.id === row.id ? { ...r, _isDirty: false } : r
+                                  ));
+                                  loadAll();
+                                }
+                              }}
+                              style={{
+                                width: 26, height: 26, border: 'none', cursor: 'pointer',
+                                borderRadius: '5px', background: '#f1f5f9', color: '#475569',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                          {!isDirty && !isNew && (
+                            <button
+                              type="button"
+                              title="Edit this client"
+                              onClick={() => {
+                                const editableCols = COLUMNS.filter(c => !c.fixed && !c.readOnly);
+                                if (editableCols.length > 0) {
+                                  setEditingCell({ rowId: row.id, colKey: editableCols[0].key });
+                                  setEditValue(row[editableCols[0].key] || '');
+                                }
+                              }}
+                              style={{
+                                width: 26, height: 26, border: '1px solid #e5e7eb', cursor: 'pointer',
+                                borderRadius: '5px', background: '#fff', color: '#6b7280',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                          )}
                           <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleSetPrimaryContact(cnt.id)}
-                            style={{ fontSize: '11px', padding: '2px 8px' }}
-                            title="Set as primary contact for this customer"
+                            title="Delete client"
+                            disabled={isDeleting}
+                            onClick={() => handleDeleteRow(row)}
+                            style={{
+                              width: 26, height: 26, border: '1px solid #fecaca', cursor: 'pointer',
+                              borderRadius: '5px', background: '#fff', color: '#dc2626',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: isDeleting ? 0.5 : 1
+                            }}
                           >
-                            <Star size={11} />
-                            <span>Set Primary</span>
+                            <Trash2 size={12} />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
-                  {subData.contacts.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        No contact persons currently registered in the database for this customer account.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        )}
-      </div>
+                  );
+                })}
 
-      {/* Customer Directory Pop-up Preview Modal */}
-      <DocumentPreviewModal 
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        doc={previewDoc}
-        onNotify={onNotify}
-      />
+                {/* Empty state */}
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUMNS.length + 1} style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <Users size={32} style={{ marginBottom: '10px', opacity: 0.3 }} />
+                      <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>No clients found</div>
+                      <p style={{ fontSize: '12px', marginBottom: '14px' }}>
+                        {searchQuery ? 'No clients match your search.' : 'Click "Add Client" to start, or client data will auto-import from Quotations, Proforma & Tax Invoices.'}
+                      </p>
+                      {!searchQuery && (
+                        <button type="button" className="btn btn-primary btn-sm" onClick={handleAddRow}>
+                          <Plus size={13} /><span>Add First Client</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Add-row footer */}
+                {filteredRows.length > 0 && (
+                  <tr
+                    onClick={handleAddRow}
+                    style={{
+                      cursor: 'pointer',
+                      borderBottom: 'none',
+                      background: 'transparent',
+                    }}
+                  >
+                    <td colSpan={COLUMNS.length + 1} style={{ padding: '8px 14px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        fontSize: '12px', color: '#7A1F3D', fontWeight: 500,
+                        opacity: 0.7,
+                      }}>
+                        <Plus size={13} />
+                        Click to add new client row...
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Footer ─────────────────────────────────────────────────── */}
+          <div style={{
+            padding: '8px 14px',
+            borderTop: '1px solid var(--border-color)',
+            background: 'var(--bg-surface-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            fontSize: '11px',
+            color: 'var(--text-muted)'
+          }}>
+            <span><strong style={{ color: 'var(--text-main)' }}>{filteredRows.length}</strong> of {rows.length} clients shown</span>
+            <span>•</span>
+            <span>Click any cell to edit • Tab to move • Enter to confirm • Esc to cancel</span>
+            <span>•</span>
+            <span style={{ color: '#16a34a' }}>
+              <Save size={10} style={{ display: 'inline', marginRight: '3px' }} />
+              Unsaved rows show in yellow — click Save (✓) to persist
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

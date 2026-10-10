@@ -11,6 +11,7 @@ import { notificationService } from '../../services/database/notificationService
 import UserProfileModal from '../auth/UserProfileModal';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
 import InstallAppPrompt from '../pwa/InstallAppPrompt';
+import { isCleanSlateMode, toggleCleanSlateMode } from '../../utils/dataMode';
 
 export default function Header({ 
   currentScreen, 
@@ -20,9 +21,10 @@ export default function Header({
   onOpenQuickAction, 
   onSearch, 
   searchQuery,
-  onNavigate 
+  onNavigate,
+  onNotify
 }) {
-  const { profile, employee, role, roleLabel, signOut, switchDemoRole, demoUsers } = useAuth();
+  const { profile, employee, role, roleLabel, signOut, switchDemoRole, demoUsers, canAccessScreen } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [liveNotifications, setLiveNotifications] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
@@ -32,6 +34,7 @@ export default function Header({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeSearchCategory, setActiveSearchCategory] = useState('all');
   const [selectedResultIndex, setSelectedResultIndex] = useState(-1);
+  const [cleanSlate] = useState(() => isCleanSlateMode());
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -116,6 +119,13 @@ export default function Header({
   }, [searchQuery, activeSearchCategory]);
 
   const handleSelectResult = (res) => {
+    if (res.targetScreen && canAccessScreen && !canAccessScreen(res.targetScreen)) {
+      if (onNotify) {
+        onNotify(`Access Denied: Your assigned role (${roleLabel || role}) cannot access "${res.docType || res.targetScreen}".`);
+      }
+      setIsSearchFocused(false);
+      return;
+    }
     if (onNavigate) {
       onNavigate(res.targetScreen, res);
     }
@@ -529,6 +539,48 @@ export default function Header({
           <span>Nanded City Unit 1</span>
         </div>
 
+        {/* Data Mode Indicator & Toggle (Clean Slate vs Demo Seed) */}
+        <button
+          type="button"
+          onClick={() => toggleCleanSlateMode(true)}
+          title={cleanSlate ? "Currently viewing empty Clean Slate. Click to restore seed demo data." : "Currently showing demo seed data. Click to hide seed data."}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 10px',
+            borderRadius: '20px',
+            fontSize: '11px',
+            fontWeight: 600,
+            background: cleanSlate ? '#ecfdf5' : '#fef3c7',
+            color: cleanSlate ? '#065f46' : '#92400e',
+            border: cleanSlate ? '1px solid #a7f3d0' : '1px solid #fde68a',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <span style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            background: cleanSlate ? '#10b981' : '#f59e0b',
+            display: 'inline-block',
+            boxShadow: cleanSlate ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : '0 0 0 2px rgba(245, 158, 11, 0.2)'
+          }} />
+          <span>{cleanSlate ? 'Clean Slate' : 'Demo Data'}</span>
+          <span style={{ 
+            fontSize: '10px', 
+            fontWeight: 700, 
+            padding: '1px 6px', 
+            borderRadius: '10px', 
+            background: cleanSlate ? '#d1fae5' : '#fde68a',
+            color: cleanSlate ? '#047857' : '#b45309'
+          }}>
+            {cleanSlate ? 'Restore Demo' : 'Hide Demo'}
+          </span>
+        </button>
+
         {/* PWA Desktop App Install Button */}
         <InstallAppPrompt variant="header" />
 
@@ -774,41 +826,48 @@ export default function Header({
               {/* Install PWA Option in Menu */}
               <InstallAppPrompt variant="menu" onInstalled={() => setShowUserMenu(false)} />
 
-              {/* Dev Mode Role Switcher */}
-              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '4px', paddingTop: '6px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', padding: '2px 12px', textTransform: 'uppercase' }}>
-                  Switch Role (Dev Testing)
+              {/* Role Switcher - STRICTLY RESTRICTED TO ADMIN FOR TESTING (Hidden from operators & standard employees) */}
+              {role === 'ADMIN' && (
+                <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '4px', paddingTop: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 12px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Admin Role Switcher
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 700, background: '#F5E8ED', color: 'var(--primary)', padding: '1px 5px', borderRadius: '3px' }}>
+                      ADMIN ONLY
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {demoUsers.map((u) => (
+                      <button
+                        key={u.role}
+                        type="button"
+                        onClick={() => {
+                          switchDemoRole(u.role);
+                          setShowUserMenu(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '5px 12px',
+                          fontSize: '11px',
+                          color: role === u.role ? 'var(--primary)' : 'var(--text-main)',
+                          fontWeight: role === u.role ? 700 : 500,
+                          background: role === u.role ? '#FAF0F3' : 'none',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span>{u.roleLabel}</span>
+                        {role === u.role && <Check size={12} color="var(--primary)" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {demoUsers.map((u) => (
-                    <button
-                      key={u.role}
-                      type="button"
-                      onClick={() => {
-                        switchDemoRole(u.role);
-                        setShowUserMenu(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '5px 12px',
-                        fontSize: '11px',
-                        color: role === u.role ? 'var(--primary)' : 'var(--text-main)',
-                        fontWeight: role === u.role ? 700 : 500,
-                        background: role === u.role ? '#FAF0F3' : 'none',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <span>{u.roleLabel}</span>
-                      {role === u.role && <Check size={12} color="var(--primary)" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
 
               {/* Sign Out Button */}
               <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '4px', paddingTop: '4px' }}>

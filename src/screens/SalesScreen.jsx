@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
@@ -14,6 +14,8 @@ import {
   Loader2, Calendar, Clock, XCircle
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
+import UpiQrCode from '../components/common/UpiQrCode';
+import { getActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
 
 
 const DEFAULT_LINAMAR_TEMPLATE = {
@@ -35,6 +37,7 @@ const DEFAULT_LINAMAR_TEMPLATE = {
   accountNo: '349105000701',
   ifscCode: 'ICIC0003491',
   accountHolder: 'GENERAL PRECISION SPINDLES',
+  upiId: '7058731515@hdfc',
   msmeNo: 'MH26A0189736',
   enterpriseType: 'SPINDLE MANUFACTURING AND REPAIRING',
   terms: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
@@ -58,8 +61,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
+  const [quoteToDelete, setQuoteToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadQuotations = async () => {
+  const loadQuotations = async (preferredId = null) => {
     setIsLoading(true);
     setError(null);
     const res = await salesService.getQuotations();
@@ -72,8 +77,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     setQuotations(data);
 
     setSelectedQuote(prev => {
-      if (prev) {
-        const match = data.find(q => q.id === prev.id);
+      const targetId = preferredId || (prev ? (prev.estimateNo || prev.id) : null);
+      if (targetId) {
+        const match = data.find(q => q.id === targetId || q.estimateNo === targetId || q.dbId === targetId);
         if (match) return match;
       }
       return data[0] || null;
@@ -165,6 +171,41 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     }
   };
 
+  // Delete quotation confirmation & execution
+  const confirmDeleteQuotation = (quote) => {
+    setQuoteToDelete(quote);
+  };
+
+  const handleExecuteDelete = async () => {
+    if (!quoteToDelete) return;
+    setIsDeleting(true);
+    const idToDelete = quoteToDelete.dbId || quoteToDelete.id;
+    const quoteNo = quoteToDelete.estimateNo || quoteToDelete.id;
+
+    const res = await salesService.deleteQuotation(idToDelete);
+    if (res.error) {
+      if (onNotify) onNotify(res.error.message || `Failed to delete quotation ${quoteNo}`, 'error');
+      setIsDeleting(false);
+      return;
+    }
+
+    const remaining = quotations.filter(q => q.id !== quoteToDelete.id && q.dbId !== quoteToDelete.dbId);
+    setQuotations(remaining);
+
+    setSelectedQuote(prev => {
+      if (prev && (prev.id === quoteToDelete.id || prev.dbId === quoteToDelete.dbId)) {
+        return remaining[0] || null;
+      }
+      return prev;
+    });
+
+    if (onNotify) {
+      onNotify(`Quotation / Invoice ${quoteNo} deleted successfully`, 'success');
+    }
+    setIsDeleting(false);
+    setQuoteToDelete(null);
+  };
+
   // Add line item in modal
   const handleAddItem = () => {
     setFormState(prev => ({
@@ -211,7 +252,20 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       return;
     }
 
-    const qNo = formState.estimateNo || `QTN/2026-27/${Math.floor(290 + Math.random() * 50)}`;
+    // Always generate a unique quotation number to avoid unique-constraint 400 errors.
+    // Use the form's estimateNo only if the user explicitly changed it from a generated one;
+    // fall back to a timestamp-based unique number.
+    const now = new Date();
+    const fy = now.getMonth() >= 3
+      ? `${now.getFullYear()}-${String(now.getFullYear() + 1).slice(-2)}`
+      : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
+    const seq = String(Date.now()).slice(-5);
+    // If the estimateNo still looks like the default template value, generate a fresh one
+    const isDefaultNo = formState.estimateNo === 'QTN/2026-27/294' || !formState.estimateNo;
+    const qNo = isDefaultNo
+      ? `QTN/${fy}/${seq}`
+      : formState.estimateNo;
+
     const res = await salesService.createQuotation({
       quotationNumber: qNo,
       customerName: formState.customer,
@@ -232,16 +286,18 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       return;
     }
 
+    setStatusFilter('all');
+    setSearchQuery('');
     setIsNewQuoteOpen(false);
     onNotify(`Estimate ${qNo} created successfully for ${formState.customer}`);
-    await loadQuotations();
+    await loadQuotations(qNo);
   };
 
   const handlePrint = async () => {
     if (!selectedQuote) return;
     try {
       // Use jsPDF direct generator as primary (pixel-perfect 1:1 match to reference format)
-      exportQuotationPdf(selectedQuote);
+      await exportQuotationPdf(selectedQuote);
       if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
     } catch (err) {
       console.error('Failed to export quotation PDF:', err);
@@ -288,7 +344,21 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         <button 
           type="button" 
           className="btn btn-primary"
-          onClick={() => setIsNewQuoteOpen(true)}
+          onClick={() => {
+            // Generate a unique estimate number each time the modal opens
+            const now = new Date();
+            const fy = now.getMonth() >= 3
+              ? `${now.getFullYear()}-${String(now.getFullYear() + 1).slice(-2)}`
+              : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
+            const seq = String(Date.now()).slice(-5);
+            setFormState({
+              ...DEFAULT_LINAMAR_TEMPLATE,
+              estimateNo: `QTN/${fy}/${seq}`,
+              date: now.toISOString().split('T')[0],
+              status: 'Draft'
+            });
+            setIsNewQuoteOpen(true);
+          }}
         >
           <Plus size={14} />
           <span>New Quotation</span>
@@ -420,6 +490,27 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                             <Mail size={10} />
                             <span>Send Email</span>
                           </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-sm"
+                            style={{ 
+                              height: '22px', 
+                              padding: '0 6px', 
+                              fontSize: '10.5px', 
+                              gap: '3px',
+                              background: '#fee2e2',
+                              border: '1px solid #fca5a5',
+                              color: '#dc2626'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeleteQuotation(q);
+                            }}
+                            title="Delete Quotation / Invoice"
+                          >
+                            <Trash2 size={10} />
+                            <span>Delete</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -452,39 +543,6 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* Status Options Selector: Under Review, Approved, Draft, Rejected */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '2px 8px',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Status:</span>
-                    <select
-                      value={selectedQuote.status}
-                      onChange={(e) => handleUpdateStatus(selectedQuote.id, e.target.value)}
-                      style={{
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--border-color)',
-                        background: 'var(--bg-surface-subtle)',
-                        color: 'var(--text-main)',
-                        cursor: 'pointer'
-                      }}
-                      title="Update Quotation Status"
-                    >
-                      <option value="Under Review">Under Review</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Draft">Draft</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
-
                   {/* 1-Click Status Transition Buttons */}
                   {selectedQuote.status !== 'Approved' && (
                     <button 
@@ -599,6 +657,26 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
                   </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-sm"
+                    onClick={() => confirmDeleteQuotation(selectedQuote)}
+                    title="Delete this quotation / invoice"
+                    style={{ 
+                      height: '28px', 
+                      fontSize: '11px', 
+                      padding: '0 8px', 
+                      gap: '4px',
+                      background: '#fee2e2',
+                      border: '1px solid #fca5a5',
+                      color: '#dc2626',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete</span>
+                  </button>
                 </div>
               </div>
 
@@ -609,8 +687,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 style={{ 
                   width: '794px',
                   minWidth: '794px',
-                  minHeight: '1123px',
+                  maxWidth: '794px',
                   height: '1123px',
+                  minHeight: '1123px',
+                  maxHeight: '1123px',
                   background: '#ffffff', 
                   padding: '24px 28px', 
                   color: '#000000', 
@@ -628,10 +708,18 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 </div>
 
                 {/* Outer Document Border Box */}
-                <div style={{ border: '1px solid #000000', background: '#ffffff', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <div style={{ 
+                  border: '1px solid #b8b8b8', 
+                  background: '#ffffff', 
+                  boxSizing: 'border-box', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  flex: 1, 
+                  minHeight: 0 
+                }}>
 
                   {/* Company Header & Metadata Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                     {/* Left: Company Logo & Details */}
                     <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                       <img 
@@ -655,39 +743,42 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                       </div>
                     </div>
 
-                    {/* Right: Metadata Grid (2x2 grid with continuous vertical border matching Image 2) */}
-                    <div style={{ borderLeft: '1px solid #000000', display: 'flex', flexDirection: 'column' }}>
+                    {/* Right: Metadata Grid (3 rows: Row 1 = Estimate No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
+                    <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
                       {/* Row 1: Estimate No. & Date */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #000000', flex: 1 }}>
-                        <div style={{ padding: '5px 8px' }}>
-                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate No.</div>
-                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                        <div style={{ padding: '3.5px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Estimate No.</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
                             {selectedQuote.estimateNo || selectedQuote.id || 'QTN/2026-27/294'}
                           </div>
                         </div>
-                        <div style={{ padding: '5px 8px', borderLeft: '1px solid #000000' }}>
-                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Date</div>
-                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                        <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
                             {selectedQuote.date || '07-09-2026'}
                           </div>
                         </div>
                       </div>
 
-                      {/* Row 2: Place of supply & blank cell matching Image 2 */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
-                        <div style={{ padding: '5px 8px' }}>
-                          <div style={{ fontSize: '7.5px', color: '#000000' }}>Place of supply</div>
-                          <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
+                      {/* Row 2: Place of supply & empty right corner */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                        <div style={{ padding: '3.5px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
                             {selectedQuote.placeOfSupply || selectedQuote.state || '23-Madhya Pradesh'}
                           </div>
                         </div>
-                        <div style={{ borderLeft: '1px solid #000000' }}></div>
+                        <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
                       </div>
+
+                      {/* Row 3: Empty bottom column space */}
+                      <div style={{ flex: 1, minHeight: '34px' }}></div>
                     </div>
                   </div>
 
                   {/* Estimate For (Customer Box) - matching Image 3 spacing */}
-                  <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                  <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                     <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
                       Estimate For
                     </div>
@@ -742,23 +833,31 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     const computeHsnBreakdown = (items) => {
                       const map = {};
                       (items || []).forEach(it => {
-                        const code = it.hsn ? String(it.hsn).trim() : '';
+                        // Use '__blank__' as sentinel so blank-HSN items group separately
+                        const rawCode = it.hsn != null ? String(it.hsn).trim() : '';
+                        const key = rawCode === '' ? '__blank__' : rawCode;
                         const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
-                        if (!map[code]) {
-                          map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+                        if (!map[key]) {
+                          map[key] = { hsn: rawCode, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
                         }
-                        map[code].taxable += amt;
+                        map[key].taxable += amt;
                       });
-                      return Object.values(map).map(entry => {
-                        const tax = Math.round(entry.taxable * 0.18);
-                        return {
-                          hsn: entry.hsn,
-                          taxable: entry.taxable,
-                          rate: '18%',
-                          igst: tax,
-                          totalTax: tax
-                        };
-                      });
+                      return Object.values(map)
+                        .sort((a, b) => {
+                          if (!a.hsn && b.hsn) return -1;
+                          if (a.hsn && !b.hsn) return 1;
+                          return String(a.hsn).localeCompare(String(b.hsn));
+                        })
+                        .map(entry => {
+                          const tax = Math.round(entry.taxable * 0.18);
+                          return {
+                            hsn: entry.hsn,
+                            taxable: entry.taxable,
+                            rate: '18%',
+                            igst: tax,
+                            totalTax: tax
+                          };
+                        });
                     };
 
                     const hsnBreakdown = (selectedQuote.hsnSummary && selectedQuote.hsnSummary.length > 0)
@@ -767,77 +866,66 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
                     return (
                       <>
-                        {/* Line Items Table Container - flex: 1 to absorb vertical height so table & borders fill page */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderBottom: '1px solid #000000', minHeight: '160px' }}>
-                          <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', fontSize: '8px', color: '#000000' }}>
-                            <thead>
-                              <tr>
-                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 5px', width: '28px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>#</th>
-                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
-                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '95px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
-                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
-                                <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
-                                <th style={{ borderBottom: '1px solid #000000', padding: '3.5px 6px', width: '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(selectedQuote.items || []).map((item, idx) => {
-                                const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0))) || 0;
-                                return (
-                                  <tr key={item.id || idx}>
-                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 5px', textAlign: 'center' }}>
-                                      {idx + 1}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', fontWeight: 700 }}>
-                                      {item.name || item.desc}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'center' }}>
-                                      {item.hsn || ''}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                                      {item.qty}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                                       ₹ {Number(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
-                                       ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                              {/* Empty filler row to stretch column lines down if table has few items */}
-                              <tr style={{ height: '100%' }}>
-                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: 0 }}></td>
-                                <td style={{ padding: 0 }}></td>
-                              </tr>
-                              {/* Table Total Row */}
-                              <tr style={{ fontWeight: 700, borderTop: '1px solid #000000' }}>
-                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 5px' }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
-                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
-                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'right' }}>
-                                  {totalQuantity}
-                                </td>
-                                <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
-                                <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
-                                  ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                        {/* Line Items Table */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '8px', color: '#000000', flexShrink: 0 }}>
+                          <thead>
+                            <tr>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 5px', width: '28px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>#</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '95px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', padding: '3.5px 6px', width: '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(selectedQuote.items || []).map((item, idx) => {
+                              const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0))) || 0;
+                              return (
+                                <tr key={item.id || idx}>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 5px', textAlign: 'left' }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', fontWeight: 700 }}>
+                                    {item.name || item.desc}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'left' }}>
+                                    {item.hsn || ''}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                    {item.qty}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                     ₹ {Number(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                     ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Table Total Row directly follows the items without empty filler space */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 5px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'right' }}>
+                                {totalQuantity}
+                              </td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                              <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
 
                         {/* Middle Section: Words, Description & Amounts */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000', flexShrink: 0 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                           {/* Left: Words + Description */}
                           <div>
                             {/* Estimate Amount in Words */}
-                            <div style={{ padding: '5px 8px', borderBottom: '1px solid #000000' }}>
+                            <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
                               <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate Amount in Words</div>
                               <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
                                 {selectedQuote.amountInWords || numberToIndianWords(calculatedTotal)}
@@ -846,7 +934,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
                             {/* Description */}
                             <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
-                              <div style={{ color: '#000000', fontWeight: 600 }}>Description</div>
+                              <div style={{ color: '#000000' }}>Description</div>
                               <div style={{ fontWeight: 700, marginTop: '2px' }}>
                                 SERIAL NO. {selectedQuote.spindleSerial || 'HMMXXVI'}
                               </div>
@@ -854,39 +942,35 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                                 CHALLAN NO. {selectedQuote.challanNo || 'N/A'}
                               </div>
                               <div style={{ fontWeight: 700 }}>
-                                INWORD DATE. {selectedQuote.inwardDate || '22-08-2026'}
+                                INWORD DATE. {(() => {
+                                  const raw = selectedQuote.inwardDate || '22-08-2026';
+                                  if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw;
+                                  const d = new Date(raw);
+                                  if (!isNaN(d.getTime())) {
+                                    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+                                  }
+                                  return raw;
+                                })()}
                               </div>
                               <div style={{ fontWeight: 700, marginTop: '2px' }}>
                                 SCOPE OF WORK :-
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.35' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.5', fontWeight: 700 }}>
                                 {(() => {
                                   const rawScope = Array.isArray(selectedQuote.scopeOfWork)
                                     ? selectedQuote.scopeOfWork
                                     : (selectedQuote.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
-                                  const half = Math.ceil(rawScope.length / 2);
-                                  return (
-                                    <>
-                                      <div>
-                                        {rawScope.slice(0, half).map((line, idx) => (
-                                          <div key={idx}>{line.trim()}</div>
-                                        ))}
-                                      </div>
-                                      <div>
-                                        {rawScope.slice(half).map((line, idx) => (
-                                          <div key={idx}>{line.trim()}</div>
-                                        ))}
-                                      </div>
-                                    </>
-                                  );
+                                  return rawScope.map((line, idx) => (
+                                    <div key={idx}>{line.trim()}</div>
+                                  ));
                                 })()}
                               </div>
                             </div>
                           </div>
 
                           {/* Right: Amounts */}
-                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 700 }}>Amounts</div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
                               <span>Sub Total</span>
@@ -898,7 +982,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                               <span>₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
 
-                            <div style={{ borderTop: '1px solid #000000', margin: '4px 0' }} />
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px 0' }} />
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
                               <span>Total</span>
@@ -908,47 +992,47 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         </div>
 
                         {/* HSN/SAC Tax Summary Table */}
-                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
                           <thead>
                             <tr>
-                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
-                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
-                              <th colSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
-                              <th rowSpan="2" style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
+                              <th colSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
+                              <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
                             </tr>
                             <tr>
-                              <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
-                              <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 6px', textAlign: 'right', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
                             </tr>
                           </thead>
                           <tbody>
                             {hsnBreakdown.map((row, idx) => (
                               <tr key={idx}>
-                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'left' }}>
                                   {row.hsn || ''}
                                 </td>
-                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
                                   ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
-                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
+                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
                                   {row.rate || '18%'}
                                 </td>
-                                <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
                                   ₹ {Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
-                                <td style={{ borderBottom: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
+                                <td style={{ borderBottom: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
                                   ₹ {Number(row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                               </tr>
                             ))}
                             {/* HSN Table Total */}
                             <tr style={{ fontWeight: 700 }}>
-                              <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}>Total</td>
-                              <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
                                 ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
-                              <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}></td>
-                              <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
                                 ₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td style={{ padding: '3px 6px', textAlign: 'right' }}>
@@ -958,108 +1042,64 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                           </tbody>
                         </table>
 
-                        {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 1) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flexShrink: 0, minHeight: '145px' }}>
+                        {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 2) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
                           {/* Col 1: Bank Details */}
-                          <div style={{ padding: '6px 8px' }}>
-                            <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Bank Details</div>
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                              {/* QR Code */}
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '52px', flexShrink: 0 }}>
-                                <svg width="48" height="48" viewBox="0 0 25 25" style={{ display: 'block', shapeRendering: 'crispEdges' }}>
-                                  <rect width="25" height="25" fill="#ffffff" />
-                                  <rect x="0" y="0" width="7" height="7" fill="#000000" />
-                                  <rect x="1" y="1" width="5" height="5" fill="#ffffff" />
-                                  <rect x="2" y="2" width="3" height="3" fill="#000000" />
-                                  <rect x="18" y="0" width="7" height="7" fill="#000000" />
-                                  <rect x="19" y="1" width="5" height="5" fill="#ffffff" />
-                                  <rect x="20" y="2" width="3" height="3" fill="#000000" />
-                                  <rect x="0" y="18" width="7" height="7" fill="#000000" />
-                                  <rect x="1" y="19" width="5" height="5" fill="#ffffff" />
-                                  <rect x="2" y="20" width="3" height="3" fill="#000000" />
-                                  <rect x="16" y="16" width="5" height="5" fill="#000000" />
-                                  <rect x="17" y="17" width="3" height="3" fill="#ffffff" />
-                                  <rect x="18" y="18" width="1" height="1" fill="#000000" />
-                                  <rect x="6" y="8" width="1" height="1" fill="#000000" />
-                                  <rect x="6" y="10" width="1" height="1" fill="#000000" />
-                                  <rect x="6" y="12" width="1" height="1" fill="#000000" />
-                                  <rect x="6" y="14" width="1" height="1" fill="#000000" />
-                                  <rect x="6" y="16" width="1" height="1" fill="#000000" />
-                                  <rect x="8" y="6" width="1" height="1" fill="#000000" />
-                                  <rect x="10" y="6" width="1" height="1" fill="#000000" />
-                                  <rect x="12" y="6" width="1" height="1" fill="#000000" />
-                                  <rect x="14" y="6" width="1" height="1" fill="#000000" />
-                                  <rect x="16" y="6" width="1" height="1" fill="#000000" />
-                                  <rect x="8" y="2" width="1" height="2" fill="#000000" />
-                                  <rect x="10" y="1" width="2" height="1" fill="#000000" />
-                                  <rect x="13" y="2" width="1" height="1" fill="#000000" />
-                                  <rect x="15" y="1" width="1" height="2" fill="#000000" />
-                                  <rect x="8" y="9" width="2" height="1" fill="#000000" />
-                                  <rect x="11" y="8" width="2" height="2" fill="#000000" />
-                                  <rect x="14" y="9" width="1" height="2" fill="#000000" />
-                                  <rect x="16" y="8" width="2" height="1" fill="#000000" />
-                                  <rect x="9" y="12" width="1" height="2" fill="#000000" />
-                                  <rect x="11" y="11" width="2" height="1" fill="#000000" />
-                                  <rect x="13" y="13" width="2" height="2" fill="#000000" />
-                                  <rect x="10" y="15" width="1" height="2" fill="#000000" />
-                                  <rect x="12" y="16" width="2" height="1" fill="#000000" />
-                                  <rect x="8" y="18" width="2" height="1" fill="#000000" />
-                                  <rect x="8" y="20" width="1" height="2" fill="#000000" />
-                                  <rect x="11" y="19" width="2" height="2" fill="#000000" />
-                                  <rect x="14" y="18" width="1" height="2" fill="#000000" />
-                                  <rect x="22" y="9" width="2" height="2" fill="#000000" />
-                                  <rect x="19" y="11" width="2" height="1" fill="#000000" />
-                                  <rect x="23" y="12" width="1" height="2" fill="#000000" />
-                                  <rect x="22" y="22" width="2" height="2" fill="#000000" />
-                                </svg>
-                                <div style={{ background: '#16a34a', color: '#ffffff', fontSize: '5px', fontWeight: 700, padding: '1px 3px', borderRadius: '2px', marginTop: '2px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  UPI: SCAN TO PAY
-                                </div>
-                              </div>
+                              {/* Dynamic Amount-Wise UPI QR Code */}
+                              <UpiQrCode 
+                                amount={calculatedTotal}
+                                quoteNo={selectedQuote.estimateNo || selectedQuote.id}
+                                upiId={selectedQuote.bankDetails?.upiId || selectedQuote.upiId || getActiveUpiId()}
+                                payeeName={selectedQuote.bankDetails?.accountHolder || 'GENERAL PRECISION SPINDLES'}
+                                size={48}
+                                onNotify={onNotify}
+                              />
 
-                              {/* Bank Details Text */}
-                              <div style={{ fontSize: '7.2px', lineHeight: '1.3' }}>
-                                Name : ICICI BANK LIMITED, PUNE<br />
-                                NANDED CITY<br />
-                                Account No. : 349105000701<br />
-                                IFSC code : ICIC0003491<br />
-                                Account holder's name : GENERAL<br />
-                                PRECISION SPINDLES
+                              {/* Bank Details Text - each field on its own line with proper gap like original PDF */}
+                              <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
+                                <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
+                                <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
+                                <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
+                                <div style={{ marginBottom: '4px' }}>
+                                  UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{selectedQuote.bankDetails?.upiId || selectedQuote.upiId || getActiveUpiId()}</span>
+                                  {(selectedQuote.bankDetails?.upiId || selectedQuote.upiId || getActiveUpiId()).includes('349105000701') && (
+                                    <span style={{ marginLeft: '4px', background: '#fef3c7', color: '#b45309', padding: '1px 3px', borderRadius: '2px', fontSize: '6px', fontWeight: 700 }}>
+                                      Tap QR to link real ID
+                                    </span>
+                                  )}
+                                </div>
+                                <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
                               </div>
                             </div>
                           </div>
 
                           {/* Col 2: Terms and conditions */}
-                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px' }}>
-                            <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Terms and conditions</div>
-                            <div style={{ fontSize: '6.7px', lineHeight: '1.25' }}>
-                              We declare that this invoice shows the actual price of<br />
-                              the goods<br />
-                              described and that all particulars are true and<br />
-                              correct.<br />
-                              <div style={{ marginTop: '5px' }}>
-                                Bank Details:<br />
-                                ICICI Bank Ltd(Nanded City Branch)<br />
-                                A/c No : 349105000701<br />
-                                IFSC Code: ICIC0003491<br />
-                                MSME (UDYAM ADHAR) NO-MH26A0189736<br />
-                                TYPE OF ENTERPRISES: SPINDLE MANUFACTURING<br />
-                                AND REPAIRING<br />
-                                MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF<br />
-                                CNC,VMC,HMC,BELT<br />
-                                DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE<br />
-                                REPAIRING ,SPINDLE<br />
-                                MANUFACTURING.
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
+                            <div style={{ fontSize: '7px', lineHeight: '1.5', color: '#000000' }}>
+                              <div style={{ marginBottom: '6px' }}>
+                                We declare that this invoice shows the actual price of the goods<br />
+                                described and that all particulars are true and correct.
                               </div>
+                              <div style={{ fontWeight: 700, marginBottom: '2px' }}>Bank Details:</div>
+                              <div style={{ marginBottom: '1px' }}>ICICI Bank Ltd(Nanded City Branch)</div>
+                              <div style={{ marginBottom: '1px' }}>A/c No : 349105000701</div>
+                              <div style={{ marginBottom: '1px' }}>IFSC Code : ICIC0003491</div>
+                              <div style={{ marginBottom: '4px' }}>MSME (UDYAM ADHAR) NO-MH26A0189736</div>
+                              <div style={{ marginBottom: '1px' }}>TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING</div>
+                              <div>MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC, VMC, HMC, BELT DRIVEN, DIRECT DRIVEN, INTEGRATED, SPINDLE REPAIRING, SPINDLE MANUFACTURING.</div>
                             </div>
                           </div>
 
                           {/* Col 3: Signatory */}
-                          <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div style={{ fontSize: '7.5px', fontWeight: 600 }}>
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
+                            <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
                               For : GENERAL PRECISION SPINDLES
                             </div>
-                            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8px', paddingBottom: '6px' }}>
+                            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8.5px', paddingBottom: '8px' }}>
                               Authorized Signatory
                             </div>
                           </div>
@@ -1074,6 +1114,25 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           </div>
         );
       })()}
+
+      {!selectedQuote && (
+        <div className="section-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <FileText size={48} style={{ opacity: 0.25, marginBottom: '16px', color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>No Quotation Selected</h3>
+          <p style={{ fontSize: '13px', maxWidth: '360px', margin: '0 auto 16px', lineHeight: '1.5' }}>
+            There are currently no active quotations loaded. Generate an official GPS proposal using the button below.
+          </p>
+          <button 
+            type="button" 
+            className="btn btn-primary btn-sm" 
+            onClick={() => setIsNewQuoteOpen(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={14} />
+            <span>Create New Quotation</span>
+          </button>
+        </div>
+      )}
       </div>
 
       {/* NEW QUOTATION MODAL - COMPACT & MATCHING THE PDF INVOICE FIELDS EXACTLY */}
@@ -1330,10 +1389,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               <table className="data-table" style={{ margin: 0, fontSize: '11px' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '26px', textAlign: 'center', padding: '4px' }}>#</th>
+                    <th style={{ width: '26px', textAlign: 'left', padding: '4px' }}>#</th>
                     <th style={{ padding: '4px 6px' }}>Item name / Description</th>
                     <th style={{ width: '90px', padding: '4px 6px' }}>HSN/ SAC</th>
-                    <th style={{ width: '60px', textAlign: 'center', padding: '4px 6px' }}>Qty</th>
+                    <th style={{ width: '60px', textAlign: 'right', padding: '4px 6px' }}>Qty</th>
                     <th style={{ width: '110px', textAlign: 'right', padding: '4px 6px' }}>Price/ Unit (₹)</th>
                     <th style={{ width: '110px', textAlign: 'right', padding: '4px 6px' }}>Amount (₹)</th>
                     <th style={{ width: '32px', textAlign: 'center', padding: '4px' }}></th>
@@ -1344,7 +1403,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     const rowAmount = (Number(item.qty) || 0) * (Number(item.unitPrice) || 0);
                     return (
                       <tr key={item.id}>
-                        <td style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-muted)', padding: '3px' }}>
+                        <td style={{ textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', padding: '3px' }}>
                           {idx + 1}
                         </td>
                         <td style={{ padding: '3px 4px' }}>
@@ -1375,7 +1434,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                             value={item.qty}
                             onChange={(e) => handleItemChange(item.id, 'qty', e.target.value)}
                             min="1"
-                            style={{ height: '26px', fontSize: '11px', textAlign: 'center' }}
+                            style={{ height: '26px', fontSize: '11px', textAlign: 'right' }}
                             required
                           />
                         </td>
@@ -1390,7 +1449,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                             required
                           />
                         </td>
-                        <td className="mono" style={{ textAlign: 'right', fontWeight: 600, fontSize: '11px', padding: '3px 6px' }}>
+                        <td className="mono" style={{ textAlign: 'right', fontSize: '11px', padding: '3px 6px' }}>
                           ₹{rowAmount.toLocaleString('en-IN')}
                         </td>
                         <td style={{ textAlign: 'center', padding: '3px' }}>
@@ -1423,7 +1482,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
               <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginTop: '6px' }}>
                 Bank: <strong>ICICI BANK LIMITED, PUNE NANDED CITY</strong><br/>
-                A/C: <strong className="mono">349105000701</strong> • IFSC: <strong className="mono">ICIC0003491</strong> • MSME: <strong className="mono">MH26A0189736</strong>
+                A/C: <strong className="mono">349105000701</strong> • IFSC: <strong className="mono">ICIC0003491</strong> • UPI: <strong className="mono">{getActiveUpiId()}</strong> • MSME: <strong className="mono">MH26A0189736</strong>
               </div>
             </div>
 
@@ -1462,6 +1521,96 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           onNotify={onNotify}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!quoteToDelete}
+        onClose={() => !isDeleting && setQuoteToDelete(null)}
+        title="Delete Quotation / Invoice"
+        maxWidth="460px"
+        footer={(
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setQuoteToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleExecuteDelete}
+              disabled={isDeleting}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                padding: '6px 14px',
+                fontWeight: 600,
+                cursor: isDeleting ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isDeleting ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+              <span>{isDeleting ? 'Deleting...' : 'Delete Permanently'}</span>
+            </button>
+          </div>
+        )}
+      >
+        <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ 
+              width: '40px', 
+              height: '40px', 
+              borderRadius: '50%', 
+              background: '#fee2e2', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexShrink: 0 
+            }}>
+              <AlertCircle size={22} color="#dc2626" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-main)' }}>
+                Are you sure you want to delete this invoice / quotation?
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                This will permanently remove quotation <strong className="mono" style={{ color: 'var(--text-main)' }}>{quoteToDelete?.estimateNo || quoteToDelete?.id}</strong> for <strong style={{ color: 'var(--text-main)' }}>{quoteToDelete?.customer}</strong>.
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-surface-subtle)',
+            padding: '10px 12px',
+            borderRadius: '6px',
+            border: '1px solid var(--border-color)',
+            fontSize: '11.5px',
+            color: 'var(--text-secondary)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Total Amount:</span>
+              <strong className="mono" style={{ color: 'var(--text-main)' }}>₹{quoteToDelete?.totalAmount?.toLocaleString('en-IN')}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Status:</span>
+              <StatusBadge status={quoteToDelete?.status} size="sm" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Issue Date:</span>
+              <span>{quoteToDelete?.date}</span>
+            </div>
+          </div>
+        </div>
+      </Modal>
       </div>
     </div>
   );

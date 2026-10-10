@@ -2401,6 +2401,11 @@ select option:checked {
   overflow: visible !important;
 }
 
+.filter-group .custom-select-container {
+  width: auto;
+  flex-shrink: 0;
+}
+
 /* Custom Select Dropdown Enhancements */
 .custom-select-container.form-control {
   height: auto !important;
@@ -2571,12 +2576,15 @@ select option:checked {
   #printable-document-preview,
   #printable-document-preview *,
   #printable-proforma,
-  #printable-proforma * {
+  #printable-proforma *,
+  #printable-tax-invoice,
+  #printable-tax-invoice * {
     visibility: visible !important;
   }
   #printable-quotation,
   #printable-document-preview,
-  #printable-proforma {
+  #printable-proforma,
+  #printable-tax-invoice {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;

@@ -13,6 +13,8 @@ import {
   exportServiceJobReportPdf,
   numberToIndianWords
 } from '../../utils/pdfGenerator';
+import UpiQrCode from '../common/UpiQrCode';
+import { getActiveUpiId, DEFAULT_BANK_DETAILS } from '../../utils/upiQrGenerator';
 
 export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify }) {
   if (!isOpen || !doc) return null;
@@ -113,6 +115,13 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
 
   const handleDownload = async () => {
     try {
+      if (isPO) {
+        exportPurchaseOrderPdf(doc);
+        if (onNotify) {
+          onNotify(`Generated and downloaded official ${docId}.pdf successfully.`);
+        }
+        return;
+      }
       const element = document.getElementById('printable-document-preview');
       let success = false;
       const cleanId = String(docId).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -121,7 +130,6 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
       }
       if (!success) {
         if (isPI) exportProformaInvoicePdf(doc);
-        else if (isPO) exportPurchaseOrderPdf(doc);
         else if (isEWB) exportEWayBillPdf(doc);
         else if (isInvoice) exportTaxInvoicePdf(doc);
         else if (isCalibration) exportCalibrationCertificatePdf(doc);
@@ -225,8 +233,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         fontSize: '11.5px',
         lineHeight: 1.4
       }}>
-        {/* Document Header (For non-quotations) */}
-        {!isQuotation && (
+        {/* Document Header (For non-quotations and non-PO) */}
+        {!isQuotation && !isPO && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #7A1F3D', paddingBottom: '16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
               <div style={{ 
@@ -293,422 +301,857 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         )}
 
         {/* ========================================================================= */}
-        {/* VIEW 0: OFFICIAL ESTIMATE / QUOTATION (100% REPLICA OF ESTIMATE PDF)      */}
+        {/* VIEW 0: OFFICIAL ESTIMATE / QUOTATION & PROFORMA INVOICE REPLICA           */}
         {/* ========================================================================= */}
-        {isQuotation && (() => {
-          const calcSubtotal = (doc.items || items || []).reduce(
-            (sum, it) => sum + (Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0),
+        {(isQuotation || isPI) && (() => {
+          const piItems = (doc.items && doc.items.length > 0) ? doc.items : items;
+          const calcSubtotal = piItems.reduce(
+            (sum, it) => sum + (Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || it.rate || 0))) || 0),
             0
-          ) || subtotal || 575000;
+          ) || Number(doc.subtotal) || (isPI ? 89500 : 575000);
 
-          const calcTax = Math.round(calcSubtotal * ((Number(doc.taxRate) || 18) / 100));
-          const calcTotal = calcSubtotal + calcTax;
-          const totalQty = (doc.items || items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+          const taxRate = Number(doc.taxRate) || 18;
+          const calcTax = Number(doc.gstAmount) || Number(doc.taxAmount) || Math.round(calcSubtotal * (taxRate / 100));
+          const calcTotal = Number(doc.totalAmount) || (calcSubtotal + calcTax);
+          const totalQty = piItems.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+          const isIntraState = String(doc.placeOfSupply || doc.state || placeOfSupply || '').startsWith('27');
 
           const computeHsn = (itemList) => {
             const map = {};
             (itemList || []).forEach(it => {
-              const code = it.hsn ? String(it.hsn).trim() : '';
-              const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || 0))) || 0;
-              if (!map[code]) {
-                map[code] = { hsn: code, taxable: 0, rate: '18%', igst: 0, totalTax: 0 };
+              const rawCode = it.hsn != null ? String(it.hsn).trim() : '';
+              const key = rawCode === '' ? '__blank__' : rawCode;
+              const amt = Number(it.total != null ? it.total : (Number(it.qty || 0) * Number(it.unitPrice || it.rate || 0))) || 0;
+              if (!map[key]) {
+                map[key] = { hsn: rawCode, taxable: 0 };
               }
-              map[code].taxable += amt;
+              map[key].taxable += amt;
             });
-            return Object.values(map).map(entry => {
-              const tax = Math.round(entry.taxable * 0.18);
-              return {
-                hsn: entry.hsn,
-                taxable: entry.taxable,
-                rate: '18%',
-                igst: tax,
-                totalTax: tax
-              };
-            });
+            return Object.values(map)
+              .sort((a, b) => {
+                if (!a.hsn && b.hsn) return -1;
+                if (a.hsn && !b.hsn) return 1;
+                return String(a.hsn).localeCompare(String(b.hsn));
+              })
+              .map(entry => {
+                const totalTax = Math.round(entry.taxable * (taxRate / 100));
+                const halfTax = Math.round(entry.taxable * (taxRate / 200));
+                return {
+                  hsn: entry.hsn,
+                  taxable: entry.taxable,
+                  rate: `${taxRate}%`,
+                  halfRate: `${taxRate / 2}%`,
+                  cgst: halfTax,
+                  sgst: halfTax,
+                  igst: totalTax,
+                  totalTax: totalTax
+                };
+              });
           };
 
           const hsnBreakdown = (doc.hsnSummary && doc.hsnSummary.length > 0)
             ? doc.hsnSummary
-            : computeHsn(doc.items || items || []);
+            : computeHsn(piItems);
 
           return (
-            <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: '#000000' }}>
-              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '8px', letterSpacing: '0.02em' }}>
-                Estimate
-              </div>
-
-              {/* Main Outer Box */}
-              <div style={{ border: '1px solid #000000', background: '#ffffff', boxSizing: 'border-box' }}>
-                {/* Header Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000' }}>
-                  <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                    <img 
-                      src="/logo.jpg" 
-                      alt="GPS General Precision Spindles" 
-                      style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
-                    />
-                    <div style={{ lineHeight: '1.25' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
-                        GENERAL PRECISION<br />
-                        SPINDLES
-                      </div>
-                      <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
-                        SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
-                        DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                        ☎+919764252188 /9764032929<br />
-                        Email: process@gpsspindles.net<br />
-                        GSTIN: 27AATFG1527D1ZF<br />
-                        State: 27-Maharashtra
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ borderLeft: '1px solid #000000', display: 'flex', flexDirection: 'column' }}>
-                    {/* Row 1: Estimate No. & Date */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #000000', flex: 1 }}>
-                      <div style={{ padding: '5px 8px' }}>
-                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate No.</div>
-                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
-                          {doc.estimateNo || docId}
-                        </div>
-                      </div>
-                      <div style={{ padding: '5px 8px', borderLeft: '1px solid #000000' }}>
-                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Date</div>
-                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
-                          {dateStr}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Row 2: Place of supply & blank cell matching Image 2 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
-                      <div style={{ padding: '5px 8px' }}>
-                        <div style={{ fontSize: '7.5px', color: '#000000' }}>Place of supply</div>
-                        <div style={{ fontWeight: 700, fontSize: '9.5px', color: '#000000', marginTop: '2px' }}>
-                          {placeOfSupply}
-                        </div>
-                      </div>
-                      <div style={{ borderLeft: '1px solid #000000' }}></div>
-                    </div>
-                  </div>
+            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto' }}>
+              <div 
+                style={{ 
+                  width: '794px',
+                  minWidth: '794px',
+                  maxWidth: '794px',
+                  height: '1123px',
+                  minHeight: '1123px',
+                  maxHeight: '1123px',
+                  background: '#ffffff', 
+                  padding: '24px 28px', 
+                  color: '#000000', 
+                  fontFamily: 'Arial, Helvetica, sans-serif',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                  boxSizing: 'border-box',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
+                  {isPI ? 'Proforma Invoice' : 'Estimate'}
                 </div>
 
-                {/* Estimate For (Customer Box) - matching Image 3 spacing */}
-                <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #000000', flexShrink: 0 }}>
-                  <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
-                    Estimate For
+                {/* Main Outer Box */}
+                <div style={{ 
+                  border: '1px solid #b8b8b8', 
+                  background: '#ffffff', 
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minHeight: 0
+                }}>
+                  {/* Header Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <img 
+                        src="/logo.jpg" 
+                        alt="GPS General Precision Spindles" 
+                        style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
+                      />
+                      <div style={{ lineHeight: '1.25' }}>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
+                          GENERAL PRECISION<br />
+                          SPINDLES
+                        </div>
+                        <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
+                          SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
+                          DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
+                          ☎+919764252188 /9764032929<br />
+                          Email: process@gpsspindles.net<br />
+                          GSTIN: 27AATFG1527D1ZF<br />
+                          State: 27-Maharashtra
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
+                      {/* Row 1: Estimate / Proforma Invoice No. & Date */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                        <div style={{ padding: '3.5px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>
+                            {isPI ? 'Proforma Invoice No.' : 'Estimate No.'}
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {isPI ? (doc.piNumber || doc.id || '27') : (doc.estimateNo || docId)}
+                          </div>
+                        </div>
+                        <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.date || doc.issueDate || dateStr}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Place of supply & empty right corner */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                        <div style={{ padding: '3.5px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.placeOfSupply || doc.state || placeOfSupply}
+                          </div>
+                        </div>
+                        <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
+                      </div>
+
+                      {/* Row 3: Empty bottom column space */}
+                      <div style={{ flex: 1, minHeight: '34px' }}></div>
+                    </div>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
-                    {partyName}
-                  </div>
-                  <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
-                    {partyAddress ? (
-                      partyAddress.includes('\n') ? (
-                        partyAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
-                      ) : partyAddress.includes('Industrial Area-3') ? (
+
+                  {/* Customer Box */}
+                  <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
+                      {isPI ? 'Proforma Invoice For' : 'Estimate For'}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
+                      {partyName}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
+                      {partyAddress ? (
+                        partyAddress.includes('\n') ? (
+                          partyAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
+                        ) : (
+                          <div>{partyAddress}</div>
+                        )
+                      ) : (
                         <>
-                          <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
-                          <div>Dewas, Madhya Pradesh-455001</div>
+                          <div>{isPI ? 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan' : 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas'}</div>
+                          <div>{isPI ? 'Pune, Maharashtra-410501' : 'Dewas, Madhya Pradesh-455001'}</div>
                           <div>India</div>
                         </>
-                      ) : (
-                        <div>{partyAddress}</div>
-                      )
-                    ) : (
-                      <>
-                        <div>Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas</div>
-                        <div>Dewas, Madhya Pradesh-455001</div>
-                        <div>India</div>
-                      </>
-                    )}
+                      )}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                      Contact No. : {doc.contactNo || doc.customerContact || partyContact || (isPI ? '9975108709' : '7773877714')}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                      GSTIN : {partyGstin || doc.gstin || (isPI ? '27AAKFT2876K1ZI' : '23AACCL5351J1ZM')}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000' }}>
+                      State: {doc.placeOfSupply || doc.state || placeOfSupply}
+                    </div>
                   </div>
-                  {/* Generous line spacing exactly as seen in reference Image 3 */}
-                  <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
-                    Contact No. : {doc.contactNo || partyContact || '7773877714'}
-                  </div>
-                  <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
-                    GSTIN : {partyGstin || '23AACCL5351J1ZM'}
-                  </div>
-                  <div style={{ fontSize: '8px', color: '#000000' }}>
-                    State: {placeOfSupply}
-                  </div>
-                </div>
 
-                {/* Line Items Table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '8px', color: '#000000' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 5px', width: '28px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>#</th>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '95px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
-                      <th style={{ borderBottom: '1px solid #000000', padding: '3.5px 6px', width: '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(doc.items || items || []).map((item, idx) => {
-                      const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || 0))) || 0;
-                      return (
-                        <tr key={item.id || idx}>
-                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 5px', textAlign: 'center' }}>
-                            {idx + 1}
+                  {/* Line Items Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '8px', color: '#000000', flexShrink: 0 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 5px', width: '28px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>#</th>
+                        <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
+                        <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: isPI ? '85px' : '95px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
+                        <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: isPI ? '60px' : '70px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
+                        {isPI && (
+                          <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '50px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>Unit</th>
+                        )}
+                        <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: isPI ? '90px' : '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
+                        <th style={{ borderBottom: '1px solid #b8b8b8', padding: '3.5px 6px', width: isPI ? '100px' : '110px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {piItems.map((item, idx) => {
+                        const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || item.rate || 0))) || 0;
+                        return (
+                          <tr key={item.id || idx}>
+                            <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 5px', textAlign: 'left' }}>
+                              {idx + 1}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', fontWeight: 700 }}>
+                              {item.name || item.product || item.desc}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'left' }}>
+                              {item.hsn || ''}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                              {item.qty}
+                            </td>
+                            {isPI && (
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'center' }}>
+                                {item.unit || '-'}
+                              </td>
+                            )}
+                            <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                              ₹ {Number(item.unitPrice || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                              ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr style={{ fontWeight: 700 }}>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 5px' }}></td>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'right' }}>
+                          {totalQty}
+                        </td>
+                        {isPI && <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>}
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                        <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
+                          ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Middle Section: Words, Description & Amounts */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <div>
+                      <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
+                        <div style={{ fontSize: '7.5px', color: '#000000' }}>
+                          {isPI ? 'Proforma Invoice Amount in Words' : 'Estimate Amount in Words'}
+                        </div>
+                        <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                          {doc.amountInWords || numberToIndianWords(calcTotal)}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
+                        <div style={{ color: '#000000' }}>Description</div>
+                        <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                          SERIAL NO. {doc.spindleSerial || (isPI ? 'HMMXXVI (M77-002)' : 'HMMXXVI')}
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          CHALLAN NO. {doc.challanNo || (isPI ? '049' : 'N/A')}
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          {isPI ? 'CHALLAN DATE. ' : 'INWORD DATE. '}{(() => {
+                            const raw = isPI ? (doc.challanDate || doc.inwardDate || '18-08-2026') : (doc.inwardDate || '22-08-2026');
+                            if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw;
+                            const d = new Date(raw);
+                            if (!isNaN(d.getTime())) {
+                              return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+                            }
+                            return raw;
+                          })()}
+                        </div>
+                        <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                          SCOPE OF WORK :-
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.5', fontWeight: 700 }}>
+                          {(() => {
+                            const defaultScope = isPI 
+                              ? '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. SHAFT TAPER GRINDING\n6. SHAFT BALANCING\n7. DRAWBAR ASSEMBLY WITH NEW DISC SPRING\n8. STATIC TEST\n9. ASSEMBLYY\n10. DYNAMIC TEST.'
+                              : '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.';
+                            const rawScope = Array.isArray(doc.scopeOfWork)
+                              ? doc.scopeOfWork
+                              : (doc.scopeOfWork || defaultScope).split('\n');
+                            return rawScope.map((line, idx) => (
+                              <div key={idx}>{line.trim()}</div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 700 }}>Amounts</div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                        <span>Sub Total</span>
+                        <span>₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                        <span>Tax ({taxRate}%)</span>
+                        <span>₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px 0' }} />
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
+                        <span>Total</span>
+                        <span>₹ {calcTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HSN/SAC Tax Summary Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
+                    <thead>
+                      {isIntraState ? (
+                        <>
+                          <tr>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '16%' }}>HSN/ SAC</th>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '20%' }}>Taxable amount</th>
+                            <th colSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '22%' }}>Central Tax</th>
+                            <th colSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '22%' }}>State Tax</th>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '20%' }}>Total Tax Amount</th>
+                          </tr>
+                          <tr>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '9%' }}>Rate</th>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '13%' }}>Amount</th>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '9%' }}>Rate</th>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '13%' }}>Amount</th>
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
+                            <th colSpan="2" style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
+                            <th rowSpan="2" style={{ borderBottom: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
+                          </tr>
+                          <tr>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
+                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
+                          </tr>
+                        </>
+                      )}
+                    </thead>
+                    <tbody>
+                      {hsnBreakdown.map((row, idx) => (
+                        <tr key={idx}>
+                          <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'left' }}>
+                            {row.hsn || ''}
                           </td>
-                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', fontWeight: 700 }}>
-                            {item.name || item.desc}
+                          <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                            ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'center' }}>
-                            {item.hsn || ''}
-                          </td>
-                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                            {item.qty}
-                          </td>
-                          <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                            ₹ {Number(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
-                            ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {isIntraState ? (
+                            <>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                {row.halfRate || `${taxRate / 2}%`}
+                              </td>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                ₹ {Number(row.cgst || (row.totalTax / 2) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                {row.halfRate || `${taxRate / 2}%`}
+                              </td>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                ₹ {Number(row.sgst || (row.totalTax / 2) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                {row.rate || `${taxRate}%`}
+                              </td>
+                              <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                ₹ {Number(row.igst || row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          )}
+                          <td style={{ borderBottom: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                            ₹ {Number(row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
-                      );
-                    })}
-                    <tr style={{ fontWeight: 700 }}>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 5px' }}></td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px', textAlign: 'right' }}>
-                        {totalQty}
-                      </td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3.5px 6px' }}></td>
-                      <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
-                        ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                      ))}
+                      <tr style={{ fontWeight: 700 }}>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
+                        <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                          ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        {isIntraState ? (
+                          <>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                              ₹ {Math.round(calcTax / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                              ₹ {Math.round(calcTax / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                              ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </>
+                        )}
+                        <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                          ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
 
-                {/* Middle Section: Words, Description & Amounts */}
-                <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #000000' }}>
-                  <div>
-                    <div style={{ padding: '5px 8px', borderBottom: '1px solid #000000' }}>
-                      <div style={{ fontSize: '7.5px', color: '#000000' }}>Estimate Amount in Words</div>
-                      <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                  {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 1) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
+                    {/* Col 1: Bank Details */}
+                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <UpiQrCode 
+                          amount={calcTotal}
+                          quoteNo={doc.estimateNo || doc.piNumber || doc.id}
+                          upiId={doc.bankDetails?.upiId || doc.upiId || getActiveUpiId()}
+                          payeeName={doc.bankDetails?.accountHolder || 'GENERAL PRECISION SPINDLES'}
+                          size={48}
+                          onNotify={onNotify}
+                        />
+
+                        <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
+                          <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
+                          <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
+                          <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
+                          <div style={{ marginBottom: '4px' }}>UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{doc.bankDetails?.upiId || doc.upiId || getActiveUpiId()}</span></div>
+                          <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Col 2: Terms and conditions */}
+                    <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
+                      <div style={{ fontSize: '7px', lineHeight: '1.5', color: '#000000' }}>
+                        <div style={{ marginBottom: '6px' }}>
+                          We declare that this invoice shows the actual price of the goods<br />
+                          described and that all particulars are true and correct.
+                        </div>
+                        <div style={{ fontWeight: 700, marginBottom: '2px' }}>Bank Details:</div>
+                        <div style={{ marginBottom: '1px' }}>ICICI Bank Ltd(Nanded City Branch)</div>
+                        <div style={{ marginBottom: '1px' }}>A/c No : 349105000701</div>
+                        <div style={{ marginBottom: '1px' }}>IFSC Code : ICIC0003491</div>
+                        <div style={{ marginBottom: '4px' }}>MSME (UDYAM ADHAR) NO-MH26A0189736</div>
+                        <div style={{ marginBottom: '1px' }}>TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING</div>
+                        <div>MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC, VMC, HMC, BELT DRIVEN, DIRECT DRIVEN, INTEGRATED, SPINDLE REPAIRING, SPINDLE MANUFACTURING.</div>
+                      </div>
+                    </div>
+
+                    {/* Col 3: Signatory */}
+                    <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
+                        For : GENERAL PRECISION SPINDLES
+                      </div>
+                      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8.5px', paddingBottom: '8px' }}>
+                        Authorized Signatory
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ========================================================================= */}
+        {/* VIEW 0B: OFFICIAL PURCHASE ORDER (100% REPLICA OF PURCHASE ORDER PDF)     */}
+        {/* ========================================================================= */}
+        {isPO && (() => {
+          const poItems = (doc.items && doc.items.length > 0) ? doc.items : items;
+          const calcSubtotal = poItems.reduce(
+            (sum, it) => sum + (Number(it.total != null ? it.total : (Number(it.qty || 1) * Number(it.rate || it.unitPrice || 0))) || 0),
+            0
+          ) || Number(doc.subtotal) || 58262;
+
+          const taxRate = Number(doc.taxRate) || 18;
+          const calcTax = Number(doc.gstAmount) || Number(doc.taxAmount) || (calcSubtotal * (taxRate / 100));
+          const rawTotal = calcSubtotal + calcTax;
+          const roundOff = doc.roundOff != null ? Number(doc.roundOff) : (doc.totalAmount ? Number(doc.totalAmount) - rawTotal : Number((Math.round(rawTotal) - rawTotal).toFixed(2)));
+          const calcTotal = doc.totalAmount != null ? Number(doc.totalAmount) : Math.round(rawTotal);
+          const advance = Number(doc.advance || doc.advanceAmount || 0);
+          const balance = Number(doc.balance != null ? doc.balance : (calcTotal - advance));
+          const totalQty = poItems.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+          const isIntraState = String(doc.placeOfSupply || doc.supplierState || '27-Maharashtra').startsWith('27');
+
+          const computeHsn = (itemList) => {
+            const map = {};
+            (itemList || []).forEach(it => {
+              const code = it.hsn ? String(it.hsn).trim() : (it.hsn_code || '84821012');
+              const amt = Number(it.total != null ? it.total : (Number(it.qty || 1) * Number(it.rate || it.unitPrice || 0))) || 0;
+              if (!map[code]) {
+                map[code] = { hsn: code, taxable: 0 };
+              }
+              map[code].taxable += amt;
+            });
+            return Object.values(map);
+          };
+
+          const hsnBreakdown = computeHsn(poItems);
+          const suppAddress = doc.supplierAddress || partyAddress || 'P-84, D-II BLOCK MIDC Road Pimpri Chinchwad\nPune, Maharashtra-411019\nIndia';
+
+          return (
+            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto' }}>
+              <div 
+                style={{ 
+                  width: '794px',
+                  minWidth: '794px',
+                  maxWidth: '794px',
+                  height: '1123px',
+                  minHeight: '1123px',
+                  maxHeight: '1123px',
+                  background: '#ffffff', 
+                  padding: '24px 28px', 
+                  color: '#000000', 
+                  fontFamily: 'Arial, Helvetica, sans-serif',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+                  boxSizing: 'border-box',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
+                  Purchase Order
+                </div>
+
+                {/* Main Outer Box */}
+                <div style={{ 
+                  border: '1px solid #b8b8b8', 
+                  background: '#ffffff', 
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minHeight: 0
+                }}>
+                  {/* Header Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <img 
+                        src="/logo.jpg" 
+                        alt="GPS General Precision Spindles" 
+                        style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
+                      />
+                      <div style={{ lineHeight: '1.25' }}>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
+                          GENERAL PRECISION<br />
+                          SPINDLES
+                        </div>
+                        <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
+                          SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
+                          DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
+                          ☎+919764252188 /9764032929<br />
+                          Email: process@gpsspindles.net<br />
+                          GSTIN: 27AATFG1527D1ZF<br />
+                          State: 27-Maharashtra
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
+                      {/* Row 1: Order No. & Date */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', flex: 1 }}>
+                        <div style={{ padding: '4px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Order No.</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.poNumber || doc.id || 'PO/2025-26/00106'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '4px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.date || dateStr || '04-09-2026'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Due Date & Place of supply */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+                        <div style={{ padding: '4px 6px' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Due Date:</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.dueDate || doc.expectedDelivery || doc.date || '04-09-2026'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '4px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                          <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
+                          <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                            {doc.placeOfSupply || '27-Maharashtra'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order To (Supplier Box) */}
+                  <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
+                      Order To
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
+                      {doc.supplier || partyName || 'PREMIER INDUSTRIAL SOLUTIONS'}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '14px' }}>
+                      {suppAddress.includes('\n') ? (
+                        suppAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
+                      ) : (
+                        <>
+                          <div>{suppAddress}</div>
+                          <div>India</div>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.4' }}>
+                      <div>Contact No. : {doc.supplierPhone || doc.supplierContact || partyContact || '0124-4510000'}</div>
+                      <div>GSTIN : {doc.supplierGstin || partyGstin || '27ABDFP3172C1ZH'}</div>
+                      <div>State: {doc.supplierState || doc.placeOfSupply || '27-Maharashtra'}</div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px', color: '#000000' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #b8b8b8', background: '#ffffff', fontWeight: 700 }}>
+                          <th style={{ width: '32px', textAlign: 'center', padding: '4px 2px', borderRight: '1px solid #b8b8b8' }}>#</th>
+                          <th style={{ textAlign: 'left', padding: '4px 6px', borderRight: '1px solid #b8b8b8' }}>Item name</th>
+                          <th style={{ width: '90px', textAlign: 'center', padding: '4px 4px', borderRight: '1px solid #b8b8b8' }}>HSN/ SAC</th>
+                          <th style={{ width: '60px', textAlign: 'right', padding: '4px 6px', borderRight: '1px solid #b8b8b8' }}>Quantity</th>
+                          <th style={{ width: '95px', textAlign: 'right', padding: '4px 6px', borderRight: '1px solid #b8b8b8' }}>Price/ Unit</th>
+                          <th style={{ width: '100px', textAlign: 'right', padding: '4px 6px' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {poItems.map((it, idx) => {
+                          const itRate = Number(it.rate || it.unitPrice || 0);
+                          const itAmt = Number(it.total != null ? it.total : ((Number(it.qty) || 1) * itRate));
+                          return (
+                            <tr key={it.id || idx} style={{ borderBottom: '1px solid #e5e5e5' }}>
+                              <td style={{ textAlign: 'center', padding: '5px 2px', borderRight: '1px solid #b8b8b8' }}>{idx + 1}</td>
+                              <td style={{ textAlign: 'left', padding: '5px 6px', fontWeight: 700, borderRight: '1px solid #b8b8b8' }}>
+                                {it.item || it.name || it.desc || '120TAC20FME2DBCP5P01-NSK'}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '5px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                {it.hsn || it.hsn_code || '84821012'}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '5px 6px', borderRight: '1px solid #b8b8b8' }}>
+                                {it.qty != null ? it.qty : 1}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '5px 6px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {itRate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '5px 6px', fontWeight: 700 }}>
+                                ₹ {itAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Total Row */}
+                        <tr style={{ borderTop: '1px solid #b8b8b8', borderBottom: '1px solid #b8b8b8', fontWeight: 700 }}>
+                          <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                          <td style={{ textAlign: 'left', padding: '5px 6px', borderRight: '1px solid #b8b8b8' }}>Total</td>
+                          <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                          <td style={{ textAlign: 'right', padding: '5px 6px', borderRight: '1px solid #b8b8b8' }}>{totalQty}</td>
+                          <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                          <td style={{ textAlign: 'right', padding: '5px 6px' }}>
+                            ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Middle Section: Words & Amounts */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '58% 42%', borderTop: '1px solid #b8b8b8', borderBottom: '1px solid #b8b8b8', minHeight: '120px', flexShrink: 0 }}>
+                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '4px' }}>Order Amount in Words</div>
+                      <div style={{ fontWeight: 700, fontSize: '9px', color: '#000000' }}>
                         {doc.amountInWords || numberToIndianWords(calcTotal)}
                       </div>
                     </div>
 
-                    <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
-                      <div style={{ color: '#000000', fontWeight: 600 }}>Description</div>
-                      <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                        SERIAL NO. {doc.spindleSerial || 'HMMXXVI'}
+                    <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 12px', fontSize: '8px', color: '#000000', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '7.8px', marginBottom: '2px' }}>Amounts</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Sub Total</span>
+                        <span>₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                      <div style={{ fontWeight: 700 }}>
-                        CHALLAN NO. {doc.challanNo || 'N/A'}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Tax ({taxRate}%)</span>
+                        <span>₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                      <div style={{ fontWeight: 700 }}>
-                        INWORD DATE. {doc.inwardDate || '22-08-2026'}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Round off</span>
+                        <span>{roundOff < 0 ? `- ₹ ${Math.abs(roundOff).toFixed(2)}` : `₹ ${roundOff.toFixed(2)}`}</span>
                       </div>
-                      <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                        SCOPE OF WORK :-
+                      <div style={{ borderTop: '1px solid #b8b8b8', marginTop: '3px', paddingTop: '3px', display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '9px' }}>
+                        <span>Total</span>
+                        <span>₹ {calcTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.35' }}>
-                        {(() => {
-                          const rawScope = Array.isArray(doc.scopeOfWork)
-                            ? doc.scopeOfWork
-                            : (doc.scopeOfWork || '1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. HSK -63 SHAFT SLEEVING\n6. MFG OF DRAWBAR LOCKNUT\n7. MFG OF TOOL CLAMP DICLAMP PLATE .\n8. STATOR INSPECTION.\n9. STATIC TEST.\n10. ASSEMBLY\n11. DYANAMIC TEST.').split('\n');
-                          const half = Math.ceil(rawScope.length / 2);
-                          return (
-                            <>
-                              <div>
-                                {rawScope.slice(0, half).map((line, idx) => (
-                                  <div key={idx}>{line.trim()}</div>
-                                ))}
-                              </div>
-                              <div>
-                                {rawScope.slice(half).map((line, idx) => (
-                                  <div key={idx}>{line.trim()}</div>
-                                ))}
-                              </div>
-                            </>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Advance</span>
+                        <span>₹ {advance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '9px' }}>
+                        <span>Balance</span>
+                        <span>₹ {balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tax Summary Table */}
+                  <div style={{ borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5px', color: '#000000' }}>
+                      <thead>
+                        {isIntraState ? (
+                          <>
+                            <tr style={{ borderBottom: '1px solid #b8b8b8', background: '#ffffff', fontWeight: 700 }}>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px', borderRight: '1px solid #b8b8b8' }}>HSN/ SAC</th>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>Taxable amount</th>
+                              <th colSpan={2} style={{ textAlign: 'center', padding: '3px', borderRight: '1px solid #b8b8b8' }}>CGST</th>
+                              <th colSpan={2} style={{ textAlign: 'center', padding: '3px', borderRight: '1px solid #b8b8b8' }}>SGST</th>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px 6px' }}>Total Tax Amount</th>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #b8b8b8', fontWeight: 700 }}>
+                              <th style={{ textAlign: 'center', padding: '2px', borderRight: '1px solid #b8b8b8' }}>Rate</th>
+                              <th style={{ textAlign: 'center', padding: '2px 4px', borderRight: '1px solid #b8b8b8' }}>Amount</th>
+                              <th style={{ textAlign: 'center', padding: '2px', borderRight: '1px solid #b8b8b8' }}>Rate</th>
+                              <th style={{ textAlign: 'center', padding: '2px 4px', borderRight: '1px solid #b8b8b8' }}>Amount</th>
+                            </tr>
+                          </>
+                        ) : (
+                          <>
+                            <tr style={{ borderBottom: '1px solid #b8b8b8', background: '#ffffff', fontWeight: 700 }}>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px', borderRight: '1px solid #b8b8b8' }}>HSN/ SAC</th>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>Taxable amount</th>
+                              <th colSpan={2} style={{ textAlign: 'center', padding: '3px', borderRight: '1px solid #b8b8b8' }}>IGST</th>
+                              <th rowSpan={2} style={{ textAlign: 'center', padding: '3px 6px' }}>Total Tax Amount</th>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #b8b8b8', fontWeight: 700 }}>
+                              <th style={{ textAlign: 'center', padding: '2px', borderRight: '1px solid #b8b8b8' }}>Rate</th>
+                              <th style={{ textAlign: 'center', padding: '2px 4px', borderRight: '1px solid #b8b8b8' }}>Amount</th>
+                            </tr>
+                          </>
+                        )}
+                      </thead>
+                      <tbody>
+                        {hsnBreakdown.map((h, i) => {
+                          const halfRate = taxRate / 2;
+                          const cgstAmt = Number((h.taxable * (halfRate / 100)).toFixed(2));
+                          const sgstAmt = Number((h.taxable * (halfRate / 100)).toFixed(2));
+                          const igstAmt = Number((h.taxable * (taxRate / 100)).toFixed(2));
+                          const totalTax = isIntraState ? (cgstAmt + sgstAmt) : igstAmt;
+
+                          return isIntraState ? (
+                            <tr key={i} style={{ borderBottom: '1px solid #e5e5e5' }}>
+                              <td style={{ textAlign: 'left', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>{h.hsn}</td>
+                              <td style={{ textAlign: 'right', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {h.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>{halfRate}%</td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>{halfRate}%</td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 700 }}>
+                                ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ) : (
+                            <tr key={i} style={{ borderBottom: '1px solid #e5e5e5' }}>
+                              <td style={{ textAlign: 'left', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>{h.hsn}</td>
+                              <td style={{ textAlign: 'right', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {h.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>{taxRate}%</td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {igstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 700 }}>
+                                ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
                           );
-                        })()}
-                      </div>
-                    </div>
+                        })}
+                        {/* Tax Total Row */}
+                        <tr style={{ borderTop: '1px solid #b8b8b8', fontWeight: 700 }}>
+                          <td style={{ textAlign: 'right', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>Total</td>
+                          <td style={{ textAlign: 'right', padding: '3px 6px', borderRight: '1px solid #b8b8b8' }}>
+                            ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          {isIntraState ? (
+                            <>
+                              <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {(calcTax / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {(calcTax / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ borderRight: '1px solid #b8b8b8' }}></td>
+                              <td style={{ textAlign: 'right', padding: '3px 4px', borderRight: '1px solid #b8b8b8' }}>
+                                ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          )}
+                          <td style={{ textAlign: 'right', padding: '3px 6px' }}>
+                            ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
 
-                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                      <span>Sub Total</span>
-                      <span>₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                      <span>Tax ({doc.taxRate || 18}%)</span>
-                      <span>₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-
-                    <div style={{ borderTop: '1px solid #000000', margin: '4px 0' }} />
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
-                      <span>Total</span>
-                      <span>₹ {calcTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HSN/SAC Tax Summary Table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000000', fontSize: '7.8px', color: '#000000' }}>
-                  <thead>
-                    <tr>
-                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '22%' }}>HSN/ SAC</th>
-                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Taxable amount</th>
-                      <th colSpan="2" style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '30%' }}>IGST</th>
-                      <th rowSpan="2" style={{ borderBottom: '1px solid #000000', padding: '3px 6px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, background: '#ffffff', width: '24%' }}>Total Tax Amount</th>
-                    </tr>
-                    <tr>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 4px', textAlign: 'center', fontWeight: 700, background: '#ffffff', width: '14%' }}>Rate</th>
-                      <th style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2px 6px', textAlign: 'right', fontWeight: 700, background: '#ffffff', width: '16%' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hsnBreakdown.map((row, idx) => (
-                      <tr key={idx}>
-                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
-                          {row.hsn || ''}
-                        </td>
-                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
-                          ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 4px', textAlign: 'center' }}>
-                          {row.rate || '18%'}
-                        </td>
-                        <td style={{ borderBottom: '1px solid #000000', borderRight: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
-                          ₹ {Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ borderBottom: '1px solid #000000', padding: '2.5px 6px', textAlign: 'right' }}>
-                          ₹ {Number(row.totalTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr style={{ fontWeight: 700 }}>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}>Total</td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                        ₹ {calcSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3px 4px', textAlign: 'center' }}></td>
-                      <td style={{ borderRight: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>
-                        ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ padding: '3px 6px', textAlign: 'right' }}>
-                        ₹ {calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 1) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', minHeight: '145px' }}>
-                  {/* Col 1: Bank Details */}
-                  <div style={{ padding: '6px 8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Bank Details</div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '52px', flexShrink: 0 }}>
-                        <svg width="48" height="48" viewBox="0 0 25 25" style={{ display: 'block', shapeRendering: 'crispEdges' }}>
-                          <rect width="25" height="25" fill="#ffffff" />
-                          <rect x="0" y="0" width="7" height="7" fill="#000000" />
-                          <rect x="1" y="1" width="5" height="5" fill="#ffffff" />
-                          <rect x="2" y="2" width="3" height="3" fill="#000000" />
-                          <rect x="18" y="0" width="7" height="7" fill="#000000" />
-                          <rect x="19" y="1" width="5" height="5" fill="#ffffff" />
-                          <rect x="20" y="2" width="3" height="3" fill="#000000" />
-                          <rect x="0" y="18" width="7" height="7" fill="#000000" />
-                          <rect x="1" y="19" width="5" height="5" fill="#ffffff" />
-                          <rect x="2" y="20" width="3" height="3" fill="#000000" />
-                          <rect x="16" y="16" width="5" height="5" fill="#000000" />
-                          <rect x="17" y="17" width="3" height="3" fill="#ffffff" />
-                          <rect x="18" y="18" width="1" height="1" fill="#000000" />
-                          <rect x="6" y="8" width="1" height="1" fill="#000000" />
-                          <rect x="6" y="10" width="1" height="1" fill="#000000" />
-                          <rect x="6" y="12" width="1" height="1" fill="#000000" />
-                          <rect x="6" y="14" width="1" height="1" fill="#000000" />
-                          <rect x="6" y="16" width="1" height="1" fill="#000000" />
-                          <rect x="8" y="6" width="1" height="1" fill="#000000" />
-                          <rect x="10" y="6" width="1" height="1" fill="#000000" />
-                          <rect x="12" y="6" width="1" height="1" fill="#000000" />
-                          <rect x="14" y="6" width="1" height="1" fill="#000000" />
-                          <rect x="16" y="6" width="1" height="1" fill="#000000" />
-                          <rect x="8" y="2" width="1" height="2" fill="#000000" />
-                          <rect x="10" y="1" width="2" height="1" fill="#000000" />
-                          <rect x="13" y="2" width="1" height="1" fill="#000000" />
-                          <rect x="15" y="1" width="1" height="2" fill="#000000" />
-                          <rect x="8" y="9" width="2" height="1" fill="#000000" />
-                          <rect x="11" y="8" width="2" height="2" fill="#000000" />
-                          <rect x="14" y="9" width="1" height="2" fill="#000000" />
-                          <rect x="16" y="8" width="2" height="1" fill="#000000" />
-                          <rect x="9" y="12" width="1" height="2" fill="#000000" />
-                          <rect x="11" y="11" width="2" height="1" fill="#000000" />
-                          <rect x="13" y="13" width="2" height="2" fill="#000000" />
-                          <rect x="10" y="15" width="1" height="2" fill="#000000" />
-                          <rect x="12" y="16" width="2" height="1" fill="#000000" />
-                          <rect x="8" y="18" width="2" height="1" fill="#000000" />
-                          <rect x="8" y="20" width="1" height="2" fill="#000000" />
-                          <rect x="11" y="19" width="2" height="2" fill="#000000" />
-                          <rect x="14" y="18" width="1" height="2" fill="#000000" />
-                          <rect x="22" y="9" width="2" height="2" fill="#000000" />
-                          <rect x="19" y="11" width="2" height="1" fill="#000000" />
-                          <rect x="23" y="12" width="1" height="2" fill="#000000" />
-                          <rect x="22" y="22" width="2" height="2" fill="#000000" />
-                        </svg>
-                        <div style={{ background: '#16a34a', color: '#ffffff', fontSize: '5px', fontWeight: 700, padding: '1px 3px', borderRadius: '2px', marginTop: '2px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          UPI: SCAN TO PAY
-                        </div>
+                  {/* Bottom Section: Terms & Conditions and Signatory */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '58% 42%', minHeight: '90px', flexShrink: 0 }}>
+                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginBottom: '4px' }}>
+                        Terms and conditions
                       </div>
-
-                      <div style={{ fontSize: '7.2px', lineHeight: '1.3' }}>
-                        Name : ICICI BANK LIMITED, PUNE<br />
-                        NANDED CITY<br />
-                        Account No. : 349105000701<br />
-                        IFSC code : ICIC0003491<br />
-                        Account holder's name : GENERAL<br />
-                        PRECISION SPINDLES
+                      <div style={{ fontSize: '7.5px', color: '#000000' }}>
+                        {doc.termsAndConditions || doc.notes || 'Thanks for doing business with us!'}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Col 2: Terms and conditions */}
-                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '8px', marginBottom: '4px' }}>Terms and conditions</div>
-                    <div style={{ fontSize: '6.7px', lineHeight: '1.25' }}>
-                      We declare that this invoice shows the actual price of<br />
-                      the goods<br />
-                      described and that all particulars are true and<br />
-                      correct.<br />
-                      <div style={{ marginTop: '5px' }}>
-                        Bank Details:<br />
-                        ICICI Bank Ltd(Nanded City Branch)<br />
-                        A/c No : 349105000701<br />
-                        IFSC Code: ICIC0003491<br />
-                        MSME (UDYAM ADHAR) NO-MH26A0189736<br />
-                        TYPE OF ENTERPRISES: SPINDLE MANUFACTURING<br />
-                        AND REPAIRING<br />
-                        MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF<br />
-                        CNC,VMC,HMC,BELT<br />
-                        DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE<br />
-                        REPAIRING ,SPINDLE<br />
-                        MANUFACTURING.
+                    <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '8px', color: '#000000', alignSelf: 'flex-start', paddingLeft: '8px' }}>
+                        For : GENERAL PRECISION SPINDLES
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Col 3: Signatory */}
-                  <div style={{ borderLeft: '1px solid #000000', padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div style={{ fontSize: '7.5px', fontWeight: 600 }}>
-                      For : GENERAL PRECISION SPINDLES
-                    </div>
-                    <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8px', paddingBottom: '6px' }}>
-                      Authorized Signatory
+                      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8.5px', paddingBottom: '8px' }}>
+                        Authorized Signatory
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -733,6 +1176,19 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   Customer: {doc.spindle?.customer || doc.customer || 'Tata Advanced Systems Ltd'}
+                </div>
+                <div style={{ fontSize: '10.5px', marginTop: '4px' }}>
+                  <span style={{
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontWeight: 700,
+                    fontSize: '10px',
+                    background: doc.spindleCategory === 'service' ? '#fffbeb' : '#fdf2f4',
+                    color: doc.spindleCategory === 'service' ? '#b45309' : '#7A1F3D',
+                    border: `1px solid ${doc.spindleCategory === 'service' ? '#fde68a' : 'rgba(122,31,61,0.2)'}`
+                  }}>
+                    {doc.spindleCategory === 'service' ? 'SERVICE & OVERHAUL REPAIR' : 'NEW MANUFACTURE BUILD'}
+                  </span>
                 </div>
               </div>
 
@@ -953,9 +1409,9 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         )}
 
         {/* ========================================================================= */}
-        {/* VIEW 5: COMMERCIAL INVOICE / PO / PI / E-WAY BILL                         */}
+        {/* VIEW 5: COMMERCIAL INVOICE / E-WAY BILL                                   */}
         {/* ========================================================================= */}
-        {!isCalibration && !isJobTraveler && !isService && !isReport && !isQuotation && (
+        {!isCalibration && !isJobTraveler && !isService && !isReport && !isQuotation && !isPO && !isPI && (
           <div>
             {/* EWB Barcode Simulation */}
             {isEWB && (

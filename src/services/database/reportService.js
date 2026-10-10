@@ -1,4 +1,5 @@
 import { supabase, isConfigured } from '../supabase/supabaseClient';
+import { isCleanSlateMode } from '../../utils/dataMode.js';
 
 /**
  * Plant Analytics & Executive BI Reports Domain Service
@@ -11,6 +12,18 @@ export const reportService = {
    * @param {string} timeRange - 'monthly' | 'q4' | 'annual'
    */
   async getExecutiveKpis(timeRange = 'q4') {
+    if (isCleanSlateMode()) {
+      return {
+        data: {
+          spindlesManufactured: 0,
+          firstPassYield: 0,
+          avgServiceTatDays: 0,
+          annualRevenueCr: 0
+        },
+        error: null
+      };
+    }
+
     if (!isConfigured) {
       return {
         data: {
@@ -100,6 +113,14 @@ export const reportService = {
    * Fetch monthly production throughput data (actual units vs baseline target)
    */
   async getMonthlyProductionThroughput() {
+    if (isCleanSlateMode()) {
+      const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
+      return {
+        data: months.map(m => ({ month: m, units: 0, target: 0 })),
+        error: null
+      };
+    }
+
     if (!isConfigured) {
       return {
         data: [
@@ -163,6 +184,10 @@ export const reportService = {
    * Fetch spindle model family volume share
    */
   async getSpindleModelDistribution() {
+    if (isCleanSlateMode()) {
+      return { data: [], error: null };
+    }
+
     if (!isConfigured) {
       return {
         data: [
@@ -234,6 +259,10 @@ export const reportService = {
    * Fetch metrology quality audit pass rates
    */
   async getQualityPassRates() {
+    if (isCleanSlateMode()) {
+      return { data: [], error: null };
+    }
+
     return {
       data: [
         { label: "Nose Taper Runout (≤ 1.0 µm)", rate: "99.1%", passed: 212, inspected: 214 },
@@ -249,6 +278,10 @@ export const reportService = {
    * Fetch service overhaul root cause categories
    */
   async getServiceRootCauses() {
+    if (isCleanSlateMode()) {
+      return { data: [], error: null };
+    }
+
     if (!isConfigured) {
       return {
         data: [

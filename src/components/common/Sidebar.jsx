@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { PLANT_INFO } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { isCleanSlateMode } from '../../utils/dataMode';
 
 export const NAV_SECTIONS = [
   {
@@ -36,7 +37,7 @@ export const NAV_SECTIONS = [
     items: [
       { id: 'production', label: 'Production Flow', icon: Cog, badge: '18' },
       { id: 'workforce', label: 'Staff & Workforce', icon: Users, badge: '31' },
-      { id: 'spindles', label: 'Spindles Registry', icon: Disc },
+      { id: 'spindles', label: 'Spindle Fleet & Registry', icon: Disc },
       { id: 'quality', label: 'Quality Control', icon: ShieldCheck, badge: '4' },
       { id: 'service', label: 'Service & Repair', icon: Wrench, badge: '7' },
     ]
@@ -186,7 +187,7 @@ export default function Sidebar({
                   >
                     <Icon size={isCollapsed ? 18 : 16} className="nav-icon" />
                     {!isCollapsed && <span>{item.label}</span>}
-                    {!isCollapsed && item.badge && (
+                    {!isCollapsed && item.badge && !isCleanSlateMode() && (
                       <span className="nav-badge">{item.badge}</span>
                     )}
                   </button>
