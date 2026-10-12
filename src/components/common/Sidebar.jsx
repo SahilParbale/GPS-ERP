@@ -23,9 +23,9 @@ export const NAV_SECTIONS = [
     category: 'Commercial & Sales',
     items: [
       { id: 'sales', label: 'Sales & Quotes', icon: ShoppingBag },
-      { id: 'proforma-invoices', label: 'Proforma Invoices', icon: Receipt, badge: '5' },
+      { id: 'proforma-invoices', label: 'Proforma Invoices', icon: Receipt },
       { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
-      { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
+      { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck },
       { id: 'customers', label: 'Customers', icon: Building2 },
       { id: 'contacts', label: 'Contacts & Directory', icon: Mail },
       { id: 'email-activity', label: 'Email Activity', icon: Mail },
@@ -35,19 +35,19 @@ export const NAV_SECTIONS = [
     id: 'manufacturing',
     category: 'Shop Floor & Operations',
     items: [
-      { id: 'production', label: 'Production Flow', icon: Cog, badge: '18' },
-      { id: 'workforce', label: 'Staff & Workforce', icon: Users, badge: '31' },
+      { id: 'production', label: 'Production Flow', icon: Cog },
+      { id: 'workforce', label: 'Staff & Workforce', icon: Users },
       { id: 'spindles', label: 'Spindle Fleet & Registry', icon: Disc },
-      { id: 'quality', label: 'Quality Control', icon: ShieldCheck, badge: '4' },
-      { id: 'service', label: 'Service & Repair', icon: Wrench, badge: '7' },
+      { id: 'quality', label: 'Quality Control', icon: ShieldCheck },
+      { id: 'service', label: 'Service & Repair', icon: Wrench },
     ]
   },
   {
     id: 'supply-chain',
     category: 'Supply Chain & Stores',
     items: [
-      { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, badge: '5' },
-      { id: 'inventory', label: 'Inventory & Stock', icon: Boxes, badge: '3' },
+      { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
+      { id: 'inventory', label: 'Inventory & Stock', icon: Boxes },
       { id: 'suppliers', label: 'Suppliers', icon: Truck },
     ]
   },
@@ -144,18 +144,6 @@ export default function Sidebar({
                 <X size={16} />
               </button>
             )}
-            {/* Desktop collapse to rail button */}
-            {!isCollapsed && !isMobileOpen && (
-              <button
-                type="button"
-                className="sidebar-close-btn desktop-collapse-btn"
-                onClick={onToggleCollapse}
-                title="Collapse to icon rail"
-                aria-label="Collapse sidebar"
-              >
-                <PanelLeftClose size={15} />
-              </button>
-            )}
           </div>
         </div>
 
@@ -187,9 +175,6 @@ export default function Sidebar({
                   >
                     <Icon size={isCollapsed ? 18 : 16} className="nav-icon" />
                     {!isCollapsed && <span>{item.label}</span>}
-                    {!isCollapsed && item.badge && !isCleanSlateMode() && (
-                      <span className="nav-badge">{item.badge}</span>
-                    )}
                   </button>
                 );
               })}
@@ -199,15 +184,6 @@ export default function Sidebar({
 
         {isCollapsed ? (
           <div className="sidebar-footer collapsed">
-            <button
-              type="button"
-              className="sidebar-rail-toggle-btn"
-              onClick={onToggleCollapse}
-              title="Expand sidebar menu"
-              aria-label="Expand sidebar"
-            >
-              <ChevronRight size={15} />
-            </button>
           </div>
         ) : (
           <div className="sidebar-footer" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
@@ -216,15 +192,6 @@ export default function Sidebar({
                 <span className="status-dot-pulse" />
                 <span>Nanded City Plant 1</span>
               </div>
-              <button
-                type="button"
-                className="sidebar-fullscreen-btn"
-                onClick={onToggleCollapse}
-                title="Collapse to icon rail"
-                aria-label="Collapse to icon rail"
-              >
-                <PanelLeftClose size={13} />
-              </button>
             </div>
             {/* Active User Role Badge */}
             <div 
