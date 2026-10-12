@@ -53,7 +53,7 @@ export const ROLE_METADATA = {
     color: '#b45309',
     bg: '#fffbeb',
     accessLevel: 'Commercial, Quotes & GST Invoicing',
-    allowedModules: ['Dashboard', 'Quotations & Sales', 'Proforma Invoices', 'Tax Invoices & Billing', 'E-Way Bills', 'Customer Directory', 'Sales Activity', 'Documents', 'Reports'],
+    allowedModules: ['Dashboard', 'Quotations & Sales', 'Proforma Invoices', 'Tax Invoices & Billing', 'Client Payments & Receivables', 'E-Way Bills', 'Customer Directory', 'Sales Activity', 'Documents', 'Reports'],
     deniedModules: ['Shop Floor Production', 'Machine Calibrations', 'Quality Metrology', 'Procurement & POs', 'System Settings']
   },
   PURCHASE: {

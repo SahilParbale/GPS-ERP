@@ -6,14 +6,14 @@ export const ROLE_PERMISSIONS = {
   ADMIN: [
     'dashboard', 'production', 'workforce', 'work-order-detail',
     'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
-    'sales', 'customers', 'contacts', 'suppliers', 'invoices',
+    'sales', 'customers', 'contacts', 'suppliers', 'invoices', 'payments',
     'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
     'documents', 'notifications', 'email-activity',
     'reports', 'settings'
   ],
   MANAGEMENT: [
     'dashboard', 'production', 'spindles', 'spindle-detail', 'work-order-detail',
-    'sales', 'proforma-invoices', 'invoices', 'e-way-bills', 'customers', 'contacts',
+    'sales', 'proforma-invoices', 'invoices', 'payments', 'e-way-bills', 'customers', 'contacts',
     'purchase-orders', 'suppliers', 'inventory', 'quality', 'service', 'workforce',
     'documents', 'notifications', 'email-activity',
     'reports', 'settings'
@@ -31,7 +31,7 @@ export const ROLE_PERMISSIONS = {
     'reports'
   ],
   SALES: [
-    'dashboard', 'sales', 'proforma-invoices', 'invoices', 'e-way-bills',
+    'dashboard', 'sales', 'proforma-invoices', 'invoices', 'payments', 'e-way-bills',
     'customers', 'contacts', 'sales-activity',
     'documents', 'notifications', 'email-activity',
     'reports'

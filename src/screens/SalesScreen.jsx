@@ -4,10 +4,11 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
+import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportQuotationPdf, exportElementAsPdf, numberToIndianWords } from '../utils/pdfGenerator';
 import { 
-  Search, Plus, Eye, Printer, CheckCircle, FileText, 
+  Search, Plus, Eye, Printer, CheckCircle, CheckCircle2, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
   MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
@@ -18,16 +19,6 @@ import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
 
 const QUOTE_STATUS_OPTIONS = [
-  { 
-    value: 'Draft', 
-    label: 'Draft', 
-    color: '#475569', 
-    bg: '#f1f5f9', 
-    border: '#cbd5e1', 
-    icon: FileText, 
-    badgeClass: 'badge-neutral',
-    description: 'Initial draft / In progress'
-  },
   { 
     value: 'Under Review', 
     label: 'Under Review', 
@@ -60,11 +51,38 @@ const QUOTE_STATUS_OPTIONS = [
   }
 ];
 
+const CLEAN_TEMPLATE = {
+  estimateNo: '',
+  date: '',
+  status: 'Under Review',
+  placeOfSupply: '',
+  customer: '',
+  customerAddress: '',
+  contactNo: '',
+  gstin: '',
+  state: '',
+  spindleSerial: '',
+  challanNo: '',
+  inwardDate: '',
+  scopeOfWork: '',
+  taxRate: 18,
+  bankName: 'ICICI BANK LIMITED, PUNE NANDED CITY',
+  accountNo: '349105000701',
+  ifscCode: 'ICIC0003491',
+  accountHolder: 'GENERAL PRECISION SPINDLES',
+  upiId: '7058731515@hdfc',
+  msmeNo: 'MH26A0189736',
+  enterpriseType: 'SPINDLE MANUFACTURING AND REPAIRING',
+  terms: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
+  items: [
+    { id: 1, name: '', hsn: '', qty: 1, unitPrice: 0 }
+  ]
+};
 
 const DEFAULT_LINAMAR_TEMPLATE = {
   estimateNo: 'QTN/2026-27/294',
   date: '07-09-2026',
-  status: 'Draft',
+  status: 'Under Review',
   placeOfSupply: '23-Madhya Pradesh',
   customer: 'LINAMAR INDIA PRIVATE LIMITED',
   customerAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001, India',
@@ -103,9 +121,11 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState(null);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConvertingToPI, setIsConvertingToPI] = useState(false);
 
   const [updatingQuoteId, setUpdatingQuoteId] = useState(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -137,6 +157,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const [issuedPIQuotations, setIssuedPIQuotations] = useState(new Set());
+
   const loadQuotations = async (preferredId = null) => {
     setIsLoading(true);
     setError(null);
@@ -145,6 +167,22 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       setError(res.error);
       setIsLoading(false);
       return;
+    }
+    
+    // Also fetch PIs to check which quotes already have a PI issued
+    const piRes = await proformaInvoiceService.getProformaInvoices();
+    if (!piRes.error && piRes.data) {
+      const piQuoteIds = new Set();
+      piRes.data.forEach(pi => {
+        if (pi.quotationId) piQuoteIds.add(pi.quotationId);
+        
+        // Fallback for mock data without dbId: check notes for the string ID
+        if (pi.notes && pi.notes.includes('Issued from Quotation')) {
+          const match = pi.notes.match(/Issued from Quotation ([\w/-]+)/);
+          if (match && match[1]) piQuoteIds.add(match[1]);
+        }
+      });
+      setIssuedPIQuotations(piQuoteIds);
     }
     const data = res.data || [];
     setQuotations(data);
@@ -182,7 +220,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   };
 
   // New Quotation Form State matching the PDF invoice
-  const [formState, setFormState] = useState({ ...DEFAULT_LINAMAR_TEMPLATE });
+  const [formState, setFormState] = useState({ ...CLEAN_TEMPLATE });
 
   // Calculate live totals for the modal form
   const formCalculations = useMemo(() => {
@@ -214,6 +252,16 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       return matchesStatus && matchesSearch;
     });
   }, [quotations, statusFilter, searchQuery, selectedQuote?.id, selectedQuote?.dbId]);
+
+  // Calculate Dashboard KPI Metrics: Total, Draft, Sent/Under Review, Total Value
+  const metrics = useMemo(() => {
+    const totalCount = quotations.length;
+    const activeQtn = quotations.filter(q => q.status?.toLowerCase() === 'under review').length;
+    const sentQtn = quotations.filter(q => q.status?.toLowerCase() === 'sent' || q.status?.toLowerCase() === 'under review').length;
+    const totalValue = quotations.reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+
+    return { totalCount, activeQtn, sentQtn, totalValue };
+  }, [quotations]);
 
   // Status update function handling Under Review, Approved, Draft, and Rejected with instant 0ms optimistic UI
   const handleUpdateStatus = useCallback(async (quoteId, newStatus) => {
@@ -326,13 +374,36 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     }));
   };
 
-  // Reset to LINAMAR template
-  const handleResetToLinamar = () => {
-    setFormState({ ...DEFAULT_LINAMAR_TEMPLATE });
-    onNotify('Loaded Linamar Kesslar estimate fields from PDF template');
+  // Reset to clean template
+  const handleResetForm = () => {
+    setFormState({ ...CLEAN_TEMPLATE });
+    onNotify('Form has been cleared and reset.');
   };
 
-  // Submit and create new quotation in live Supabase
+  const handleOpenEdit = (quote) => {
+    setEditingQuoteId(quote.id || quote.dbId);
+    setFormState({
+      estimateNo: quote.estimateNo || quote.id || '',
+      date: quote.date || new Date().toISOString().split('T')[0],
+      status: quote.status || 'Under Review',
+      placeOfSupply: quote.placeOfSupply || '27-Maharashtra',
+      customer: quote.customer || '',
+      customerAddress: quote.customerAddress || '',
+      contactNo: quote.contactNo || '',
+      gstin: quote.gstin || '',
+      state: quote.state || '',
+      spindleSerial: quote.spindleSerial || '',
+      challanNo: quote.challanNo || 'N/A',
+      inwardDate: quote.inwardDate || '',
+      scopeOfWork: quote.scopeOfWork || '',
+      taxRate: quote.taxRate || 18,
+      terms: quote.terms || 'Standard MSME terms apply.',
+      items: quote.items?.length > 0 ? [...quote.items] : [{ id: 1, name: '', hsn: '998717', qty: 1, unitPrice: 0 }]
+    });
+    setIsNewQuoteOpen(true);
+  };
+
+  // Submit and create or update quotation in live Supabase
   const handleCreateQuotation = async (e) => {
     e.preventDefault();
 
@@ -355,30 +426,49 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       ? `QTN/${fy}/${seq}`
       : formState.estimateNo;
 
-    const res = await salesService.createQuotation({
-      quotationNumber: qNo,
-      customerName: formState.customer,
-      customerAddress: formState.customerAddress,
-      customerGstin: formState.gstin,
-      placeOfSupply: formState.placeOfSupply,
-      spindleSerial: formState.spindleSerial,
-      scopeOfWork: formState.scopeOfWork,
-      subtotal: formCalculations.subtotal,
-      totalAmount: formCalculations.totalAmount,
-      status: formState.status || 'Draft',
-      terms: formState.terms,
-      items: formState.items
-    });
+    let res;
+    if (editingQuoteId) {
+      res = await salesService.updateQuotation(editingQuoteId, {
+        quotationNumber: qNo,
+        customerName: formState.customer,
+        customerAddress: formState.customerAddress,
+        customerGstin: formState.gstin,
+        placeOfSupply: formState.placeOfSupply,
+        spindleSerial: formState.spindleSerial,
+        scopeOfWork: formState.scopeOfWork,
+        subtotal: formCalculations.subtotal,
+        totalAmount: formCalculations.totalAmount,
+        status: formState.status || 'Under Review',
+        terms: formState.terms,
+        items: formState.items
+      });
+    } else {
+      res = await salesService.createQuotation({
+        quotationNumber: qNo,
+        customerName: formState.customer,
+        customerAddress: formState.customerAddress,
+        customerGstin: formState.gstin,
+        placeOfSupply: formState.placeOfSupply,
+        spindleSerial: formState.spindleSerial,
+        scopeOfWork: formState.scopeOfWork,
+        subtotal: formCalculations.subtotal,
+        totalAmount: formCalculations.totalAmount,
+        status: formState.status || 'Under Review',
+        terms: formState.terms,
+        items: formState.items
+      });
+    }
 
     if (res.error) {
-      onNotify(res.error.message || 'Failed to create quotation in database.', 'error');
+      onNotify(res.error.message || 'Failed to save quotation in database.', 'error');
       return;
     }
 
     setStatusFilter('all');
     setSearchQuery('');
     setIsNewQuoteOpen(false);
-    onNotify(`Estimate ${qNo} created successfully for ${formState.customer}`);
+    setEditingQuoteId(null);
+    onNotify(editingQuoteId ? `Estimate ${qNo} updated successfully` : `Estimate ${qNo} created successfully for ${formState.customer}`);
     await loadQuotations(qNo);
   };
 
@@ -401,6 +491,89 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     } catch (err) {
       console.error('Failed to export quotation PDF:', err);
       if (onNotify) onNotify('PDF export failed. Please try again.', 'error');
+    }
+  };
+
+  const handleConvertToProformaInvoice = async () => {
+    if (!selectedQuote) return;
+    setIsConvertingToPI(true);
+    try {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = now.getFullYear();
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      const dueD = new Date();
+      dueD.setDate(dueD.getDate() + 15);
+      const dueDD = String(dueD.getDate()).padStart(2, '0');
+      const dueMM = String(dueD.getMonth() + 1).padStart(2, '0');
+      const dueYYYY = dueD.getFullYear();
+      const dueStr = `${dueYYYY}-${dueMM}-${dueDD}`;
+
+      const randomSuffix = Math.floor(100 + Math.random() * 900);
+      const newPINumber = `PI/2026-27/${randomSuffix}`;
+
+      const items = (selectedQuote.items || []).map((it, idx) => ({
+        id: idx + 1,
+        name: it.name || it.item_name || 'Spindle Service / Component',
+        hsn: it.hsn || it.hsn_sac || '84669390',
+        qty: Number(it.qty || it.quantity || 1),
+        unitPrice: Number(it.unitPrice || it.rate || it.unit_price || 0)
+      }));
+
+      const subtotal = items.reduce((sum, it) => sum + (it.qty * it.unitPrice), 0);
+      const gstAmount = Math.round(subtotal * 0.18);
+      const totalAmount = subtotal + gstAmount;
+
+      const piPayload = {
+        piNumber: newPINumber,
+        customerId: selectedQuote.customerId || selectedQuote.customer_id || null,
+        customerName: selectedQuote.customer || selectedQuote.customerFullName || 'Valued Customer',
+        customerEmail: selectedQuote.customerEmail || '',
+        customerAddress: selectedQuote.customerAddress || selectedQuote.billingAddress || '',
+        customerGstin: selectedQuote.gstin || '',
+        placeOfSupply: selectedQuote.placeOfSupply || selectedQuote.state || '27-Maharashtra',
+        contactNo: selectedQuote.contactNo || selectedQuote.customerContact || '',
+        spindleSerial: selectedQuote.spindleSerial || '',
+        salesOrder: selectedQuote.salesOrder || selectedQuote.poNumber || 'VERBAL',
+        scopeOfWork: selectedQuote.scopeOfWork || '',
+        quotationId: selectedQuote.dbId || null,
+        piDate: todayStr,
+        validUntil: dueStr,
+        paymentTerms: '50% Advance with Proforma, 50% against Dispatch Inspection',
+        subtotal: subtotal,
+        totalAmount: totalAmount,
+        status: 'Ready to Send',
+        terms: selectedQuote.terms || 'Standard MSME terms apply.',
+        notes: `Issued from Quotation ${selectedQuote.estimateNo || selectedQuote.id}`,
+        items: items
+      };
+
+      const res = await proformaInvoiceService.createProformaInvoice(piPayload);
+      if (res.error) {
+        if (onNotify) onNotify(`Failed to create Proforma Invoice: ${res.error.message || 'Database error'}`, 'error');
+      } else {
+        // Auto-approve the quotation since it's converted to an order/PI
+        await handleUpdateStatus(selectedQuote.dbId || selectedQuote.id, 'Approved');
+        
+        setIssuedPIQuotations(prev => {
+          const newSet = new Set(prev);
+          if (selectedQuote.dbId) newSet.add(selectedQuote.dbId);
+          newSet.add(selectedQuote.estimateNo || selectedQuote.id);
+          return newSet;
+        });
+        
+        if (onNotify) onNotify(`Proforma Invoice ${newPINumber} issued successfully and Quotation was Approved!`, 'success');
+        if (onNavigate) {
+          onNavigate('proforma-invoices');
+        }
+      }
+    } catch (err) {
+      console.error('Error converting Quotation to PI:', err);
+      if (onNotify) onNotify('Conversion failed due to an unexpected error.', 'error');
+    } finally {
+      setIsConvertingToPI(false);
     }
   };
 
@@ -451,10 +624,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
             const seq = String(Date.now()).slice(-5);
             setFormState({
-              ...DEFAULT_LINAMAR_TEMPLATE,
+              ...CLEAN_TEMPLATE,
               estimateNo: `QTN/${fy}/${seq}`,
               date: now.toISOString().split('T')[0],
-              status: 'Draft'
+              status: 'Under Review'
             });
             setIsNewQuoteOpen(true);
           }}
@@ -465,6 +638,45 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       </PageHeader>
 
       <div className="content-body">
+        {/* Top KPI Metric Cards: Total Quotes, Active, Sent, Total Value */}
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Total Quotations</span>
+              <div className="metric-icon-wrap"><FileText size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.totalCount}</div>
+            <div className="metric-footer" style={{ color: 'var(--primary)' }}>Sales registry</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Active Quotes</span>
+              <div className="metric-icon-wrap"><CheckCircle size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.activeQtn}</div>
+            <div className="metric-footer" style={{ color: '#d97706' }}>In progress or review</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Sent Quotes</span>
+              <div className="metric-icon-wrap"><Send size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.sentQtn}</div>
+            <div className="metric-footer" style={{ color: '#0284c7' }}>Transmitted to clients</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Total Value</span>
+              <div className="metric-icon-wrap"><DollarSign size={16} /></div>
+            </div>
+            <div className="metric-value">₹{metrics.totalValue.toLocaleString('en-IN')}</div>
+            <div className="metric-footer" style={{ color: '#7A1F3D' }}>Total pipeline volume</div>
+          </div>
+        </div>
+
         {/* Quotations Master-Detail View */}
         <div 
           className="grid-2col-sales" 
@@ -504,7 +716,6 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <option value="all">All Statuses ({quotations.length})</option>
                 <option value="under review">Under Review ({quotations.filter(q => q.status?.toLowerCase() === 'under review').length})</option>
                 <option value="approved">Approved ({quotations.filter(q => q.status?.toLowerCase() === 'approved').length})</option>
-                <option value="draft">Draft ({quotations.filter(q => q.status?.toLowerCase() === 'draft').length})</option>
                 <option value="rejected">Rejected ({quotations.filter(q => q.status?.toLowerCase() === 'rejected').length})</option>
               </CustomSelect>
             </div>
@@ -745,7 +956,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     <button 
                       type="button" 
                       onClick={() => setStatusDropdownOpen(prev => !prev)}
-                      title={`Status is "${selectedQuote.status}". Click to switch to Draft, Under Review, Approved, or Rejected.`}
+                      title={`Status is "${selectedQuote.status}". Click to switch to Under Review, Approved, or Rejected.`}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -849,8 +1060,6 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {/* Removed Contextual 1-Click Status Workflow Actions in favor of upper dropdown */}
-                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
-
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
@@ -861,6 +1070,54 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     <Mail size={12} color="var(--primary)" />
                     <span>Send Email</span>
                   </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-sm"
+                    onClick={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? () => { if (onNavigate) onNavigate('proforma-invoices'); } : handleConvertToProformaInvoice}
+                    disabled={isConvertingToPI}
+                    title={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? "A Proforma Invoice has already been issued. Click to view Proforma Invoices." : "Issue Proforma Invoice from this Quotation"}
+                    style={{ 
+                      height: '28px', 
+                      fontSize: '11px', 
+                      padding: '0 10px', 
+                      gap: '5px',
+                      background: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'var(--bg-surface-subtle)' 
+                        : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                      color: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'var(--primary)' 
+                        : '#ffffff',
+                      border: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? '1px solid var(--border-color)' 
+                        : 'none',
+                      fontWeight: 600,
+                      boxShadow: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'none' 
+                        : '0 1px 3px rgba(2, 132, 199, 0.25)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {isConvertingToPI ? (
+                      <>
+                        <Loader2 size={12} className="spin" />
+                        <span>Issuing...</span>
+                      </>
+                    ) : (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? (
+                      <>
+                        <Eye size={12} color="var(--primary)" />
+                        <span>View Proforma Invoice</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileCheck size={12} />
+                        <span>Issue Proforma Invoice</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
 
                   <button 
                     type="button" 
@@ -929,6 +1186,17 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                   >
                     {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleOpenEdit(selectedQuote)}
+                    title="Edit Quotation details"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                  >
+                    <Edit3 size={12} />
+                    <span>Edit</span>
                   </button>
 
                   <button 
@@ -1280,7 +1548,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                               <span>₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
 
-                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px 0' }} />
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }} />
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
                               <span>Total</span>
@@ -1437,26 +1705,32 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       {/* NEW QUOTATION MODAL - COMPACT & MATCHING THE PDF INVOICE FIELDS EXACTLY */}
       <Modal
         isOpen={isNewQuoteOpen}
-        onClose={() => setIsNewQuoteOpen(false)}
-        title="Create New Precision Spindle Estimate / Quotation (Official GPS Format)"
+        onClose={() => {
+          setIsNewQuoteOpen(false);
+          setEditingQuoteId(null);
+        }}
+        title={editingQuoteId ? `Edit Estimate / Quotation ${formState.estimateNo}` : "Create New Precision Spindle Estimate / Quotation (Official GPS Format)"}
         maxWidth="920px"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <button 
               type="button" 
               className="btn btn-secondary btn-sm"
-              onClick={handleResetToLinamar}
-              title="Reset fields to the Linamar Kesslar PDF estimate sample"
+              onClick={handleResetForm}
+              title="Clear all fields in this form"
             >
               <RefreshCw size={12} />
-              <span>Load Linamar Kesslar PDF Template</span>
+              <span>Reset / Clear Form</span>
             </button>
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm" 
-                onClick={() => setIsNewQuoteOpen(false)}
+                onClick={() => {
+                  setIsNewQuoteOpen(false);
+                  setEditingQuoteId(null);
+                }}
               >
                 Cancel
               </button>
@@ -1466,7 +1740,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 onClick={handleCreateQuotation}
               >
                 <CheckCircle size={13} />
-                <span>Generate Quotation</span>
+                <span>{editingQuoteId ? 'Save Changes' : 'Generate Quotation'}</span>
               </button>
             </div>
           </div>
@@ -1524,11 +1798,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Initial Status</label>
                 <select 
                   className="form-control" 
-                  value={formState.status || 'Draft'}
+                  value={formState.status || 'Under Review'}
                   onChange={(e) => setFormState({ ...formState, status: e.target.value })}
                   style={{ height: '28px', fontSize: '11px', fontWeight: 600 }}
                 >
-                  <option value="Draft">Draft</option>
                   <option value="Under Review">Under Review</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>

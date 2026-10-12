@@ -284,6 +284,69 @@ export const salesService = {
   /**
    * Update quotation status (Draft, Sent, Approved, Rejected, etc.)
    */
+  async updateQuotation(id, updateData) {
+    const { 
+      quotationNumber, customerName, customerAddress, customerGstin,
+      placeOfSupply, spindleSerial, scopeOfWork, subtotal, 
+      totalAmount, status, terms, notes, items 
+    } = updateData;
+
+    const isUuid = typeof id === 'string' && id.includes('-') && id.length === 36;
+    const filterField = isUuid ? 'id' : 'quotation_number';
+
+    let resolvedCustomerId = null;
+    if (customerName) {
+      const custRes = await baseService.upsertCustomer({
+        customerName,
+        customerAddress,
+        customerGstin,
+        placeOfSupply
+      });
+      if (custRes.data) {
+        resolvedCustomerId = custRes.data.id;
+      }
+    }
+
+    const record = {
+      ...(quotationNumber && { quotation_number: quotationNumber }),
+      ...(resolvedCustomerId && { customer_id: resolvedCustomerId }),
+      ...(customerName && { customer_name: customerName }),
+      ...(customerAddress !== undefined && { customer_address: customerAddress }),
+      ...(customerGstin !== undefined && { customer_gstin: customerGstin }),
+      ...(placeOfSupply !== undefined && { place_of_supply: placeOfSupply }),
+      ...(spindleSerial !== undefined && { spindle_serial: spindleSerial }),
+      ...(scopeOfWork !== undefined && { scope_of_work: Array.isArray(scopeOfWork) ? scopeOfWork.join('\n') : scopeOfWork }),
+      ...(subtotal !== undefined && { subtotal: subtotal || 0 }),
+      ...(subtotal !== undefined && { taxable_amount: subtotal || 0 }),
+      ...(totalAmount !== undefined && { total_amount: totalAmount || (subtotal * 1.18) }),
+      ...(status !== undefined && { status: status === 'Under Review' ? 'Sent' : status }),
+      ...(terms !== undefined && { terms }),
+      ...(notes !== undefined && { notes })
+    };
+
+    let res = await baseService.update('quotations', { [filterField]: id }, record);
+
+    // Update items if provided and we have the quotation id
+    if (items && items.length > 0) {
+      const qId = isUuid ? id : (res.data?.[0]?.id || (await this.getQuotationById(id)).data?.id);
+      if (qId) {
+        await baseService.delete('quotation_items', { quotation_id: qId });
+        const itemsToInsert = items.map((it, idx) => ({
+          quotation_id: qId,
+          item_name: it.name,
+          hsn_code: it.hsn || '',
+          quantity: it.qty || 1,
+          unit_price: it.unitPrice || 0,
+          total_price: (it.qty || 1) * (it.unitPrice || 0),
+          display_order: idx
+        }));
+        await baseService.insert('quotation_items', itemsToInsert);
+      }
+    }
+
+    return res;
+  },
+
   async updateQuotationStatus(id, newStatus) {
     const dbStatus = newStatus === 'Under Review' ? 'Sent' : newStatus;
 

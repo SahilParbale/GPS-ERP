@@ -297,15 +297,34 @@ export const invoiceService = {
         if (existingCust && existingCust.id) {
           targetCustomerId = existingCust.id;
         } else {
-          const { data: newCust } = await supabase.from('customers').insert({
-            company_name: (customerName || 'PS MAINTENANCE SERVICE').trim(),
-            billing_address: customerAddress || '',
+          const nameTrimmed = (customerName || 'PS MAINTENANCE SERVICE').trim();
+          const stateStr = placeOfSupply || 'Maharashtra';
+          const stateName = stateStr.includes('-') ? stateStr.split('-').slice(1).join('-').trim() : stateStr;
+          const code = 'CUST-' + nameTrimmed.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 8) + '-' + String(Date.now()).slice(-4);
+
+          const { data: newCust, error: custErr } = await supabase.from('customers').insert({
+            customer_code: code,
+            company_name: nameTrimmed,
+            billing_address: customerAddress || 'Address not provided',
             gstin: customerGstin || null,
-            state: placeOfSupply || '27-Maharashtra'
+            state: stateName,
+            is_active: true
           }).select('id').maybeSingle();
-          if (newCust && newCust.id) targetCustomerId = newCust.id;
+
+          if (newCust && newCust.id) {
+            targetCustomerId = newCust.id;
+          } else {
+            console.warn('[invoiceService] Could not insert customer, fetching fallback:', custErr);
+            const { data: fallbackCust } = await supabase.from('customers').select('id').limit(1).maybeSingle();
+            if (fallbackCust && fallbackCust.id) targetCustomerId = fallbackCust.id;
+          }
         }
-      } catch (_e) {}
+      } catch (_e) {
+        try {
+          const { data: fallbackCust } = await supabase.from('customers').select('id').limit(1).maybeSingle();
+          if (fallbackCust && fallbackCust.id) targetCustomerId = fallbackCust.id;
+        } catch (__e) {}
+      }
     }
 
     let salesOrderId = null;
@@ -336,9 +355,11 @@ export const invoiceService = {
     const igst = isInterstate ? Math.round(calcTaxAmt) : 0;
     const finalTotal = Number(totalAmount || (calcSubtotal + calcTaxAmt));
     const finalPaid = Number(paidAmount || 0);
-    const finalBalance = Math.max(0, finalTotal - finalPaid);
 
     let finalStatus = status;
+    if (finalStatus === 'Payment Pending' || !finalStatus) {
+      finalStatus = 'Pending Payment';
+    }
     if (finalPaid >= finalTotal) {
       finalStatus = 'Paid';
     } else if (finalPaid > 0) {
@@ -367,7 +388,6 @@ export const invoiceService = {
       igst_amount: igst,
       total_amount: finalTotal,
       paid_amount: finalPaid,
-      balance_amount: finalBalance,
       status: finalStatus,
       notes: combinedNotes
     };
@@ -464,7 +484,6 @@ export const invoiceService = {
       igst_amount: igst,
       total_amount: finalTotal,
       paid_amount: finalPaid,
-      balance_amount: finalBalance,
       status: finalStatus,
       notes: combinedNotes,
       updated_at: new Date().toISOString()
@@ -546,7 +565,6 @@ export const invoiceService = {
     const filterField = invoiceId.includes('-') && invoiceId.length === 36 ? 'id' : 'invoice_number';
     return await baseService.update('invoices', { [filterField]: invoiceId }, {
       paid_amount: newPaid,
-      balance_amount: newBalance,
       status: newStatus,
       updated_at: new Date().toISOString()
     });

@@ -27,7 +27,8 @@ import {
   Cpu,
   FileCheck,
   CheckCircle2,
-  Users
+  Users,
+  CreditCard
 } from 'lucide-react';
 
 /**
@@ -124,6 +125,18 @@ export const SYSTEM_ACTIONS = [
     badgeColor: '#059669',
     icon: Receipt,
     keywords: ['invoice', 'billing', 'tax', 'gst', 'payment', 'receivables']
+  },
+  {
+    id: 'act-payments',
+    docType: 'Quick Action',
+    category: 'actions',
+    docNumber: 'Client Payments',
+    title: 'Client Payments & Receivables',
+    subtitle: 'Track pending payments, overdue aging, electronic receipts & send 1-click reminders',
+    targetScreen: 'payments',
+    badgeColor: '#10b981',
+    icon: CreditCard,
+    keywords: ['payment', 'receivables', 'client payment', 'overdue', 'reminder', 'balance', 'receipt', 'utr']
   },
   {
     id: 'act-pi',

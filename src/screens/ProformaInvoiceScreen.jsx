@@ -7,22 +7,29 @@ import { proformaInvoiceService, DEFAULT_TTB_PROFORMA } from '../services/databa
 import { salesService } from '../services/database/salesService';
 import { invoiceService } from '../services/database/invoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
-import { 
-  exportProformaInvoicePdf, 
+import {
+  exportProformaInvoicePdf,
   exportProformaInvoiceRegisterPdf,
   numberToIndianWords
 } from '../utils/pdfGenerator';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId } from '../utils/upiQrGenerator';
-import { 
-  Search, Plus, Eye, Printer, FileText, Send, 
-  Download, Trash2, Edit3, Check, X, Building2, 
-  User, Phone, MapPin, Mail, Clock, ShoppingCart, 
+import {
+  Search, Plus, Eye, Printer, FileText, Send,
+  Download, Trash2, Edit3, Check, X, Building2,
+  User, Phone, MapPin, Mail, Clock, ShoppingCart,
   CheckCircle2, AlertCircle, Calendar, DollarSign,
   ChevronRight, ArrowRight, ShieldCheck, Link2, RefreshCw,
-  Maximize2, Minimize2, CheckCircle, XCircle, FileCheck, Loader2, Sparkles
+  Maximize2, Minimize2, CheckCircle, XCircle, FileCheck, Loader2, Sparkles, ZoomIn, ZoomOut, ChevronDown
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
+
+const PI_STATUS_OPTIONS = [
+  { value: 'Ready to Send', label: 'Ready to Send', color: '#92400e', bg: '#fffbeb', icon: Clock, description: 'Created / Awaiting Dispatch' },
+  { value: 'Sent', label: 'Sent', color: '#0369a1', bg: '#f0f9ff', icon: Send, description: 'Sent to Customer' },
+  { value: 'Paid', label: 'Paid', color: '#166534', bg: '#f0fdf4', icon: CheckCircle2, description: 'Payment Received' },
+  { value: 'Cancelled', label: 'Cancelled', color: '#991b1b', bg: '#fef2f2', icon: XCircle, description: 'Invoice Cancelled' }
+];
 
 const PRESET_CUSTOMERS = [
   {
@@ -88,36 +95,63 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   const [piToDelete, setPiToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConvertingToTaxInvoice, setIsConvertingToTaxInvoice] = useState(false);
+  const [issuedTaxInvoices, setIssuedTaxInvoices] = useState(new Map());
 
-  // Form State for Create / Edit PI
-  const [formState, setFormState] = useState({
+  const [updatingPIId, setUpdatingPIId] = useState(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [sidebarStatusMenuPIId, setSidebarStatusMenuPIId] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.status-dropdown-container') && !e.target.closest('.sidebar-status-container')) {
+        setStatusDropdownOpen(false);
+        setSidebarStatusMenuPIId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const previewContainerRef = React.useRef(null);
+  const [zoomScale, setZoomScale] = useState(1);
+
+  const handleFitWidth = useCallback(() => {
+    if (previewContainerRef.current) {
+      const containerWidth = previewContainerRef.current.clientWidth - 48;
+      if (containerWidth > 0 && containerWidth < 794) {
+        const calculatedScale = Math.max(0.5, Math.min(1, Number((containerWidth / 794).toFixed(2))));
+        setZoomScale(calculatedScale);
+      } else {
+        setZoomScale(1);
+      }
+    }
+  }, []);
+
+  const CLEAN_PI_TEMPLATE = {
     piNumber: '',
-    customer: 'T T B TOOLING',
-    customerEmail: 'purchase@ttbtooling.com',
-    customerContact: '9975108709',
-    billingAddress: 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan\nPune, Maharashtra-410501\nIndia',
-    gstin: '27AAKFT2876K1ZI',
+    customer: '',
+    customerEmail: '',
+    customerContact: '',
+    billingAddress: '',
+    gstin: '',
     placeOfSupply: '27-Maharashtra',
-    salesOrder: 'SO-2026-027',
-    piDate: '22-08-2026',
-    validUntil: '06-09-2026',
-    spindleSerial: 'HMMXXVI (M77-002)',
-    challanNo: '049',
-    challanDate: '18-08-2026',
-    scopeOfWork: `1. DISMENTAL\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. DRAWBAR HARDCHROME\n6. DRAWBAR RECONDITIONING\n7. DISC SPRING REPLACEMENT\n8. TAPER GRINDING\n9. SHAFT BALANCING\n10. DYNAMIC RUN TEST`,
+    salesOrder: '',
+    piDate: new Date().toISOString().split('T')[0].split('-').reverse().join('-'),
+    validUntil: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0].split('-').reverse().join('-'),
+    spindleSerial: '',
+    challanNo: '',
+    challanDate: '',
+    scopeOfWork: '',
     paymentTerms: '50% Advance with Proforma, 50% against Dispatch Inspection',
     terms: 'Thanks for doing business with us!',
     quotationId: null,
     items: [
-      { id: 1, name: 'RECONDITIONING CHARGES FOR SPINDLE (M77-002)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 33500 },
-      { id: 2, name: '7014CTYNSULP4 NSK (SET OF 4 )', hsn: '84821012', qty: 1, unit: 'SET', unitPrice: 22500 },
-      { id: 3, name: 'TRANSPORT CHARGES', hsn: '996511', qty: 1, unit: '-', unitPrice: 3500 },
-      { id: 4, name: 'DRAWBAR ASSEMBLY WITH DISC SPRING (MUBEA MAKE GERMANY)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 15500 },
-      { id: 5, name: 'TAPER GRINDING', hsn: '998717', qty: 1, unit: '-', unitPrice: 5500 },
-      { id: 6, name: 'SHAFT BALANCING G2.5', hsn: '84669390', qty: 1, unit: '-', unitPrice: 2500 },
-      { id: 7, name: 'REMOVAL & FITMENT CHARGES', hsn: '998717', qty: 1, unit: '-', unitPrice: 12500 }
+      { id: 1, name: '', hsn: '84669390', qty: 1, unit: '-', unitPrice: 0 }
     ]
-  });
+  };
+
+  // Form State for Create / Edit PI
+  const [formState, setFormState] = useState(CLEAN_PI_TEMPLATE);
 
   // Load Proforma Invoices & Approved Quotations
   const loadPIs = async (preferredId = null) => {
@@ -150,7 +184,35 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         const approved = qRes.data.filter(q => q.status?.toLowerCase() === 'approved');
         setApprovedQuotations(approved);
       }
-    } catch (_err) {}
+    } catch (_err) { }
+
+    // 3. Fetch tax invoices to check which PIs already have a Tax Invoice issued
+    try {
+      const invRes = await invoiceService.getInvoices();
+      if (!invRes.error && invRes.data) {
+        const taxMap = new Map();
+        invRes.data.forEach(inv => {
+          if (inv.proformaInvoiceId) {
+            taxMap.set(String(inv.proformaInvoiceId), inv);
+          }
+          if (inv.notes && inv.notes.includes('Issued from Proforma Invoice')) {
+            const match = inv.notes.match(/Issued from Proforma Invoice\s+([\w/-]+)/i);
+            if (match && match[1]) {
+              const matchedRef = match[1].trim();
+              taxMap.set(matchedRef, inv);
+              if (matchedRef.startsWith('PI-')) {
+                taxMap.set(matchedRef.replace('PI-', ''), inv);
+              } else {
+                taxMap.set(`PI-${matchedRef}`, inv);
+              }
+            }
+          }
+        });
+        setIssuedTaxInvoices(taxMap);
+      }
+    } catch (_err) {
+      console.warn('Error fetching tax invoices for link check:', _err);
+    }
 
     setIsLoading(false);
   };
@@ -158,6 +220,26 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   useEffect(() => {
     loadPIs();
   }, []);
+
+  // Helper to check if a Tax Invoice has already been issued for a Proforma Invoice
+  const getLinkedTaxInvoice = useCallback((pi) => {
+    if (!pi || !issuedTaxInvoices || issuedTaxInvoices.size === 0) return null;
+    const candidates = [
+      pi.dbId ? String(pi.dbId) : null,
+      pi.id ? String(pi.id) : null,
+      pi.piNumber ? String(pi.piNumber) : null,
+      pi.piNumber ? `PI-${pi.piNumber}` : null,
+      (pi.id && !pi.id.startsWith('PI-')) ? `PI-${pi.id}` : null,
+      (pi.id && pi.id.startsWith('PI-')) ? pi.id.replace('PI-', '') : null
+    ].filter(Boolean);
+
+    for (const key of candidates) {
+      if (issuedTaxInvoices.has(key)) {
+        return issuedTaxInvoices.get(key);
+      }
+    }
+    return null;
+  }, [issuedTaxInvoices]);
 
   // Form Live Calculations
   const formCalculations = useMemo(() => {
@@ -174,30 +256,30 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
     return { subtotal, taxTotal, cgst, sgst, igst, grandTotal, totalQty, amountInWords, isInterState };
   }, [formState.items, formState.placeOfSupply]);
 
-  // Calculate Dashboard KPI Metrics: Total, Ready to Send, Sent, Total Value
+  // Calculate Dashboard KPI Metrics: Total, Ready, Sent, Paid
   const metrics = useMemo(() => {
     const totalCount = proformaInvoices.length;
-    const readyPI = proformaInvoices.filter(p => !p.status?.toLowerCase().includes('sent')).length;
+    const readyPI = proformaInvoices.filter(p => p.status?.toLowerCase() === 'ready to send').length;
     const sentPI = proformaInvoices.filter(p => p.status?.toLowerCase() === 'sent').length;
+    const paidPI = proformaInvoices.filter(p => p.status?.toLowerCase() === 'paid' || p.status?.toLowerCase() === 'partially paid').length;
     const totalValue = proformaInvoices.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
 
-    return { totalCount, readyPI, sentPI, totalValue };
+    return { totalCount, readyPI, sentPI, paidPI, totalValue };
   }, [proformaInvoices]);
 
-  // Filtered list for left column: 'all', 'ready', 'sent'
+  // Filtered list for left column
   const filteredPIs = useMemo(() => {
     return proformaInvoices.filter((pi) => {
+      // Keep selected PI visible to prevent jumpy UI
+      const isCurrentlySelected = selectedPI && (pi.id === selectedPI.id || pi.dbId === selectedPI.dbId);
+
       const status = pi.status?.toLowerCase() || 'ready to send';
       const filter = statusFilter.toLowerCase();
-      
-      let matchesStatus = false;
-      if (filter === 'all') {
-        matchesStatus = true;
-      } else if (filter === 'ready') {
-        matchesStatus = !status.includes('sent');
-      } else if (filter === 'sent') {
-        matchesStatus = status === 'sent';
-      }
+
+      const matchesStatus =
+        filter === 'all'
+          ? true
+          : (isCurrentlySelected || status === filter);
 
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q ||
@@ -214,37 +296,21 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   // Open Create Modal & reset form
   const handleOpenCreateModal = () => {
     setEditingPIId(null);
-    const nextNum = String(proformaInvoices.length + 27);
     setSelectedQuoteId('');
     setFormState({
-      piNumber: nextNum,
-      customer: 'T T B TOOLING',
-      customerEmail: 'purchase@ttbtooling.com',
-      customerContact: '9975108709',
-      billingAddress: 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan\nPune, Maharashtra-410501\nIndia',
-      gstin: '27AAKFT2876K1ZI',
-      placeOfSupply: '27-Maharashtra',
-      salesOrder: `SO-2026-0${nextNum}`,
-      piDate: new Date().toISOString().split('T')[0].split('-').reverse().join('-'),
-      validUntil: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0].split('-').reverse().join('-'),
-      spindleSerial: 'HMMXXVI (M77-002)',
-      challanNo: '049',
-      challanDate: '18-08-2026',
-      scopeOfWork: `1. DISMENTAL\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. DRAWBAR HARDCHROME\n6. DRAWBAR RECONDITIONING\n7. DISC SPRING REPLACEMENT\n8. TAPER GRINDING\n9. SHAFT BALANCING\n10. DYNAMIC RUN TEST`,
-      paymentTerms: '50% Advance with Proforma, 50% against Dispatch Inspection',
-      terms: 'Thanks for doing business with us!',
-      quotationId: null,
-      items: [
-        { id: 1, name: 'RECONDITIONING CHARGES FOR SPINDLE (M77-002)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 33500 },
-        { id: 2, name: '7014CTYNSULP4 NSK (SET OF 4 )', hsn: '84821012', qty: 1, unit: 'SET', unitPrice: 22500 },
-        { id: 3, name: 'TRANSPORT CHARGES', hsn: '996511', qty: 1, unit: '-', unitPrice: 3500 },
-        { id: 4, name: 'DRAWBAR ASSEMBLY WITH DISC SPRING (MUBEA MAKE GERMANY)', hsn: '84669390', qty: 1, unit: '-', unitPrice: 15500 },
-        { id: 5, name: 'TAPER GRINDING', hsn: '998717', qty: 1, unit: '-', unitPrice: 5500 },
-        { id: 6, name: 'SHAFT BALANCING G2.5', hsn: '84669390', qty: 1, unit: '-', unitPrice: 2500 },
-        { id: 7, name: 'REMOVAL & FITMENT CHARGES', hsn: '998717', qty: 1, unit: '-', unitPrice: 12500 }
-      ]
+      ...CLEAN_PI_TEMPLATE,
+      piNumber: String(proformaInvoices.length + 27)
     });
     setIsCreateModalOpen(true);
+  };
+
+  const handleResetForm = () => {
+    if (window.confirm("Are you sure you want to clear all form data?")) {
+      setFormState({
+        ...CLEAN_PI_TEMPLATE,
+        piNumber: formState.piNumber
+      });
+    }
   };
 
   // Open Edit Modal to modify proforma details
@@ -462,8 +528,9 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
     if (onNotify) onNotify(`Proforma Invoice status updated to ${newStatus}`, 'success');
 
-    // 2. Non-blocking background sync
+    // 2. Background sync
     try {
+      setUpdatingPIId(piId);
       const idToUpdate = targetPI.dbId || targetPI.id;
       const res = await proformaInvoiceService.updateProformaInvoiceStatus(idToUpdate, newStatus);
       if (res && res.error) {
@@ -471,6 +538,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
       }
     } catch (err) {
       console.warn(`[ProformaInvoiceScreen] Background status sync error:`, err);
+    } finally {
+      setUpdatingPIId(null);
     }
   };
 
@@ -531,7 +600,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   const handleEmailSent = async () => {
     if (!emailDoc) return;
     const piId = emailDoc.dbId || emailDoc.id;
-    
+
     // Automatically transition to 'Sent' upon successful email transmission
     await proformaInvoiceService.updateProformaInvoiceStatus(piId, 'Sent');
 
@@ -561,14 +630,14 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
       const dd = String(now.getDate()).padStart(2, '0');
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const yyyy = now.getFullYear();
-      const todayStr = `${dd}-${mm}-${yyyy}`;
+      const todayStr = `${yyyy}-${mm}-${dd}`;
 
       const dueD = new Date();
       dueD.setDate(dueD.getDate() + 15);
       const dueDD = String(dueD.getDate()).padStart(2, '0');
       const dueMM = String(dueD.getMonth() + 1).padStart(2, '0');
       const dueYYYY = dueD.getFullYear();
-      const dueStr = `${dueDD}-${dueMM}-${dueYYYY}`;
+      const dueStr = `${dueYYYY}-${dueMM}-${dueDD}`;
 
       const randomSuffix = Math.floor(100 + Math.random() * 900);
       const newInvNumber = `INV2026-27/${randomSuffix}`;
@@ -597,7 +666,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         spindleSerial: selectedPI.spindleSerial || '',
         poNumber: selectedPI.salesOrder || 'VERBAL',
         scopeOfWork: selectedPI.scopeOfWork || '',
-        proformaInvoiceId: selectedPI.id || selectedPI.piNumber || selectedPI.dbId,
+        proformaInvoiceId: selectedPI.dbId || null,
         quotationId: selectedPI.quotationId || null,
         invoiceDate: todayStr,
         dueDate: dueStr,
@@ -616,6 +685,20 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
       if (res.error) {
         if (onNotify) onNotify(`Failed to create Tax Invoice: ${res.error.message || 'Database error'}`, 'error');
       } else {
+        const createdTaxInv = res.data || taxInvPayload;
+        setIssuedTaxInvoices(prev => {
+          const next = new Map(prev);
+          if (selectedPI.dbId) next.set(String(selectedPI.dbId), createdTaxInv);
+          if (selectedPI.id) next.set(String(selectedPI.id), createdTaxInv);
+          if (selectedPI.piNumber) {
+            next.set(String(selectedPI.piNumber), createdTaxInv);
+            next.set(`PI-${selectedPI.piNumber}`, createdTaxInv);
+          }
+          return next;
+        });
+        if (typeof window !== 'undefined') {
+          window.__TARGET_TAX_INVOICE_ID__ = createdTaxInv.id || createdTaxInv.invoiceNumber || newInvNumber;
+        }
         if (onNotify) onNotify(`Tax Invoice ${newInvNumber} issued successfully from Proforma Invoice ${selectedPI.piNumber || selectedPI.id}!`, 'success');
         if (onNavigate) {
           onNavigate('invoices');
@@ -636,8 +719,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   if (error) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Proforma Invoices" 
+        <PageHeader
+          title="Proforma Invoices"
           subtitle="Commercial proforma invoices, advance payment milestones, and approved quotation conversion"
           badge="Database Notice"
         />
@@ -663,13 +746,13 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   return (
     <div className="content-area">
       {/* Page Header */}
-      <PageHeader 
-        title="Proforma Invoices" 
+      <PageHeader
+        title="Proforma Invoices"
         subtitle="Commercial proforma invoices, advance payment milestones, and approved quotation conversion"
         badge={`${proformaInvoices.length} Proforma Invoices`}
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             try {
@@ -684,13 +767,13 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           <Download size={14} />
           <span>Export PIs</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={handleOpenCreateModal}
         >
           <Plus size={14} />
-          <span>+ Create Proforma Invoice</span>
+          <span>Create Proforma Invoice</span>
         </button>
       </PageHeader>
 
@@ -726,8 +809,17 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
           <div className="metric-card">
             <div className="metric-top">
-              <span className="metric-label">Total Value</span>
+              <span className="metric-label">Paid / Partial</span>
               <div className="metric-icon-wrap"><CheckCircle2 size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.paidPI}</div>
+            <div className="metric-footer" style={{ color: '#16a34a' }}>Payment received</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Total Value</span>
+              <div className="metric-icon-wrap"><DollarSign size={16} /></div>
             </div>
             <div className="metric-value">₹{metrics.totalValue.toLocaleString('en-IN')}</div>
             <div className="metric-footer" style={{ color: '#7A1F3D' }}>Total pipeline billing</div>
@@ -735,10 +827,10 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         </div>
 
         {/* Master-Detail Split Layout */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr', 
-          gap: '16px', 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr',
+          gap: '16px',
           alignItems: 'start'
         }}>
           {/* Left Column: Compact Proforma Invoice List */}
@@ -748,24 +840,26 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div className="search-input-wrap">
                   <Search size={14} className="search-icon" />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Search PI #, Customer, Serial..." 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search PI #, Customer, Serial..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <CustomSelect 
-                    value={statusFilter} 
+                  <CustomSelect
+                    value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     style={{ width: '100%', fontSize: '11.5px', height: '30px' }}
                     options={[
                       { value: 'all', label: `All Statuses (${proformaInvoices.length})` },
-                      { value: 'ready', label: `Ready to Send (${metrics.readyPI})` },
-                      { value: 'sent', label: `Sent / Emailed (${metrics.sentPI})` }
+                      { value: 'ready to send', label: `Ready to Send (${proformaInvoices.filter(p => p.status?.toLowerCase() === 'ready to send').length})` },
+                      { value: 'sent', label: `Sent (${proformaInvoices.filter(p => p.status?.toLowerCase() === 'sent').length})` },
+                      { value: 'paid', label: `Paid (${proformaInvoices.filter(p => p.status?.toLowerCase() === 'paid').length})` },
+                      { value: 'cancelled', label: `Cancelled (${proformaInvoices.filter(p => p.status?.toLowerCase() === 'cancelled').length})` }
                     ]}
                   />
                 </div>
@@ -781,7 +875,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   filteredPIs.map((pi) => {
                     const isSelected = selectedPI && (selectedPI.id === pi.id || selectedPI.piNumber === pi.piNumber || selectedPI.dbId === pi.dbId);
                     return (
-                      <div 
+                      <div
                         key={pi.id || pi.dbId}
                         onClick={() => setSelectedPI(pi)}
                         style={{
@@ -794,10 +888,119 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
-                            {pi.piNumber ? `PI No. ${pi.piNumber}` : pi.id}
+                          <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{pi.piNumber ? `PI No. ${pi.piNumber}` : pi.id}</span>
+                            {getLinkedTaxInvoice(pi) && (
+                              <span 
+                                title={`Tax Invoice issued: ${getLinkedTaxInvoice(pi).invoiceNumber || getLinkedTaxInvoice(pi).id || ''}`}
+                                style={{
+                                  fontSize: '9.5px',
+                                  fontWeight: 600,
+                                  color: '#0284c7',
+                                  background: '#e0f2fe',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  lineHeight: '1.2'
+                                }}
+                              >
+                                Tax Inv
+                              </span>
+                            )}
                           </span>
-                          <StatusBadge status={pi.status} size="sm" />
+                          <div style={{ position: 'relative' }} className="sidebar-status-container">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSidebarStatusMenuPIId(prev => (prev === (pi.id || pi.dbId) ? null : (pi.id || pi.dbId)));
+                              }}
+                              title={`Status: ${pi.status}. Click to change.`}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                padding: 0,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                borderRadius: '12px',
+                                outline: 'none'
+                              }}
+                            >
+                              {updatingPIId === (pi.id || pi.dbId) ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: 'var(--primary)', fontWeight: 600 }}>
+                                  <Loader2 size={11} className="animate-spin" />
+                                  <span>Updating...</span>
+                                </span>
+                              ) : (
+                                <>
+                                  <StatusBadge status={pi.status} size="sm" />
+                                  <ChevronDown size={10} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                                </>
+                              )}
+                            </button>
+
+                            {/* Quick Status Dropdown in Sidebar */}
+                            {sidebarStatusMenuPIId === (pi.id || pi.dbId) && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  position: 'absolute',
+                                  top: 'calc(100% + 4px)',
+                                  right: 0,
+                                  zIndex: 120,
+                                  minWidth: '150px',
+                                  background: 'var(--bg-surface)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '2px',
+                                  animation: 'fadeIn 0.1s ease-out'
+                                }}
+                              >
+                                {PI_STATUS_OPTIONS.map(opt => {
+                                  const isCurrent = pi.status === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdateStatus(pi.id || pi.dbId, opt.value);
+                                        setSidebarStatusMenuPIId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '5px 8px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: isCurrent ? opt.bg : 'transparent',
+                                        color: opt.color,
+                                        fontSize: '11px',
+                                        fontWeight: isCurrent ? 700 : 500,
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        transition: 'all 0.12s ease'
+                                      }}
+                                      onMouseEnter={e => {
+                                        if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                      }}
+                                      onMouseLeave={e => {
+                                        if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                      }}
+                                    >
+                                      <span>{opt.label}</span>
+                                      {isCurrent && <Check size={11} color={opt.color} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', marginBottom: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -916,12 +1119,12 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             return (
               <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 {/* Top Action Header with State Transitions, Edit, Send Email, Print, Download, Full Screen & Delete */}
-                <div style={{ 
-                  padding: '10px 14px', 
-                  background: 'var(--bg-surface-subtle)', 
-                  borderBottom: '1px solid var(--border-color)', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'var(--bg-surface-subtle)',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   flexWrap: 'wrap',
                   gap: '8px'
@@ -930,82 +1133,220 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>
                       {selectedPI.piNumber ? `PI No. ${selectedPI.piNumber}` : selectedPI.id}
                     </span>
-                    <StatusBadge status={selectedPI.status} size="sm" />
+
+                    {getLinkedTaxInvoice(selectedPI) && (
+                      <span
+                        onClick={() => {
+                          const linked = getLinkedTaxInvoice(selectedPI);
+                          if (typeof window !== 'undefined') {
+                            window.__TARGET_TAX_INVOICE_ID__ = linked.id || linked.invoiceNumber;
+                          }
+                          if (onNavigate) onNavigate('invoices');
+                        }}
+                        title={`Linked to official Tax Invoice ${getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}. Click to view.`}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#0284c7',
+                          background: '#e0f2fe',
+                          border: '1px solid #bae6fd',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Link2 size={11} />
+                        <span>Tax Inv: {getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}</span>
+                      </span>
+                    )}
+
+                    {/* Interactive Status Changer Dropdown */}
+                    <div style={{ position: 'relative' }} className="status-dropdown-container">
+                      <button
+                        type="button"
+                        onClick={() => setStatusDropdownOpen(prev => !prev)}
+                        title={`Status is "${selectedPI.status}". Click to switch to Ready to Send, Sent, Paid, or Cancelled.`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 8px',
+                          borderRadius: '20px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-surface)',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                      >
+                        {updatingPIId === (selectedPI.id || selectedPI.dbId) ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '11px' }}>
+                            <Loader2 size={12} className="animate-spin" />
+                            <span>Updating...</span>
+                          </span>
+                        ) : (
+                          <StatusBadge status={selectedPI.status} size="sm" />
+                        )}
+                        <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                      </button>
+
+                      {statusDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 6px)',
+                            left: 0,
+                            zIndex: 100,
+                            minWidth: '220px',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                            padding: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            animation: 'fadeIn 0.15s ease-out'
+                          }}
+                        >
+                          <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Change Invoice Status
+                          </div>
+                          {PI_STATUS_OPTIONS.map(opt => {
+                            const isCurrent = selectedPI.status === opt.value;
+                            const Icon = opt.icon;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateStatus(selectedPI.id || selectedPI.dbId, opt.value);
+                                  setStatusDropdownOpen(false);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  background: isCurrent ? opt.bg : 'transparent',
+                                  color: opt.color,
+                                  fontSize: '11.5px',
+                                  fontWeight: isCurrent ? 700 : 500,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'all 0.12s ease'
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Icon size={13} color={opt.color} />
+                                  <div>
+                                    <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                                    <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
+                                  </div>
+                                </div>
+                                {isCurrent && <Check size={13} color={opt.color} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedPI.customer}</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Edit Proforma */}
-                    <button 
-                      type="button" 
+
+                    {/* Send Email: Matches SalesScreen secondary style */}
+                    <button
+                      type="button"
                       className="btn btn-secondary btn-sm"
-                      onClick={() => handleOpenEdit(selectedPI)}
-                      title="Edit Proforma details, line items, and terms"
+                      onClick={() => handleOpenEmail(selectedPI)}
+                      title="Send Proforma Invoice via Outlook-style email composer"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
-                      <Edit3 size={12} />
-                      <span>Edit</span>
-                    </button>
-
-                    {/* Send Email: Sole action to transition to 'Sent' */}
-                    <button 
-                      type="button" 
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleOpenEmail(selectedPI)}
-                      title="Send Proforma Invoice to customer via email"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 10px', gap: '5px' }}
-                    >
-                      <Mail size={12} />
+                      <Mail size={12} color="var(--primary)" />
                       <span>{selectedPI.status === 'Sent' ? 'Resend Email' : 'Send Email'}</span>
                     </button>
 
-                    {/* Issue Tax Invoice: Seamless workflow chain into Invoices screen */}
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={handleConvertToTaxInvoice}
-                      disabled={isConvertingToTaxInvoice}
-                      title="Issue official Tax Invoice from this approved Proforma Invoice"
-                      style={{ 
-                        height: '28px', 
-                        fontSize: '11px', 
-                        padding: '0 10px', 
-                        gap: '5px',
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        fontWeight: 600,
-                        boxShadow: '0 1px 3px rgba(2, 132, 199, 0.25)'
-                      }}
-                    >
-                      {isConvertingToTaxInvoice ? (
-                        <>
-                          <Loader2 size={12} className="spin" />
-                          <span>Issuing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FileCheck size={12} />
-                          <span>Issue Tax Invoice</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Issue / View Tax Invoice: Seamless workflow chain into Invoices screen */}
+                    {(() => {
+                      const linkedTaxInvoice = getLinkedTaxInvoice(selectedPI);
+                      return (
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => {
+                            if (linkedTaxInvoice) {
+                              if (typeof window !== 'undefined') {
+                                window.__TARGET_TAX_INVOICE_ID__ = linkedTaxInvoice.id || linkedTaxInvoice.invoiceNumber;
+                              }
+                              if (onNavigate) onNavigate('invoices');
+                            } else {
+                              handleConvertToTaxInvoice();
+                            }
+                          }}
+                          disabled={isConvertingToTaxInvoice}
+                          title={linkedTaxInvoice 
+                            ? `Tax Invoice ${linkedTaxInvoice.invoiceNumber || linkedTaxInvoice.id || ''} has already been issued. Click to view Tax Invoices.` 
+                            : "Issue official Tax Invoice from this approved Proforma Invoice"}
+                          style={{
+                            height: '28px',
+                            fontSize: '11px',
+                            padding: '0 10px',
+                            gap: '5px',
+                            background: linkedTaxInvoice
+                              ? 'var(--bg-surface-subtle)'
+                              : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                            color: linkedTaxInvoice
+                              ? 'var(--primary)'
+                              : '#ffffff',
+                            border: linkedTaxInvoice
+                              ? '1px solid var(--border-color)'
+                              : 'none',
+                            fontWeight: 600,
+                            boxShadow: linkedTaxInvoice ? 'none' : '0 1px 3px rgba(2, 132, 199, 0.25)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {isConvertingToTaxInvoice ? (
+                            <>
+                              <Loader2 size={12} className="spin" />
+                              <span>Issuing...</span>
+                            </>
+                          ) : linkedTaxInvoice ? (
+                            <>
+                              <Eye size={12} color="var(--primary)" />
+                              <span>View Tax Invoice</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileCheck size={12} />
+                              <span>Issue Tax Invoice</span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
 
-                    <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
-
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={handlePrint}
-                      title="Print official Proforma Invoice"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                    >
-                      <Printer size={12} />
-                      <span>Print</span>
-                    </button>
-
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={handleDownloadPdf}
                       title="Download authentic Proforma Invoice PDF"
@@ -1015,8 +1356,55 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       <span>Download PDF</span>
                     </button>
 
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handlePrint}
+                      title="Print official Proforma Invoice"
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                    >
+                      <Printer size={12} />
+                      <span>Print</span>
+                    </button>
+
+                    {/* Zoom & Fit Controls */}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                        title="Zoom Out"
+                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                      >
+                        <ZoomOut size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(1)}
+                        title="Reset to 100%"
+                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
+                      >
+                        {Math.round(zoomScale * 100)}%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                        title="Zoom In"
+                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                      >
+                        <ZoomIn size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFitWidth}
+                        title="Auto-fit invoice to screen width"
+                        style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                      >
+                        Fit
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={() => setIsDocExpanded(!isDocExpanded)}
                       title={isDocExpanded ? "Split view" : "Full screen preview"}
@@ -1026,15 +1414,27 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                       <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
                     </button>
 
-                    <button 
-                      type="button" 
+                    {/* Edit Proforma */}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenEdit(selectedPI)}
+                      title="Edit Proforma details, line items, and terms"
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                    >
+                      <Edit3 size={12} />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
                       className="btn btn-sm"
                       onClick={() => confirmDeletePI(selectedPI)}
                       title="Delete this Proforma Invoice"
-                      style={{ 
-                        height: '28px', 
-                        fontSize: '11px', 
-                        padding: '0 8px', 
+                      style={{
+                        height: '28px',
+                        fontSize: '11px',
+                        padding: '0 8px',
                         gap: '4px',
                         background: '#fee2e2',
                         border: '1px solid #fca5a5',
@@ -1049,16 +1449,19 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 </div>
 
                 {/* Document Body — Authentic 1:1 A4 Page Preview matching Proforma Invoice_27_TTB.pdf */}
-                <div style={{ 
-                  background: 'transparent', 
-                  padding: '16px 0', 
-                  overflowY: 'auto', 
-                  overflowX: 'auto', 
-                  flex: 1, 
-                  minHeight: '0',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}>
+                <div
+                  ref={previewContainerRef}
+                  style={{
+                    background: 'transparent',
+                    padding: '16px 0',
+                    overflowY: 'auto',
+                    overflowX: 'auto',
+                    flex: 1,
+                    minHeight: '0',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                >
                   <div style={{
                     minWidth: 'max-content',
                     width: '100%',
@@ -1066,439 +1469,411 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     justifyContent: 'center',
                     minHeight: '100%',
                     padding: '0 8px',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    transform: `scale(${zoomScale})`,
+                    transformOrigin: 'top center',
+                    transition: 'transform 0.15s ease-out'
                   }}>
-                    <div 
-                      id="printable-proforma" 
-                    style={{ 
-                      width: '794px',
-                      minWidth: '794px',
-                      maxWidth: '794px',
-                      height: '1123px',
-                      minHeight: '1123px',
-                      maxHeight: '1123px',
-                      background: '#ffffff', 
-                      padding: '24px 28px', 
-                      color: '#000000', 
-                      fontFamily: 'Arial, Helvetica, sans-serif',
-                      boxShadow: 'none',
-                      border: '1px solid var(--border-color)',
-                      boxSizing: 'border-box',
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
-                  >
-                    {/* 1. Document Title Banner: Proforma Invoice */}
-                    <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
-                      Proforma Invoice
-                    </div>
-
-                    {/* Outer Document Border Box */}
-                    <div style={{ 
-                      border: '1px solid #b8b8b8', 
-                      background: '#ffffff', 
-                      boxSizing: 'border-box', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      flex: 1, 
-                      minHeight: 0 
-                    }}>
-                      {/* 2. Company Header & Metadata Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
-                        {/* Left: GPS Logo & Details */}
-                        <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                          <img 
-                            src="/logo.jpg" 
-                            alt="GPS General Precision Spindles" 
-                            style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }} 
-                          />
-                          <div style={{ lineHeight: '1.25' }}>
-                            <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
-                              GENERAL PRECISION<br />
-                              SPINDLES
-                            </div>
-                            <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
-                              SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
-                              DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                              ☎+919764252188 /9764032929<br />
-                              Email: process@gpsspindles.net<br />
-                              GSTIN: 27AATFG1527D1ZF<br />
-                              State: 27-Maharashtra
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right: Metadata Grid (3 rows: Row 1 = Proforma Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
-                          {/* Row 1: Proforma Invoice No. & Date */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
-                            <div style={{ padding: '3.5px 6px' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Proforma Invoice No.</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedPI.piNumber || selectedPI.id || '27'}
-                              </div>
-                            </div>
-                            <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedPI.date || selectedPI.issueDate || '22-08-2026'}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Row 2: Place of supply & empty right corner */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
-                            <div style={{ padding: '3.5px 6px' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedPI.placeOfSupply || selectedPI.state || '27-Maharashtra'}
-                              </div>
-                            </div>
-                            <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
-                          </div>
-
-                          {/* Row 3: Empty bottom column space */}
-                          <div style={{ flex: 1, minHeight: '34px' }}></div>
-                        </div>
+                    <div
+                      id="printable-proforma"
+                      style={{
+                        width: '794px',
+                        minWidth: '794px',
+                        maxWidth: '794px',
+                        height: '1123px',
+                        minHeight: '1123px',
+                        maxHeight: '1123px',
+                        background: '#ffffff',
+                        padding: '24px 28px',
+                        color: '#000000',
+                        fontFamily: 'Arial, Helvetica, sans-serif',
+                        boxShadow: 'none',
+                        border: '1px solid var(--border-color)',
+                        boxSizing: 'border-box',
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      {/* 1. Document Title Banner: Proforma Invoice */}
+                      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
+                        Proforma Invoice
                       </div>
 
-                      {/* 3. Proforma Invoice For (Customer Box) */}
-                      <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
-                        <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
-                          Proforma Invoice For
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
-                          {selectedPI.customer || 'T T B TOOLING'}
-                        </div>
-                        <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
-                          {selectedPI.customerAddress ? (
-                            selectedPI.customerAddress.includes('\n') ? (
-                              selectedPI.customerAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
-                            ) : (
-                              <div>{selectedPI.customerAddress}</div>
-                            )
-                          ) : (
-                            <>
-                              <div>PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan</div>
-                              <div>Pune, Maharashtra-410501</div>
-                              <div>India</div>
-                            </>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
-                          Contact No. : {selectedPI.contactNo || selectedPI.customerContact || '9975108709'}
-                        </div>
-                        <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
-                          GSTIN : {selectedPI.gstin || '27AAKFT2876K1ZI'}
-                        </div>
-                        <div style={{ fontSize: '8px', color: '#000000' }}>
-                          State: {selectedPI.state || selectedPI.placeOfSupply || '27-Maharashtra'}
-                        </div>
-                      </div>
-
-                      {/* 4. Line Items Table with Unit column */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '8px', color: '#000000', flexShrink: 0 }}>
-                        <thead>
-                          <tr>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 5px', width: '28px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>#</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '85px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '60px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '50px', textAlign: 'center', fontWeight: 700, background: '#ffffff' }}>Unit</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '90px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
-                            <th style={{ borderBottom: '1px solid #b8b8b8', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(selectedPI.items || []).map((item, idx) => {
-                            const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || item.rate || 0))) || 0;
-                            return (
-                              <tr key={item.id || idx}>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 5px', textAlign: 'left' }}>
-                                  {idx + 1}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', fontWeight: 700 }}>
-                                  {item.name || item.product || item.desc}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'left' }}>
-                                  {item.hsn || ''}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
-                                  {item.qty}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'center' }}>
-                                  {item.unit || '-'}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
-                                  ₹ {Number(item.unitPrice || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right', fontWeight: 700 }}>
-                                  ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* Table Total Row directly follows items */}
-                          <tr style={{ fontWeight: 700 }}>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 5px' }}></td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'right' }}>
-                              {totalQuantity}
-                            </td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
-                            <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
-                              ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {/* 5. Middle Section: Words, Description & Amounts */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
-                        {/* Left: Words + Description */}
-                        <div>
-                          {/* Proforma Invoice Amount in Words */}
-                          <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
-                            <div style={{ fontSize: '7.5px', color: '#000000' }}>Proforma Invoice Amount in Words</div>
-                            <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
-                              INR {selectedPI.amountInWords || numberToIndianWords(calculatedTotal)}
-                            </div>
-                          </div>
-
-                          {/* Description */}
-                          <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
-                            <div style={{ color: '#000000' }}>Description</div>
-                            <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                              SERIAL NO. {selectedPI.spindleSerial || 'HMMXXVI (M77-002)'}
-                            </div>
-                            <div style={{ fontWeight: 700 }}>
-                              CHALLAN NO. {selectedPI.challanNo || '049'}
-                            </div>
-                            <div style={{ fontWeight: 700 }}>
-                              CHALLAN DATE. {selectedPI.challanDate || '18-08-2026'}
-                            </div>
-                            <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                              SCOPE OF WORK :
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.5', fontWeight: 700 }}>
-                              {(() => {
-                                const rawScope = Array.isArray(selectedPI.scopeOfWork)
-                                  ? selectedPI.scopeOfWork
-                                  : (selectedPI.scopeOfWork || `1. DISMENTAL\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. DRAWBAR HARDCHROME\n6. DRAWBAR RECONDITIONING\n7. DISC SPRING REPLACEMENT\n8. TAPER GRINDING\n9. SHAFT BALANCING\n10. DYNAMIC RUN TEST`).split('\n');
-                                return rawScope.map((line, idx) => (
-                                  <div key={idx}>{line.trim()}</div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right: Amounts & Tax Breakdown matching Proforma Invoice_27_TTB.pdf */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                            <span>Sub Total</span>
-                            <span>₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          {!isInterState ? (
-                            <>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                                <span>CGST@9%</span>
-                                <span>₹ {calculatedCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                                <span>SGST@9%</span>
-                                <span>₹ {calculatedSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
-                              <span>IGST@18%</span>
-                              <span>₹ {calculatedIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                          )}
-
-                          <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px 0' }} />
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
-                            <span>Total</span>
-                            <span>₹ {calculatedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0', color: '#000000' }}>
-                            <span>Received</span>
-                            <span>₹ {receivedAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', fontWeight: 700, padding: '3px 0', color: '#000000' }}>
-                            <span>Balance</span>
-                            <span>₹ {balanceAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 6. HSN/SAC Tax Summary Table */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
-                        <thead>
-                          <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
-                            <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '22%' : '18%' }}>HSN/ SAC</th>
-                            <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '24%' : '20%' }}>Taxable amount</th>
-                            {!isInterState ? (
-                              <>
-                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '22%' }}>CGST</th>
-                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '22%' }}>SGST</th>
-                              </>
-                            ) : (
-                              <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '30%' }}>IGST</th>
-                            )}
-                            <th rowSpan={2} style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '24%' : '18%' }}>Total Tax Amount</th>
-                          </tr>
-                          <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
-                            {!isInterState ? (
-                              <>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
-                              </>
-                            ) : (
-                              <>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, width: '14%' }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, width: '16%' }}>Amount</th>
-                              </>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {hsnBreakdown.map((row, idx) => {
-                            const cgstAmt = Math.round(row.taxable * 0.09);
-                            const sgstAmt = Math.round(row.taxable * 0.09);
-                            const igstAmt = Math.round(row.taxable * 0.18);
-                            const totalTax = isInterState ? igstAmt : (cgstAmt + sgstAmt);
-                            return (
-                              <tr key={idx}>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'left' }}>
-                                  {row.hsn || ''}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
-                                  ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                {!isInterState ? (
-                                  <>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>9%</td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>
-                                      ₹ {cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>9%</td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>
-                                      ₹ {sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </>
-                                ) : (
-                                  <>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
-                                      {row.rate || '18%'}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
-                                      ₹ {igstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </>
-                                )}
-                                <td style={{ borderBottom: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
-                                  ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* HSN Table Total */}
-                          <tr style={{ fontWeight: 700 }}>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
-                              ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            {!isInterState ? (
-                              <>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                  ₹ {calculatedCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                  ₹ {calculatedSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
-                                  ₹ {calculatedIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </>
-                            )}
-                            <td style={{ padding: '3px 6px', textAlign: 'right' }}>
-                              ₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {/* 7. Bottom Section: Bank Details, Terms, and Signatory (3 Columns) */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
-                        {/* Col 1: Bank Details */}
-                        <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                            <UpiQrCode 
-                              amount={calculatedTotal}
-                              quoteNo={selectedPI.proformaNo || selectedPI.piNumber || selectedPI.id}
-                              upiId={selectedPI.bankDetails?.upiId || selectedPI.upiId || getActiveUpiId()}
-                              payeeName={selectedPI.bankDetails?.accountName || 'GENERAL PRECISION SPINDLES'}
-                              size={48}
-                              onNotify={onNotify}
+                      {/* Outer Document Border Box */}
+                      <div style={{
+                        border: '1px solid #b8b8b8',
+                        background: '#ffffff',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                        minHeight: 0
+                      }}>
+                        {/* 2. Company Header & Metadata Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                          {/* Left: GPS Logo & Details */}
+                          <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <img
+                              src="/logo.jpg"
+                              alt="GPS General Precision Spindles"
+                              style={{ width: '115px', height: 'auto', maxHeight: '54px', objectFit: 'contain', flexShrink: 0, marginTop: '2px' }}
                             />
-
-                            <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
-                              <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
-                              <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
-                              <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
-                              <div style={{ marginBottom: '4px' }}>
-                                UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{selectedPI.bankDetails?.upiId || selectedPI.upiId || getActiveUpiId()}</span>
+                            <div style={{ lineHeight: '1.25' }}>
+                              <div style={{ fontWeight: 700, fontSize: '13px', color: '#000000', lineHeight: 1.15 }}>
+                                GENERAL PRECISION<br />
+                                SPINDLES
                               </div>
-                              <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
+                              <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
+                                SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
+                                DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
+                                ☎+919764252188 /9764032929<br />
+                                Email: process@gpsspindles.net<br />
+                                GSTIN: 27AATFG1527D1ZF<br />
+                                State: 27-Maharashtra
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Right: Metadata Grid (3 rows: Row 1 = Proforma Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
+                            {/* Row 1: Proforma Invoice No. & Date */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                              <div style={{ padding: '3.5px 6px' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Proforma Invoice No.</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedPI.piNumber || selectedPI.id || '27'}
+                                </div>
+                              </div>
+                              <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedPI.date || selectedPI.issueDate || '22-08-2026'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Row 2: Place of supply & empty right corner */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                              <div style={{ padding: '3.5px 6px' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedPI.placeOfSupply || selectedPI.state || '27-Maharashtra'}
+                                </div>
+                              </div>
+                              <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
+                            </div>
+
+                            {/* Row 3: Empty bottom column space */}
+                            <div style={{ flex: 1, minHeight: '34px' }}></div>
                           </div>
                         </div>
 
-                        {/* Col 2: Terms and conditions */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
-                          <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
-                          <div style={{ fontSize: '7px', lineHeight: '1.5', color: '#000000' }}>
-                            <div style={{ marginBottom: '6px' }}>
-                              We declare that this invoice shows the actual price of the goods<br />
-                              described and that all particulars are true and correct.
-                            </div>
-                            <div style={{ fontWeight: 700, marginBottom: '2px' }}>Bank Details:</div>
-                            <div style={{ marginBottom: '1px' }}>ICICI Bank Ltd(Nanded City Branch)</div>
-                            <div style={{ marginBottom: '1px' }}>A/c No : 349105000701</div>
-                            <div style={{ marginBottom: '1px' }}>IFSC Code : ICIC0003491</div>
-                            <div style={{ marginBottom: '4px' }}>MSME (UDYAM ADHAR) NO-MH26A0189736</div>
-                            <div style={{ marginBottom: '1px' }}>TYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING</div>
-                            <div>MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC, VMC, HMC, BELT DRIVEN, DIRECT DRIVEN, INTEGRATED, SPINDLE REPAIRING, SPINDLE MANUFACTURING.</div>
+                        {/* 3. Proforma Invoice For (Customer Box) */}
+                        <div style={{ padding: '8px 12px 14px 12px', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                          <div style={{ fontSize: '7.8px', color: '#000000', marginBottom: '3px' }}>
+                            Proforma Invoice For
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: '10.5px', color: '#000000', marginBottom: '4px' }}>
+                            {selectedPI.customer || 'T T B TOOLING'}
+                          </div>
+                          <div style={{ fontSize: '8px', color: '#000000', lineHeight: '1.32', marginBottom: '16px' }}>
+                            {selectedPI.customerAddress ? (
+                              selectedPI.customerAddress.includes('\n') ? (
+                                selectedPI.customerAddress.split('\n').map((l, i) => <div key={i}>{l}</div>)
+                              ) : (
+                                <div>{selectedPI.customerAddress}</div>
+                              )
+                            ) : (
+                              <>
+                                <div>PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan</div>
+                                <div>Pune, Maharashtra-410501</div>
+                                <div>India</div>
+                              </>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                            Contact No. : {selectedPI.contactNo || selectedPI.customerContact || '9975108709'}
+                          </div>
+                          <div style={{ fontSize: '8px', color: '#000000', marginBottom: '6px' }}>
+                            GSTIN : {selectedPI.gstin || '27AAKFT2876K1ZI'}
+                          </div>
+                          <div style={{ fontSize: '8px', color: '#000000' }}>
+                            State: {selectedPI.state || selectedPI.placeOfSupply || '27-Maharashtra'}
                           </div>
                         </div>
 
-                        {/* Col 3: Signatory */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
-                          <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
-                            For : GENERAL PRECISION SPINDLES
+                        {/* 4. Line Items Table with Unit column */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '8px', color: '#000000', flexShrink: 0 }}>
+                          <thead>
+                            <tr>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 5px', width: '28px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>#</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>Item name</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '85px', textAlign: 'left', fontWeight: 700, background: '#ffffff' }}>HSN/ SAC</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '60px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Quantity</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '50px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Unit</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', width: '90px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Price/ Unit</th>
+                              <th style={{ borderBottom: '1px solid #b8b8b8', padding: '3.5px 6px', width: '100px', textAlign: 'right', fontWeight: 700, background: '#ffffff' }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(selectedPI.items || []).map((item, idx) => {
+                              const itemTotal = Number(item.total != null ? item.total : (Number(item.qty || 0) * Number(item.unitPrice || item.rate || 0))) || 0;
+                              return (
+                                <tr key={item.id || idx}>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 5px', textAlign: 'left' }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', fontWeight: 700 }}>
+                                    {item.name || item.product || item.desc}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'left' }}>
+                                    {item.hsn || ''}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                    {item.qty}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                    {item.unit || '-'}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                    ₹ {Number(item.unitPrice || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3.2px 6px', textAlign: 'right' }}>
+                                    ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Table Total Row directly follows items */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 5px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'left' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px', textAlign: 'right' }}>
+                                {totalQuantity}
+                              </td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3.5px 6px' }}></td>
+                              <td style={{ padding: '3.5px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* 5. Middle Section: Words, Description & Amounts */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                          {/* Left: Words + Description */}
+                          <div>
+                            {/* Proforma Invoice Amount in Words */}
+                            <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
+                              <div style={{ fontSize: '7.5px', color: '#000000' }}>Proforma Invoice Amount in Words</div>
+                              <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                                INR {selectedPI.amountInWords || numberToIndianWords(calculatedTotal)}
+                              </div>
+                            </div>
+
+                            {/* Description */}
+                            <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
+                              <div style={{ color: '#000000' }}>Description</div>
+                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                SERIAL NO. {selectedPI.spindleSerial || 'HMMXXVI (M77-002)'}
+                              </div>
+                              <div style={{ fontWeight: 700 }}>
+                                CHALLAN NO. {selectedPI.challanNo || '049'}
+                              </div>
+                              <div style={{ fontWeight: 700 }}>
+                                CHALLAN DATE. {selectedPI.challanDate || '18-08-2026'}
+                              </div>
+                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                SCOPE OF WORK :
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.5', fontWeight: 700 }}>
+                                {(() => {
+                                  const rawScope = Array.isArray(selectedPI.scopeOfWork)
+                                    ? selectedPI.scopeOfWork
+                                    : (selectedPI.scopeOfWork || `1. DISMENTAL\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. DRAWBAR HARDCHROME\n6. DRAWBAR RECONDITIONING\n7. DISC SPRING REPLACEMENT\n8. TAPER GRINDING\n9. SHAFT BALANCING\n10. DYNAMIC RUN TEST`).split('\n');
+                                  return rawScope.map((line, idx) => (
+                                    <div key={idx}>{line.trim()}</div>
+                                  ));
+                                })()}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8.5px', paddingBottom: '8px' }}>
-                            Authorized Signatory
+
+                          {/* Right: Amounts & Tax Breakdown matching Proforma Invoice_27_TTB.pdf */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                              <span>Sub Total</span>
+                              <span>₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3.5px 0' }}>
+                              <span>Tax (18%)</span>
+                              <span>₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }} />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
+                              <span>Total</span>
+                              <span>₹ {calculatedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                          </div>
+                        </div>
+
+                        {/* 6. HSN/SAC Tax Summary Table */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #b8b8b8', fontSize: '7.8px', color: '#000000', flexShrink: 0 }}>
+                          <thead>
+                            <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
+                              <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '22%' : '18%' }}>HSN/ SAC</th>
+                              <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '24%' : '20%' }}>Taxable amount</th>
+                              {!isInterState ? (
+                                <>
+                                  <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '22%' }}>CGST</th>
+                                  <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '22%' }}>SGST</th>
+                                </>
+                              ) : (
+                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'center', fontWeight: 700, width: '30%' }}>IGST</th>
+                              )}
+                              <th rowSpan={2} style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700, width: isInterState ? '24%' : '18%' }}>Total Tax Amount</th>
+                            </tr>
+                            <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
+                              {!isInterState ? (
+                                <>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
+                                </>
+                              ) : (
+                                <>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700, width: '14%' }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 6px', textAlign: 'center', fontWeight: 700, width: '16%' }}>Amount</th>
+                                </>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {hsnBreakdown.map((row, idx) => {
+                              const cgstAmt = Math.round(row.taxable * 0.09);
+                              const sgstAmt = Math.round(row.taxable * 0.09);
+                              const igstAmt = Math.round(row.taxable * 0.18);
+                              const totalTax = isInterState ? igstAmt : (cgstAmt + sgstAmt);
+                              return (
+                                <tr key={idx}>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'left' }}>
+                                    {row.hsn || ''}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                    ₹ {Number(row.taxable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  {!isInterState ? (
+                                    <>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>9%</td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>
+                                        ₹ {cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>9%</td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 4px', textAlign: 'right' }}>
+                                        ₹ {sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                        {row.rate || '18%'}
+                                      </td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                        ₹ {igstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </>
+                                  )}
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', padding: '2.5px 6px', textAlign: 'right' }}>
+                                    ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* HSN Table Total */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              {!isInterState ? (
+                                <>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                    ₹ {calculatedCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                    ₹ {calculatedSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                                    ₹ {calculatedIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </>
+                              )}
+                              <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* 7. Bottom Section: Bank Details, Terms, and Signatory (3 Columns) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
+                          {/* Col 1: Bank Details */}
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              <UpiQrCode
+                                amount={calculatedTotal}
+                                quoteNo={selectedPI.proformaNo || selectedPI.piNumber || selectedPI.id}
+                                upiId={selectedPI.bankDetails?.upiId || selectedPI.upiId || getActiveUpiId()}
+                                payeeName={selectedPI.bankDetails?.accountName || 'GENERAL PRECISION SPINDLES'}
+                                size={48}
+                                onNotify={onNotify}
+                              />
+
+                              <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
+                                <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
+                                <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
+                                <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
+                                <div style={{ marginBottom: '4px' }}>
+                                  UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{selectedPI.bankDetails?.upiId || selectedPI.upiId || getActiveUpiId()}</span>
+                                </div>
+                                <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Col 2: Terms and conditions */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
+                            <div style={{ fontSize: '8px', lineHeight: '1.5', color: '#000000', whiteSpace: 'pre-wrap' }}>
+                              {selectedPI.terms || 'Thanks for doing business with us!'}
+                            </div>
+                          </div>
+
+                          {/* Col 3: Signatory */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
+                            <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
+                              For : GENERAL PRECISION SPINDLES
+                            </div>
+                            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '8.5px', paddingBottom: '8px' }}>
+                              Authorized Signatory
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1506,7 +1881,6 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   </div>
                 </div>
               </div>
-            </div>
             );
           })()}
         </div>
@@ -1516,7 +1890,36 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title={editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "+ Create Proforma Invoice"}
+        title={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px' }}>
+            <span>{editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "+ Create Proforma Invoice"}</span>
+            {!editingPIId && (
+              <button
+                onClick={handleResetForm}
+                title="Clear all form fields to start fresh"
+                style={{
+                  background: 'var(--bg-surface-subtle)',
+                  border: '1px solid var(--border-color)',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: 'var(--text-main)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger-light)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-surface-subtle)'; e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.borderColor = 'var(--border-color)' }}
+              >
+                <RefreshCw size={12} />
+                <span>Reset / Clear Form</span>
+              </button>
+            )}
+          </div>
+        }
         maxWidth="860px"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
@@ -1524,31 +1927,22 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formCalculations.grandTotal.toLocaleString('en-IN')}</strong> (Incl. 18% GST)
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsCreateModalOpen(false)}
               >
                 Discard
               </button>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={() => handleSavePI(false)}
-                title="Save Proforma Invoice"
-                style={{ fontWeight: 600 }}
+                title="Generate and save Proforma Invoice"
+                style={{ fontWeight: 600, background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: 'none', color: '#fff', gap: '6px' }}
               >
-                <CheckCircle2 size={13} color="var(--primary)" />
-                <span>Save Proforma Invoice</span>
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={() => handleSavePI(true)}
-                title="Save proforma and immediately open email composer"
-              >
-                <Mail size={13} />
-                <span>Save & Send Email</span>
+                <FileCheck size={14} />
+                <span>{editingPIId ? "Update Proforma Invoice" : "Generate Proforma Invoice"}</span>
               </button>
             </div>
           </div>
@@ -1570,19 +1964,17 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 )}
               </div>
 
-              <select
-                className="form-control"
+              <CustomSelect
+                searchable={true}
+                options={approvedQuotations.map(q => ({
+                  value: q.id,
+                  label: `${q.id} - ${q.customer}`,
+                  subtext: `₹${Number(q.totalAmount || 0).toLocaleString('en-IN')}`
+                }))}
                 value={selectedQuoteId}
-                onChange={(e) => handleSelectApprovedQuotation(e.target.value)}
-                style={{ fontSize: '12px', background: '#ffffff' }}
-              >
-                <option value="">-- Select an approved quotation to auto-populate all fields, or create standalone below --</option>
-                {approvedQuotations.map(q => (
-                  <option key={q.id} value={q.id}>
-                    {q.id} - {q.customer} (₹{Number(q.totalAmount || 0).toLocaleString('en-IN')})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleSelectApprovedQuotation(val)}
+                placeholder="Search approved quotation by customer name or ID..."
+              />
               {approvedQuotations.length === 0 ? (
                 <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px' }}>
                   💡 No approved quotations found in system right now. You can create a Proforma Invoice standalone directly below!
@@ -1605,7 +1997,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer Name (Preset or Custom)</label>
-                <input 
+                <input
                   list="pi-customer-presets"
                   className="form-control"
                   value={formState.customer}
@@ -1620,7 +2012,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer Email</label>
-                <input 
+                <input
                   type="email"
                   className="form-control"
                   value={formState.customerEmail}
@@ -1631,7 +2023,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Contact No.</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.customerContact}
@@ -1644,7 +2036,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer Address</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={formState.billingAddress}
@@ -1654,7 +2046,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer GSTIN</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.gstin}
@@ -1665,7 +2057,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Place of Supply / State</label>
-                <select 
+                <select
                   className="form-control"
                   value={formState.placeOfSupply}
                   onChange={(e) => setFormState(prev => ({ ...prev, placeOfSupply: e.target.value }))}
@@ -1683,7 +2075,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1.2fr', gap: '12px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>PI Number</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.piNumber}
@@ -1694,7 +2086,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>PI Date</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.piDate}
@@ -1703,7 +2095,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Valid Until</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.validUntil}
@@ -1712,7 +2104,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Sales Order / PO Ref</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.salesOrder}
@@ -1733,7 +2125,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Spindle Serial No.</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.spindleSerial}
@@ -1743,7 +2135,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Challan No.</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.challanNo}
@@ -1753,7 +2145,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Challan Date</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={formState.challanDate}
@@ -1765,7 +2157,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Scope of Work (Numbered List)</label>
-              <textarea 
+              <textarea
                 className="form-control"
                 rows={4}
                 value={formState.scopeOfWork}
@@ -1779,8 +2171,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items (7-Column Format)</span>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={handleAddItem}
               >
@@ -1796,7 +2188,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     <th style={{ padding: '6px 8px', textAlign: 'left' }}>Item name</th>
                     <th style={{ padding: '6px 8px', width: '90px', textAlign: 'center' }}>HSN/ SAC</th>
                     <th style={{ padding: '6px 8px', width: '60px', textAlign: 'center' }}>Qty</th>
-                    <th style={{ padding: '6px 8px', width: '60px', textAlign: 'center' }}>Unit</th>
+                    <th style={{ padding: '6px 8px', width: '60px', textAlign: 'right' }}>Unit</th>
                     <th style={{ padding: '6px 8px', width: '100px', textAlign: 'right' }}>Price/ Unit (₹)</th>
                     <th style={{ padding: '6px 8px', width: '100px', textAlign: 'right' }}>Amount (₹)</th>
                     <th style={{ padding: '6px 8px', width: '35px' }}></th>
@@ -1808,53 +2200,53 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     return (
                       <tr key={it.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="text" 
-                            className="form-control" 
+                          <input
+                            type="text"
+                            className="form-control"
                             style={{ height: '28px', fontSize: '11.5px' }}
-                            value={it.name} 
+                            value={it.name}
                             onChange={(e) => handleItemChange(it.id, 'name', e.target.value)}
                             placeholder="Item description"
                             required
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="text" 
-                            className="form-control mono" 
+                          <input
+                            type="text"
+                            className="form-control mono"
                             style={{ height: '28px', fontSize: '11.5px', textAlign: 'center' }}
-                            value={it.hsn} 
+                            value={it.hsn}
                             onChange={(e) => handleItemChange(it.id, 'hsn', e.target.value)}
                             placeholder="84669390"
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             min="1"
-                            className="form-control mono" 
+                            className="form-control mono"
                             style={{ height: '28px', fontSize: '11.5px', textAlign: 'center' }}
-                            value={it.qty} 
+                            value={it.qty}
                             onChange={(e) => handleItemChange(it.id, 'qty', e.target.value)}
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="text" 
-                            className="form-control mono" 
-                            style={{ height: '28px', fontSize: '11.5px', textAlign: 'center' }}
-                            value={it.unit} 
+                          <input
+                            type="text"
+                            className="form-control mono"
+                            style={{ height: '28px', fontSize: '11.5px', textAlign: 'right' }}
+                            value={it.unit}
                             onChange={(e) => handleItemChange(it.id, 'unit', e.target.value)}
                             placeholder="-"
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             min="0"
-                            className="form-control mono" 
+                            className="form-control mono"
                             style={{ height: '28px', fontSize: '11.5px', textAlign: 'right' }}
-                            value={it.unitPrice} 
+                            value={it.unitPrice}
                             onChange={(e) => handleItemChange(it.id, 'unitPrice', e.target.value)}
                           />
                         </td>
@@ -1862,8 +2254,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                           ₹{lineVal.toLocaleString('en-IN')}
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => handleRemoveItem(it.id)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
                             title="Remove row"
@@ -1885,23 +2277,10 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                   <span style={{ color: 'var(--text-muted)' }}>Sub Total:</span>
                   <span className="mono">₹{formCalculations.subtotal.toLocaleString('en-IN')}</span>
                 </div>
-                {!formCalculations.isInterState ? (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>CGST@9%:</span>
-                      <span className="mono">₹{formCalculations.cgst.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>SGST@9%:</span>
-                      <span className="mono">₹{formCalculations.sgst.toLocaleString('en-IN')}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>IGST@18%:</span>
-                    <span className="mono">₹{formCalculations.igst.toLocaleString('en-IN')}</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Tax (18%):</span>
+                  <span className="mono">₹{(formCalculations.cgst + formCalculations.sgst + formCalculations.igst).toLocaleString('en-IN')}</span>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px', fontWeight: 800, color: 'var(--primary)', fontSize: '13px' }}>
                   <span>Grand Total:</span>
                   <span className="mono">₹{formCalculations.grandTotal.toLocaleString('en-IN')}</span>
@@ -1920,16 +2299,16 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         maxWidth="450px"
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
+            <button
+              type="button"
+              className="btn btn-secondary"
               onClick={() => setPiToDelete(null)}
               disabled={isDeleting}
             >
               Cancel
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-sm"
               onClick={handleDeletePI}
               disabled={isDeleting}

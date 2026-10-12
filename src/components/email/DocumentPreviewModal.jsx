@@ -230,6 +230,10 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
     >
       {/* Outer Document Canvas with ID for Mirror PDF Export and Print */}
       <div id="printable-document-preview" style={{ 
+        width: '794px',
+        maxWidth: '794px',
+        minHeight: '1123px',
+        margin: '0 auto',
         background: '#ffffff', 
         color: '#0f172a', 
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif', 
@@ -238,7 +242,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
         border: '1px solid var(--border-color)',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         fontSize: '11.5px',
-        lineHeight: 1.4
+        lineHeight: 1.4,
+        boxSizing: 'border-box'
       }}>
         {/* Document Header (For non-quotations and non-PO) */}
         {!isQuotation && !isPO && (
