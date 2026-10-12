@@ -102,7 +102,7 @@ const formatDate = (dateStr) => {
 // Indian numbering format numbers to words converter
 export function numberToIndianWords(num) {
   if (!num || isNaN(num) || num === 0) return 'Zero Rupees only';
-  
+
   const a = [
     '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
     'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
@@ -344,7 +344,7 @@ const drawSignatory = (doc, startY, leftLabel = 'Prepared & Verified By', rightL
 // ==========================================
 // 1. TAX INVOICE GENERATOR (1:1 Replica of Tax Invoice_INV2026-27 265_PS MAINTENANCE.pdf)
 // ==========================================
-export const exportTaxInvoicePdf = async (inv = {}) => {
+export const exportTaxInvoicePdf = async (inv = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const marginX = 14;
@@ -355,7 +355,8 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
     { id: 2, name: 'SHAFT SLEEVING', hsn: '998717', qty: 1, unitPrice: 25000, rate: 25000, total: 25000 }
   ];
 
-  const subtotal = Number(inv.subtotal) || items.reduce((sum, it) => sum + (Number(it.qty != null ? it.qty : (it.quantity || 1)) * Number(it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0))), 0);
+  const computedSubtotal = items.reduce((sum, it) => sum + (Number(it.qty != null ? it.qty : (it.quantity || 1)) * Number(it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0))), 0);
+  const subtotal = computedSubtotal > 0 ? computedSubtotal : (Number(inv.subtotal) || 0);
   const taxRate = Number(inv.taxRate) || 18;
   const gstAmount = Number(inv.gstAmount) || Number(inv.taxAmount) || Math.round(subtotal * (taxRate / 100));
   const totalAmount = Number(inv.totalAmount || inv.amountNum) || (subtotal + gstAmount);
@@ -404,7 +405,7 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
       reader.onerror = rej;
       reader.readAsDataURL(blob);
     });
-  } catch(_e) { logoDataUrl = null; }
+  } catch (_e) { logoDataUrl = null; }
 
   const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
 
@@ -442,42 +443,49 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
   doc.text('GSTIN: 27AATFG1527D1ZF', textX, headerBoxY + 22.2);
   doc.text('State: 27-Maharashtra', textX, headerBoxY + 25.0);
 
-  // Right side: Metadata (2x2 grid)
+  // Right side: Metadata (3 Rows: Row 1 = Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space)
   const rightW = (marginX + contentWidth) - splitColX;
   const midMetaX = splitColX + (rightW / 2);
+  const row1H = 8.5;
+  const row2H = 8.5;
+  const row1Bottom = headerBoxY + row1H;
+  const row2Bottom = row1Bottom + row2H;
 
-  // Horizontal line separates row 1 from row 2
-  doc.line(splitColX, headerBoxY + 13.5, marginX + contentWidth, headerBoxY + 13.5);
+  // Horizontal line 1: separates Row 1 from Row 2
+  doc.line(splitColX, row1Bottom, marginX + contentWidth, row1Bottom);
 
-  // Vertical line dividing left and right in BOTH rows
-  doc.line(midMetaX, headerBoxY, midMetaX, headerBoxY + headerBoxH);
+  // Horizontal line 2: separates Row 2 from Row 3 (empty bottom space)
+  doc.line(splitColX, row2Bottom, marginX + contentWidth, row2Bottom);
+
+  // Vertical line dividing left and right columns across Row 1 and Row 2 (stops before empty Row 3)
+  doc.line(midMetaX, headerBoxY, midMetaX, row2Bottom);
 
   // Row 1: Invoice No. (left) and Date (right)
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.2);
   doc.setTextColor(0, 0, 0);
-  doc.text('Invoice No.', splitColX + 2.5, headerBoxY + 4.5);
-  doc.text('Date', midMetaX + 2.5, headerBoxY + 4.5);
+  doc.text('Invoice No.', splitColX + 2.5, headerBoxY + 3.4);
+  doc.text('Date', midMetaX + 2.5, headerBoxY + 3.4);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.text(String(inv.invoiceNumber || inv.id || 'INV2026-27/265'), splitColX + 2.5, headerBoxY + 9.5);
-  doc.text(String(inv.date || inv.invoiceDate || '30-09-2026'), midMetaX + 2.5, headerBoxY + 9.5);
+  doc.text(String(inv.invoiceNumber || inv.id || 'INV2026-27/265'), splitColX + 2.5, headerBoxY + 7.2);
+  doc.text(String(inv.date || inv.invoiceDate || '30-09-2026'), midMetaX + 2.5, headerBoxY + 7.2);
 
-  // Row 2: Place of supply (left) and Purchase Order No (right)
+  // Row 2: Place of supply (left) and empty right corner
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.text('Place of supply', splitColX + 2.5, headerBoxY + 18.0);
-  doc.text('Purchease Order No', midMetaX + 2.5, headerBoxY + 18.0);
+  doc.setFontSize(6.2);
+  doc.text('Place of supply', splitColX + 2.5, row1Bottom + 3.4);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.text(String(inv.placeOfSupply || inv.state || '27-Maharashtra'), splitColX + 2.5, headerBoxY + 23.0);
-  doc.text(String(inv.poNumber || inv.salesOrder || inv.refOrder || 'VERBAL'), midMetaX + 2.5, headerBoxY + 23.0);
+  doc.text(String(inv.placeOfSupply || inv.state || '27-Maharashtra'), splitColX + 2.5, row1Bottom + 7.2);
+
+  // Row 3: Empty space between row2Bottom and (headerBoxY + headerBoxH) matching original PDF
 
   // 3. Bill To Box (Customer Box)
   const custBoxY = headerBoxY + headerBoxH;
-  const custBoxH = 32;
+  const custBoxH = 34;
   doc.rect(marginX, custBoxY, contentWidth, custBoxH, 'S');
 
   doc.setFont('helvetica', 'normal');
@@ -501,6 +509,9 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
   doc.text(`Contact No. : ${inv.contactNo || inv.customerContact || '8600280084'}`, marginX + 2.5, addrCurY + 0.5);
   doc.text(`GSTIN : ${inv.gstin || inv.customerGstin || '27AIBPB6756H1ZB'}`, marginX + 2.5, addrCurY + 3.8);
   doc.text(`State: ${inv.placeOfSupply || inv.state || '27-Maharashtra'}`, marginX + 2.5, addrCurY + 7.1);
+  if (inv.poNumber || inv.salesOrder || inv.refOrder) {
+    doc.text(`Purchase Order No: ${inv.poNumber || inv.salesOrder || inv.refOrder}`, marginX + 2.5, addrCurY + 10.4);
+  }
 
   // 4. Line Items Table (6 columns: #, Item name, HSN/ SAC, Quantity, Price/ Unit, Amount)
   const tableStartY = custBoxY + custBoxH;
@@ -510,7 +521,7 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
     const itHsn = it.hsn || it.hsn_sac || '84669390';
     const itQty = it.qty != null ? it.qty : (it.quantity || 1);
     const itRate = it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0);
-    const itTotal = it.total != null ? it.total : (Number(itQty) * Number(itRate));
+    const itTotal = (itQty && itRate) ? (Number(itQty) * Number(itRate)) : Number(it.total || 0);
 
     return [
       idx + 1,
@@ -641,7 +652,7 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
 
   doc.setDrawColor(184, 184, 184);
   doc.setLineWidth(0.18);
-  doc.line(amtRX, middleY + 20, amtRight, middleY + 20);
+  doc.line(midSplitX, middleY + 20, marginX + contentWidth, middleY + 20);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
@@ -653,10 +664,12 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
   doc.text('Received', amtRX, middleY + 29.5);
   doc.text(receivedFormatted, amtRight, middleY + 29.5, { align: 'right' });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text('Balance', amtRX, middleY + 34.5);
-  doc.text(balanceFormatted, amtRight, middleY + 34.5, { align: 'right' });
+  doc.line(midSplitX, middleY + 31.5, marginX + contentWidth, middleY + 31.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.text('Balance', amtRX, middleY + 35.5);
+  doc.text(balanceFormatted, amtRight, middleY + 35.5, { align: 'right' });
 
   // 6. GST Tax Summary Table
   const isIntraState = String(inv.placeOfSupply || inv.state || '27-Maharashtra').startsWith('27');
@@ -668,7 +681,7 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
       const key = rawCode === '' ? '84669390' : rawCode;
       const itQty = it.qty != null ? it.qty : (it.quantity || 1);
       const itRate = it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0);
-      const amt = Number(it.total != null ? it.total : (Number(itQty) * Number(itRate))) || 0;
+      const amt = (itQty && itRate) ? (Number(itQty) * Number(itRate)) : Number(it.total || 0);
       if (!map[key]) {
         map[key] = { hsn: key, taxable: 0 };
       }
@@ -925,9 +938,15 @@ export const exportTaxInvoicePdf = async (inv = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(inv.invoiceNumber || inv.id || 'INV2026-27_265').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Tax_Invoice_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Tax_Invoice_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================
@@ -1083,7 +1102,7 @@ export const exportPurchaseOrderPdf = async (po = {}) => {
       reader.onerror = rej;
       reader.readAsDataURL(blob);
     });
-  } catch(_e) { logoDataUrl = null; }
+  } catch (_e) { logoDataUrl = null; }
 
   const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
 
@@ -1234,7 +1253,7 @@ export const exportPurchaseOrderPdf = async (po = {}) => {
       2: { halign: 'left', cellWidth: 24 },
       3: { halign: 'right', cellWidth: 16 },
       4: { halign: 'right', cellWidth: 26 },
-      5: { halign: 'right', fontStyle: 'bold', cellWidth: 26 }
+      5: { halign: 'right', cellWidth: 26 }
     },
     didParseCell: (data) => {
       if (data.column.index === 0 || data.column.index === 1 || data.column.index === 2) {
@@ -1407,7 +1426,7 @@ export const exportPurchaseOrderPdf = async (po = {}) => {
         3: { halign: 'right', cellWidth: 27 },
         4: { halign: 'right', cellWidth: 16 },
         5: { halign: 'right', cellWidth: 27 },
-        6: { halign: 'right', fontStyle: 'bold', cellWidth: 38 }
+        6: { halign: 'right', cellWidth: 38 }
       },
       didParseCell: (data) => {
         if (data.section === 'head') {
@@ -1482,7 +1501,7 @@ export const exportPurchaseOrderPdf = async (po = {}) => {
         1: { halign: 'right', cellWidth: 42 },
         2: { halign: 'right', cellWidth: 20 },
         3: { halign: 'right', cellWidth: 42 },
-        4: { halign: 'right', fontStyle: 'bold', cellWidth: 46 }
+        4: { halign: 'right', cellWidth: 46 }
       },
       didParseCell: (data) => {
         if (data.section === 'head') {
@@ -1596,7 +1615,7 @@ export const exportPurchaseOrderRegisterPdf = (orders = []) => {
 // ==========================================
 // 5. PROFORMA INVOICE (PI) PDF (EXACT 1:1 REPLICA OF PROFORMA INVOICE_27_TTB.PDF)
 // ==========================================
-export const exportProformaInvoicePdf = async (pi = {}) => {
+export const exportProformaInvoicePdf = async (pi = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
@@ -1653,7 +1672,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
       reader.onerror = rej;
       reader.readAsDataURL(blob);
     });
-  } catch(_e) { logoDataUrl = null; }
+  } catch (_e) { logoDataUrl = null; }
 
   const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
 
@@ -1774,7 +1793,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
     margin: { left: marginX, right: marginX },
     head: [['#', 'Item name', 'HSN/ SAC', 'Quantity', 'Unit', 'Price/ Unit', 'Amount']],
     body: tableRows,
-    foot: [['', 'Total', '', totalQty, '', '', subtotalFormatted]],
+    foot: [['', 'Total', '', { content: String(totalQty), styles: { halign: 'right' } }, '', '', { content: subtotalFormatted, styles: { halign: 'right' } }]],
     theme: 'grid',
     headStyles: {
       fillColor: [255, 255, 255],
@@ -1808,9 +1827,9 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
       1: { halign: 'left', fontStyle: 'bold', cellWidth: 72 },
       2: { halign: 'left', cellWidth: 22 },
       3: { halign: 'right', cellWidth: 16 },
-      4: { halign: 'center', cellWidth: 14 },
+      4: { halign: 'right', cellWidth: 14 },
       5: { halign: 'right', cellWidth: 25 },
-      6: { halign: 'right', fontStyle: 'bold', cellWidth: 25 }
+      6: { halign: 'right', cellWidth: 25 }
     },
     didParseCell: (data) => {
       if (data.section === 'head') {
@@ -1818,7 +1837,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
         if (data.column.index === 1) data.cell.styles.halign = 'left';
         if (data.column.index === 2) data.cell.styles.halign = 'left';
         if (data.column.index === 3) data.cell.styles.halign = 'right';
-        if (data.column.index === 4) data.cell.styles.halign = 'center';
+        if (data.column.index === 4) data.cell.styles.halign = 'right';
         if (data.column.index === 5) data.cell.styles.halign = 'right';
         if (data.column.index === 6) data.cell.styles.halign = 'right';
       } else if (data.section === 'body') {
@@ -1826,7 +1845,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
         if (data.column.index === 1) data.cell.styles.halign = 'left';
         if (data.column.index === 2) data.cell.styles.halign = 'left';
         if (data.column.index === 3) data.cell.styles.halign = 'right';
-        if (data.column.index === 4) data.cell.styles.halign = 'center';
+        if (data.column.index === 4) data.cell.styles.halign = 'right';
         if (data.column.index === 5) data.cell.styles.halign = 'right';
         if (data.column.index === 6) data.cell.styles.halign = 'right';
       } else if (data.section === 'foot') {
@@ -1921,7 +1940,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
 
   doc.setDrawColor(184, 184, 184);
   doc.setLineWidth(0.18);
-  doc.line(amtRX, middleY + 27, amtRight, middleY + 27);
+  doc.line(midSplitX, middleY + 27, marginX + contentWidth, middleY + 27);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
@@ -2110,7 +2129,7 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
   }
 
   // 7. Bottom 3-Column Footer Box
-  const actualBottomY = Math.max(doc.lastAutoTable.finalY, bottomY);
+  const actualBottomY = doc.lastAutoTable.finalY;
   const col1W = 62;
   const col2W = 68;
   const col3W = contentWidth - col1W - col2W;
@@ -2178,24 +2197,10 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
   doc.text('Terms and conditions', col2X + 2, actualBottomY + 4.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.2);
-  const termsTextLines = [
-    'We declare that this invoice shows the actual price of the goods',
-    'described and that all particulars are true and correct.',
-    '',
-    'Bank Details:',
-    'ICICI Bank Ltd(Nanded City Branch)',
-    'A/c No : 349105000701',
-    'IFSC Code: ICIC0003491',
-    'MSME (UDYAM ADHAR) NO-MH26A0189736',
-    'TYPE OF ENTERPRISES: SPINDLE MANUFACTURING',
-    'AND REPAIRING',
-    'MAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF',
-    'CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,',
-    'INTEGRATED,SPINDLE REPAIRING ,SPINDLE',
-    'MANUFACTURING.'
-  ];
-  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, actualBottomY + 7.5 + (i * 2.35)); });
+  doc.setFontSize(6.5);
+  const termsStr = pi.terms || 'Thanks for doing business with us!';
+  const termsTextLines = doc.splitTextToSize(termsStr, col2W - 4);
+  termsTextLines.forEach((line, i) => { doc.text(line, col2X + 2, actualBottomY + 7.5 + (i * 3)); });
 
   // Column 3: Authorized Signatory
   doc.setFont('helvetica', 'normal');
@@ -2207,9 +2212,15 @@ export const exportProformaInvoicePdf = async (pi = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + bottomH - 4, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(pi.piNumber || pi.id || 'PI_27').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Proforma_Invoice_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Proforma_Invoice_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================
@@ -2632,8 +2643,8 @@ export const exportCalibrationCertificatePdf = (inspection) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const isService = inspection?.spindleCategory === 'service';
-  const certSubtitle = isService 
-    ? 'Spindle Overhaul Metrology Acceptance & Re-Certification' 
+  const certSubtitle = isService
+    ? 'Spindle Overhaul Metrology Acceptance & Re-Certification'
     : 'Metrology Acceptance & Dynamic Balancing Certificate';
   let y = drawCorporateHeader(doc, 'CALIBRATION CERTIFICATE', inspection?.inspection_number || inspection?.id || 'QC-2026-104', certSubtitle);
 
@@ -3039,7 +3050,7 @@ export const exportJobTravelerPdf = (wo, operations = []) => {
 // ==========================================
 // 15. OFFICIAL ESTIMATE / QUOTATION PDF (100% EXACT 1:1 REPLICA OF ESTIMATE_QTN 2026-27 294 PDF)
 // ==========================================
-export const exportQuotationPdf = async (quote = {}) => {
+export const exportQuotationPdf = async (quote = {}, action = 'download') => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
@@ -3097,7 +3108,7 @@ export const exportQuotationPdf = async (quote = {}) => {
       reader.onerror = rej;
       reader.readAsDataURL(blob);
     });
-  } catch(_e) { logoDataUrl = null; }
+  } catch (_e) { logoDataUrl = null; }
 
   const textX = logoDataUrl ? (marginX + 32) : (marginX + 3);
 
@@ -3573,9 +3584,15 @@ export const exportQuotationPdf = async (quote = {}) => {
   doc.setFontSize(7);
   doc.text('Authorized Signatory', col3X + (col3W / 2), actualBottomY + actualBottomH - 4.5, { align: 'center' });
 
-  // Save the PDF
+  // Save or Print the PDF
   const cleanId = String(quote.estimateNo || quote.id || 'QTN-2026').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`GPS_Estimate_${cleanId}.pdf`);
+  if (action === 'print') {
+    doc.autoPrint();
+    const blobURL = doc.output('bloburl');
+    window.open(blobURL, '_blank');
+  } else {
+    doc.save(`GPS_Estimate_${cleanId}.pdf`);
+  }
 };
 
 // ==========================================

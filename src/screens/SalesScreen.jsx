@@ -1,27 +1,88 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
+import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportQuotationPdf, exportElementAsPdf, numberToIndianWords } from '../utils/pdfGenerator';
 import { 
-  Search, Plus, Eye, Printer, CheckCircle, FileText, 
+  Search, Plus, Eye, Printer, CheckCircle, CheckCircle2, FileText, 
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
   MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
-  Loader2, Calendar, Clock, XCircle
+  Loader2, Calendar, Clock, XCircle, ChevronDown, ZoomIn, ZoomOut
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
 
+const QUOTE_STATUS_OPTIONS = [
+  { 
+    value: 'Under Review', 
+    label: 'Under Review', 
+    color: '#92400e', 
+    bg: '#fffbeb', 
+    border: '#fde68a', 
+    icon: Clock, 
+    badgeClass: 'badge-warning',
+    description: 'Sent to customer / Pending review'
+  },
+  { 
+    value: 'Approved', 
+    label: 'Approved', 
+    color: '#065f46', 
+    bg: '#ecfdf5', 
+    border: '#a7f3d0', 
+    icon: CheckCircle, 
+    badgeClass: 'badge-success',
+    description: 'Customer approved quotation'
+  },
+  { 
+    value: 'Rejected', 
+    label: 'Rejected', 
+    color: '#991b1b', 
+    bg: '#fef2f2', 
+    border: '#fecaca', 
+    icon: XCircle, 
+    badgeClass: 'badge-danger',
+    description: 'Quotation declined or cancelled'
+  }
+];
+
+const CLEAN_TEMPLATE = {
+  estimateNo: '',
+  date: '',
+  status: 'Under Review',
+  placeOfSupply: '',
+  customer: '',
+  customerAddress: '',
+  contactNo: '',
+  gstin: '',
+  state: '',
+  spindleSerial: '',
+  challanNo: '',
+  inwardDate: '',
+  scopeOfWork: '',
+  taxRate: 18,
+  bankName: 'ICICI BANK LIMITED, PUNE NANDED CITY',
+  accountNo: '349105000701',
+  ifscCode: 'ICIC0003491',
+  accountHolder: 'GENERAL PRECISION SPINDLES',
+  upiId: '7058731515@hdfc',
+  msmeNo: 'MH26A0189736',
+  enterpriseType: 'SPINDLE MANUFACTURING AND REPAIRING',
+  terms: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
+  items: [
+    { id: 1, name: '', hsn: '', qty: 1, unitPrice: 0 }
+  ]
+};
 
 const DEFAULT_LINAMAR_TEMPLATE = {
   estimateNo: 'QTN/2026-27/294',
   date: '07-09-2026',
-  status: 'Draft',
+  status: 'Under Review',
   placeOfSupply: '23-Madhya Pradesh',
   customer: 'LINAMAR INDIA PRIVATE LIMITED',
   customerAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001, India',
@@ -60,9 +121,43 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState(null);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConvertingToPI, setIsConvertingToPI] = useState(false);
+
+  const [updatingQuoteId, setUpdatingQuoteId] = useState(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [sidebarStatusMenuQuoteId, setSidebarStatusMenuQuoteId] = useState(null);
+
+  const previewContainerRef = useRef(null);
+  const [zoomScale, setZoomScale] = useState(1);
+
+  const handleFitWidth = useCallback(() => {
+    if (previewContainerRef.current) {
+      const containerWidth = previewContainerRef.current.clientWidth - 48;
+      if (containerWidth > 0 && containerWidth < 794) {
+        const calculatedScale = Math.max(0.5, Math.min(1, Number((containerWidth / 794).toFixed(2))));
+        setZoomScale(calculatedScale);
+      } else {
+        setZoomScale(1);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.status-dropdown-container') && !e.target.closest('.sidebar-status-container')) {
+        setStatusDropdownOpen(false);
+        setSidebarStatusMenuQuoteId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const [issuedPIQuotations, setIssuedPIQuotations] = useState(new Set());
 
   const loadQuotations = async (preferredId = null) => {
     setIsLoading(true);
@@ -72,6 +167,22 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       setError(res.error);
       setIsLoading(false);
       return;
+    }
+    
+    // Also fetch PIs to check which quotes already have a PI issued
+    const piRes = await proformaInvoiceService.getProformaInvoices();
+    if (!piRes.error && piRes.data) {
+      const piQuoteIds = new Set();
+      piRes.data.forEach(pi => {
+        if (pi.quotationId) piQuoteIds.add(pi.quotationId);
+        
+        // Fallback for mock data without dbId: check notes for the string ID
+        if (pi.notes && pi.notes.includes('Issued from Quotation')) {
+          const match = pi.notes.match(/Issued from Quotation ([\w/-]+)/);
+          if (match && match[1]) piQuoteIds.add(match[1]);
+        }
+      });
+      setIssuedPIQuotations(piQuoteIds);
     }
     const data = res.data || [];
     setQuotations(data);
@@ -109,7 +220,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   };
 
   // New Quotation Form State matching the PDF invoice
-  const [formState, setFormState] = useState({ ...DEFAULT_LINAMAR_TEMPLATE });
+  const [formState, setFormState] = useState({ ...CLEAN_TEMPLATE });
 
   // Calculate live totals for the modal form
   const formCalculations = useMemo(() => {
@@ -124,10 +235,12 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
   const filteredQuotes = useMemo(() => {
     return quotations.filter((q) => {
+      // Keep selected quote visible while actively inspecting so it never abruptly vanishes on status change!
+      const isCurrentlySelected = selectedQuote && (q.id === selectedQuote.id || q.dbId === selectedQuote.dbId);
       const matchesStatus = 
         statusFilter === 'all'
           ? true
-          : q.status?.toLowerCase() === statusFilter.toLowerCase();
+          : (isCurrentlySelected || q.status?.toLowerCase() === statusFilter.toLowerCase());
 
       const query = searchQuery.toLowerCase();
       const matchesSearch = !query || 
@@ -138,19 +251,28 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
       return matchesStatus && matchesSearch;
     });
-  }, [quotations, statusFilter, searchQuery]);
+  }, [quotations, statusFilter, searchQuery, selectedQuote?.id, selectedQuote?.dbId]);
 
-  // Status update function handling Under Review, Approved, Draft, and Rejected
-  const handleUpdateStatus = async (quoteId, newStatus) => {
+  // Calculate Dashboard KPI Metrics: Total, Draft, Sent/Under Review, Total Value
+  const metrics = useMemo(() => {
+    const totalCount = quotations.length;
+    const activeQtn = quotations.filter(q => q.status?.toLowerCase() === 'under review').length;
+    const sentQtn = quotations.filter(q => q.status?.toLowerCase() === 'sent' || q.status?.toLowerCase() === 'under review').length;
+    const totalValue = quotations.reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+
+    return { totalCount, activeQtn, sentQtn, totalValue };
+  }, [quotations]);
+
+  // Status update function handling Under Review, Approved, Draft, and Rejected with instant 0ms optimistic UI
+  const handleUpdateStatus = useCallback(async (quoteId, newStatus) => {
     const targetQuote = quotations.find(q => q.id === quoteId || q.dbId === quoteId);
     if (!targetQuote) return;
 
-    const idToUpdate = targetQuote.dbId || targetQuote.id;
-    const res = await salesService.updateQuotationStatus(idToUpdate, newStatus);
-    if (res.error) {
-      if (onNotify) onNotify(res.error.message || `Failed to update quotation to ${newStatus}`, 'error');
-      return;
-    }
+    const previousStatus = targetQuote.status;
+    if (previousStatus === newStatus) return;
+
+    // 1. Instant 0ms Optimistic UI update (feels instantaneous to user)
+    setUpdatingQuoteId(targetQuote.id);
 
     setQuotations(prev => prev.map(q => {
       if (q.id === targetQuote.id || q.dbId === targetQuote.dbId) {
@@ -169,7 +291,22 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     if (onNotify) {
       onNotify(`Quotation ${targetQuote.id} marked as "${newStatus}"`, 'success');
     }
-  };
+
+    // 2. Non-blocking background persistence
+    try {
+      const idToUpdate = targetQuote.dbId || targetQuote.id;
+      const res = await salesService.updateQuotationStatus(idToUpdate, newStatus);
+      if (res && res.error) {
+        console.warn(`[SalesScreen] Background status update notice:`, res.error.message);
+      }
+    } catch (err) {
+      console.warn(`[SalesScreen] Background status update sync error:`, err);
+    } finally {
+      setTimeout(() => {
+        setUpdatingQuoteId(prev => (prev === targetQuote.id ? null : prev));
+      }, 350);
+    }
+  }, [quotations, onNotify]);
 
   // Delete quotation confirmation & execution
   const confirmDeleteQuotation = (quote) => {
@@ -237,13 +374,36 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     }));
   };
 
-  // Reset to LINAMAR template
-  const handleResetToLinamar = () => {
-    setFormState({ ...DEFAULT_LINAMAR_TEMPLATE });
-    onNotify('Loaded Linamar Kesslar estimate fields from PDF template');
+  // Reset to clean template
+  const handleResetForm = () => {
+    setFormState({ ...CLEAN_TEMPLATE });
+    onNotify('Form has been cleared and reset.');
   };
 
-  // Submit and create new quotation in live Supabase
+  const handleOpenEdit = (quote) => {
+    setEditingQuoteId(quote.id || quote.dbId);
+    setFormState({
+      estimateNo: quote.estimateNo || quote.id || '',
+      date: quote.date || new Date().toISOString().split('T')[0],
+      status: quote.status || 'Under Review',
+      placeOfSupply: quote.placeOfSupply || '27-Maharashtra',
+      customer: quote.customer || '',
+      customerAddress: quote.customerAddress || '',
+      contactNo: quote.contactNo || '',
+      gstin: quote.gstin || '',
+      state: quote.state || '',
+      spindleSerial: quote.spindleSerial || '',
+      challanNo: quote.challanNo || 'N/A',
+      inwardDate: quote.inwardDate || '',
+      scopeOfWork: quote.scopeOfWork || '',
+      taxRate: quote.taxRate || 18,
+      terms: quote.terms || 'Standard MSME terms apply.',
+      items: quote.items?.length > 0 ? [...quote.items] : [{ id: 1, name: '', hsn: '998717', qty: 1, unitPrice: 0 }]
+    });
+    setIsNewQuoteOpen(true);
+  };
+
+  // Submit and create or update quotation in live Supabase
   const handleCreateQuotation = async (e) => {
     e.preventDefault();
 
@@ -266,42 +426,154 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       ? `QTN/${fy}/${seq}`
       : formState.estimateNo;
 
-    const res = await salesService.createQuotation({
-      quotationNumber: qNo,
-      customerName: formState.customer,
-      customerAddress: formState.customerAddress,
-      customerGstin: formState.gstin,
-      placeOfSupply: formState.placeOfSupply,
-      spindleSerial: formState.spindleSerial,
-      scopeOfWork: formState.scopeOfWork,
-      subtotal: formCalculations.subtotal,
-      totalAmount: formCalculations.totalAmount,
-      status: formState.status || 'Draft',
-      terms: formState.terms,
-      items: formState.items
-    });
+    let res;
+    if (editingQuoteId) {
+      res = await salesService.updateQuotation(editingQuoteId, {
+        quotationNumber: qNo,
+        customerName: formState.customer,
+        customerAddress: formState.customerAddress,
+        customerGstin: formState.gstin,
+        placeOfSupply: formState.placeOfSupply,
+        spindleSerial: formState.spindleSerial,
+        scopeOfWork: formState.scopeOfWork,
+        subtotal: formCalculations.subtotal,
+        totalAmount: formCalculations.totalAmount,
+        status: formState.status || 'Under Review',
+        terms: formState.terms,
+        items: formState.items
+      });
+    } else {
+      res = await salesService.createQuotation({
+        quotationNumber: qNo,
+        customerName: formState.customer,
+        customerAddress: formState.customerAddress,
+        customerGstin: formState.gstin,
+        placeOfSupply: formState.placeOfSupply,
+        spindleSerial: formState.spindleSerial,
+        scopeOfWork: formState.scopeOfWork,
+        subtotal: formCalculations.subtotal,
+        totalAmount: formCalculations.totalAmount,
+        status: formState.status || 'Under Review',
+        terms: formState.terms,
+        items: formState.items
+      });
+    }
 
     if (res.error) {
-      onNotify(res.error.message || 'Failed to create quotation in database.', 'error');
+      onNotify(res.error.message || 'Failed to save quotation in database.', 'error');
       return;
     }
 
     setStatusFilter('all');
     setSearchQuery('');
     setIsNewQuoteOpen(false);
-    onNotify(`Estimate ${qNo} created successfully for ${formState.customer}`);
+    setEditingQuoteId(null);
+    onNotify(editingQuoteId ? `Estimate ${qNo} updated successfully` : `Estimate ${qNo} created successfully for ${formState.customer}`);
     await loadQuotations(qNo);
   };
 
   const handlePrint = async () => {
     if (!selectedQuote) return;
     try {
-      // Use jsPDF direct generator as primary (pixel-perfect 1:1 match to reference format)
-      await exportQuotationPdf(selectedQuote);
+      await exportQuotationPdf(selectedQuote, 'print');
+      if (onNotify) onNotify(`Opening Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} for printing`);
+    } catch (err) {
+      console.error('Failed to print quotation PDF:', err);
+      if (onNotify) onNotify('PDF print failed. Please try again.', 'error');
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!selectedQuote) return;
+    try {
+      await exportQuotationPdf(selectedQuote, 'download');
       if (onNotify) onNotify(`Quotation Estimate ${selectedQuote.estimateNo || selectedQuote.id} downloaded (PDF)`);
     } catch (err) {
       console.error('Failed to export quotation PDF:', err);
       if (onNotify) onNotify('PDF export failed. Please try again.', 'error');
+    }
+  };
+
+  const handleConvertToProformaInvoice = async () => {
+    if (!selectedQuote) return;
+    setIsConvertingToPI(true);
+    try {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = now.getFullYear();
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      const dueD = new Date();
+      dueD.setDate(dueD.getDate() + 15);
+      const dueDD = String(dueD.getDate()).padStart(2, '0');
+      const dueMM = String(dueD.getMonth() + 1).padStart(2, '0');
+      const dueYYYY = dueD.getFullYear();
+      const dueStr = `${dueYYYY}-${dueMM}-${dueDD}`;
+
+      const randomSuffix = Math.floor(100 + Math.random() * 900);
+      const newPINumber = `PI/2026-27/${randomSuffix}`;
+
+      const items = (selectedQuote.items || []).map((it, idx) => ({
+        id: idx + 1,
+        name: it.name || it.item_name || 'Spindle Service / Component',
+        hsn: it.hsn || it.hsn_sac || '84669390',
+        qty: Number(it.qty || it.quantity || 1),
+        unitPrice: Number(it.unitPrice || it.rate || it.unit_price || 0)
+      }));
+
+      const subtotal = items.reduce((sum, it) => sum + (it.qty * it.unitPrice), 0);
+      const gstAmount = Math.round(subtotal * 0.18);
+      const totalAmount = subtotal + gstAmount;
+
+      const piPayload = {
+        piNumber: newPINumber,
+        customerId: selectedQuote.customerId || selectedQuote.customer_id || null,
+        customerName: selectedQuote.customer || selectedQuote.customerFullName || 'Valued Customer',
+        customerEmail: selectedQuote.customerEmail || '',
+        customerAddress: selectedQuote.customerAddress || selectedQuote.billingAddress || '',
+        customerGstin: selectedQuote.gstin || '',
+        placeOfSupply: selectedQuote.placeOfSupply || selectedQuote.state || '27-Maharashtra',
+        contactNo: selectedQuote.contactNo || selectedQuote.customerContact || '',
+        spindleSerial: selectedQuote.spindleSerial || '',
+        salesOrder: selectedQuote.salesOrder || selectedQuote.poNumber || 'VERBAL',
+        scopeOfWork: selectedQuote.scopeOfWork || '',
+        quotationId: selectedQuote.dbId || null,
+        piDate: todayStr,
+        validUntil: dueStr,
+        paymentTerms: '50% Advance with Proforma, 50% against Dispatch Inspection',
+        subtotal: subtotal,
+        totalAmount: totalAmount,
+        status: 'Ready to Send',
+        terms: selectedQuote.terms || 'Standard MSME terms apply.',
+        notes: `Issued from Quotation ${selectedQuote.estimateNo || selectedQuote.id}`,
+        items: items
+      };
+
+      const res = await proformaInvoiceService.createProformaInvoice(piPayload);
+      if (res.error) {
+        if (onNotify) onNotify(`Failed to create Proforma Invoice: ${res.error.message || 'Database error'}`, 'error');
+      } else {
+        // Auto-approve the quotation since it's converted to an order/PI
+        await handleUpdateStatus(selectedQuote.dbId || selectedQuote.id, 'Approved');
+        
+        setIssuedPIQuotations(prev => {
+          const newSet = new Set(prev);
+          if (selectedQuote.dbId) newSet.add(selectedQuote.dbId);
+          newSet.add(selectedQuote.estimateNo || selectedQuote.id);
+          return newSet;
+        });
+        
+        if (onNotify) onNotify(`Proforma Invoice ${newPINumber} issued successfully and Quotation was Approved!`, 'success');
+        if (onNavigate) {
+          onNavigate('proforma-invoices');
+        }
+      }
+    } catch (err) {
+      console.error('Error converting Quotation to PI:', err);
+      if (onNotify) onNotify('Conversion failed due to an unexpected error.', 'error');
+    } finally {
+      setIsConvertingToPI(false);
     }
   };
 
@@ -352,10 +624,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
             const seq = String(Date.now()).slice(-5);
             setFormState({
-              ...DEFAULT_LINAMAR_TEMPLATE,
+              ...CLEAN_TEMPLATE,
               estimateNo: `QTN/${fy}/${seq}`,
               date: now.toISOString().split('T')[0],
-              status: 'Draft'
+              status: 'Under Review'
             });
             setIsNewQuoteOpen(true);
           }}
@@ -366,6 +638,45 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       </PageHeader>
 
       <div className="content-body">
+        {/* Top KPI Metric Cards: Total Quotes, Active, Sent, Total Value */}
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Total Quotations</span>
+              <div className="metric-icon-wrap"><FileText size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.totalCount}</div>
+            <div className="metric-footer" style={{ color: 'var(--primary)' }}>Sales registry</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Active Quotes</span>
+              <div className="metric-icon-wrap"><CheckCircle size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.activeQtn}</div>
+            <div className="metric-footer" style={{ color: '#d97706' }}>In progress or review</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Sent Quotes</span>
+              <div className="metric-icon-wrap"><Send size={16} /></div>
+            </div>
+            <div className="metric-value">{metrics.sentQtn}</div>
+            <div className="metric-footer" style={{ color: '#0284c7' }}>Transmitted to clients</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Total Value</span>
+              <div className="metric-icon-wrap"><DollarSign size={16} /></div>
+            </div>
+            <div className="metric-value">₹{metrics.totalValue.toLocaleString('en-IN')}</div>
+            <div className="metric-footer" style={{ color: '#7A1F3D' }}>Total pipeline volume</div>
+          </div>
+        </div>
+
         {/* Quotations Master-Detail View */}
         <div 
           className="grid-2col-sales" 
@@ -405,7 +716,6 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <option value="all">All Statuses ({quotations.length})</option>
                 <option value="under review">Under Review ({quotations.filter(q => q.status?.toLowerCase() === 'under review').length})</option>
                 <option value="approved">Approved ({quotations.filter(q => q.status?.toLowerCase() === 'approved').length})</option>
-                <option value="draft">Draft ({quotations.filter(q => q.status?.toLowerCase() === 'draft').length})</option>
                 <option value="rejected">Rejected ({quotations.filter(q => q.status?.toLowerCase() === 'rejected').length})</option>
               </CustomSelect>
             </div>
@@ -439,7 +749,109 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
                           {q.id}
                         </span>
-                        <StatusBadge status={q.status} size="sm" />
+
+                        {/* Interactive Sidebar Status Pill with Quick Switcher */}
+                        <div style={{ position: 'relative' }} className="sidebar-status-container">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSidebarStatusMenuQuoteId(prev => (prev === q.id ? null : q.id));
+                            }}
+                            title={`Status: ${q.status}. Click to change.`}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              borderRadius: '12px',
+                              outline: 'none'
+                            }}
+                          >
+                            {updatingQuoteId === q.id ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: 'var(--primary)', fontWeight: 600 }}>
+                                <Loader2 size={11} className="animate-spin" />
+                                <span>Updating...</span>
+                              </span>
+                            ) : (
+                              <>
+                                <StatusBadge status={q.status} size="sm" />
+                                <ChevronDown size={10} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                              </>
+                            )}
+                          </button>
+
+                          {/* Quick Status Dropdown in Sidebar */}
+                          {sidebarStatusMenuQuoteId === q.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 4px)',
+                                right: 0,
+                                zIndex: 120,
+                                minWidth: '150px',
+                                background: 'var(--bg-surface)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                                padding: '4px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                animation: 'fadeIn 0.12s ease-out'
+                              }}
+                            >
+                              <div style={{ padding: '3px 6px', fontSize: '9px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                Change Status
+                              </div>
+                              {QUOTE_STATUS_OPTIONS.map(opt => {
+                                const isCurrent = q.status === opt.value;
+                                const Icon = opt.icon;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateStatus(q.id, opt.value);
+                                      setSidebarStatusMenuQuoteId(null);
+                                    }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      padding: '5px 8px',
+                                      borderRadius: '4px',
+                                      border: 'none',
+                                      background: isCurrent ? opt.bg : 'transparent',
+                                      color: opt.color,
+                                      fontSize: '11px',
+                                      fontWeight: isCurrent ? 700 : 500,
+                                      cursor: 'pointer',
+                                      textAlign: 'left'
+                                    }}
+                                    onMouseEnter={e => {
+                                      if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                    }}
+                                    onMouseLeave={e => {
+                                      if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                  >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <Icon size={11} color={opt.color} />
+                                      <span>{opt.label}</span>
+                                    </span>
+                                    {isCurrent && <Check size={11} color={opt.color} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -536,95 +948,118 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 flexWrap: 'wrap',
                 gap: '8px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
-                  <StatusBadge status={selectedQuote.status} size="sm" />
+
+                  {/* Interactive Status Changer Dropdown */}
+                  <div style={{ position: 'relative' }} className="status-dropdown-container">
+                    <button 
+                      type="button" 
+                      onClick={() => setStatusDropdownOpen(prev => !prev)}
+                      title={`Status is "${selectedQuote.status}". Click to switch to Under Review, Approved, or Rejected.`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-surface)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                    >
+                      {updatingQuoteId === selectedQuote.id ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '11px' }}>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Updating...</span>
+                        </span>
+                      ) : (
+                        <StatusBadge status={selectedQuote.status} size="sm" />
+                      )}
+                      <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                    </button>
+
+                    {statusDropdownOpen && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          left: 0,
+                          zIndex: 100,
+                          minWidth: '220px',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                          padding: '6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px',
+                          animation: 'fadeIn 0.15s ease-out'
+                        }}
+                      >
+                        <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Change Quotation Status
+                        </div>
+                        {QUOTE_STATUS_OPTIONS.map(opt => {
+                          const isCurrent = selectedQuote.status === opt.value;
+                          const Icon = opt.icon;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                handleUpdateStatus(selectedQuote.id, opt.value);
+                                setStatusDropdownOpen(false);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: isCurrent ? opt.bg : 'transparent',
+                                color: opt.color,
+                                fontSize: '11.5px',
+                                fontWeight: isCurrent ? 700 : 500,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.12s ease'
+                              }}
+                              onMouseEnter={e => {
+                                if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                              }}
+                              onMouseLeave={e => {
+                                if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Icon size={13} color={opt.color} />
+                                <div>
+                                  <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                                  <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
+                                </div>
+                              </div>
+                              {isCurrent && <Check size={13} color={opt.color} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* 1-Click Status Transition Buttons */}
-                  {selectedQuote.status !== 'Approved' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Approved')}
-                      title="Approve this quotation"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#ecfdf5',
-                        border: '1px solid #10b981',
-                        color: '#065f46',
-                        fontWeight: 600
-                      }}
-                    >
-                      <CheckCircle size={12} color="#059669" />
-                      <span>Approve</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Under Review' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Under Review')}
-                      title="Mark as Under Review"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#fffbeb',
-                        border: '1px solid #f59e0b',
-                        color: '#92400e',
-                        fontWeight: 600
-                      }}
-                    >
-                      <Clock size={12} color="#d97706" />
-                      <span>Under Review</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Rejected' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Rejected')}
-                      title="Reject this quotation"
-                      style={{
-                        height: '28px',
-                        fontSize: '11px',
-                        padding: '0 8px',
-                        gap: '4px',
-                        background: '#fef2f2',
-                        border: '1px solid #f87171',
-                        color: '#991b1b',
-                        fontWeight: 600
-                      }}
-                    >
-                      <XCircle size={12} color="#dc2626" />
-                      <span>Reject</span>
-                    </button>
-                  )}
-
-                  {selectedQuote.status !== 'Draft' && (
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleUpdateStatus(selectedQuote.id, 'Draft')}
-                      title="Revert quotation to Draft"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
-                    >
-                      <FileText size={12} />
-                      <span>Draft</span>
-                    </button>
-                  )}
-
-                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
-
+                  {/* Removed Contextual 1-Click Status Workflow Actions in favor of upper dropdown */}
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
@@ -638,14 +1073,109 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
                   <button 
                     type="button" 
+                    className="btn btn-primary btn-sm"
+                    onClick={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? () => { if (onNavigate) onNavigate('proforma-invoices'); } : handleConvertToProformaInvoice}
+                    disabled={isConvertingToPI}
+                    title={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? "A Proforma Invoice has already been issued. Click to view Proforma Invoices." : "Issue Proforma Invoice from this Quotation"}
+                    style={{ 
+                      height: '28px', 
+                      fontSize: '11px', 
+                      padding: '0 10px', 
+                      gap: '5px',
+                      background: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'var(--bg-surface-subtle)' 
+                        : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                      color: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'var(--primary)' 
+                        : '#ffffff',
+                      border: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? '1px solid var(--border-color)' 
+                        : 'none',
+                      fontWeight: 600,
+                      boxShadow: (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) 
+                        ? 'none' 
+                        : '0 1px 3px rgba(2, 132, 199, 0.25)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {isConvertingToPI ? (
+                      <>
+                        <Loader2 size={12} className="spin" />
+                        <span>Issuing...</span>
+                      </>
+                    ) : (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? (
+                      <>
+                        <Eye size={12} color="var(--primary)" />
+                        <span>View Proforma Invoice</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileCheck size={12} />
+                        <span>Issue Proforma Invoice</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleDownload}
+                    title="Download official Estimate / Invoice PDF"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                  >
+                    <Download size={12} />
+                    <span>Download PDF</span>
+                  </button>
+
+                  <button 
+                    type="button" 
                     className="btn btn-secondary btn-sm"
                     onClick={handlePrint}
                     title="Print official Estimate / Invoice"
-                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                   >
                     <Printer size={12} />
-                    <span>Print PDF</span>
+                    <span>Print</span>
                   </button>
+
+                  {/* Zoom & Fit Controls */}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                      title="Zoom Out"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                    >
+                      <ZoomOut size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(1)}
+                      title="Reset to 100%"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
+                    >
+                      {Math.round(zoomScale * 100)}%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                      title="Zoom In"
+                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                    >
+                      <ZoomIn size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFitWidth}
+                      title="Auto-fit quotation to screen width"
+                      style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                    >
+                      Fit
+                    </button>
+                  </div>
 
                   <button 
                     type="button" 
@@ -656,6 +1186,17 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                   >
                     {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleOpenEdit(selectedQuote)}
+                    title="Edit Quotation details"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                  >
+                    <Edit3 size={12} />
+                    <span>Edit</span>
                   </button>
 
                   <button 
@@ -681,27 +1222,52 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
 
             {/* Document Body — A4 Page Preview */}
-            <div style={{ background: '#525659', padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', overflowX: 'auto', flex: 1, minHeight: '0' }}>
+            <div 
+              ref={previewContainerRef}
+              style={{ 
+                background: 'transparent', 
+                padding: '16px 0', 
+                overflowY: 'auto', 
+                overflowX: 'auto', 
+                flex: 1, 
+                minHeight: '0',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            >
               <div 
-                id="printable-quotation" 
                 style={{ 
-                  width: '794px',
-                  minWidth: '794px',
-                  maxWidth: '794px',
-                  height: '1123px',
-                  minHeight: '1123px',
-                  maxHeight: '1123px',
-                  background: '#ffffff', 
-                  padding: '24px 28px', 
-                  color: '#000000', 
-                  fontFamily: 'Arial, Helvetica, sans-serif',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
-                  boxSizing: 'border-box',
-                  position: 'relative',
+                  minWidth: 'max-content',
+                  width: '100%',
                   display: 'flex',
-                  flexDirection: 'column'
+                  justifyContent: 'center',
+                  minHeight: '100%',
+                  padding: '0 8px',
+                  boxSizing: 'border-box'
                 }}
               >
+                <div 
+                  id="printable-quotation" 
+                  style={{ 
+                    width: '794px',
+                    minWidth: '794px',
+                    maxWidth: '794px',
+                    height: '1123px',
+                    minHeight: '1123px',
+                    maxHeight: '1123px',
+                    background: '#ffffff', 
+                    padding: '24px 28px', 
+                    color: '#000000', 
+                    fontFamily: 'Arial, Helvetica, sans-serif',
+                    boxShadow: 'none',
+                    border: '1px solid var(--border-color)',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zoom: zoomScale !== 1 ? zoomScale : undefined
+                  }}
+                >
                 {/* Document Title Banner */}
                 <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px', color: '#000000', marginBottom: '6px', letterSpacing: '0.02em', flexShrink: 0 }}>
                   Estimate
@@ -982,7 +1548,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                               <span>₹ {calculatedTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
 
-                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px 0' }} />
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }} />
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 700, padding: '3px 0' }}>
                               <span>Total</span>
@@ -1112,6 +1678,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
             </div>
           </div>
+        </div>
         );
       })()}
 
@@ -1138,26 +1705,32 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       {/* NEW QUOTATION MODAL - COMPACT & MATCHING THE PDF INVOICE FIELDS EXACTLY */}
       <Modal
         isOpen={isNewQuoteOpen}
-        onClose={() => setIsNewQuoteOpen(false)}
-        title="Create New Precision Spindle Estimate / Quotation (Official GPS Format)"
+        onClose={() => {
+          setIsNewQuoteOpen(false);
+          setEditingQuoteId(null);
+        }}
+        title={editingQuoteId ? `Edit Estimate / Quotation ${formState.estimateNo}` : "Create New Precision Spindle Estimate / Quotation (Official GPS Format)"}
         maxWidth="920px"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <button 
               type="button" 
               className="btn btn-secondary btn-sm"
-              onClick={handleResetToLinamar}
-              title="Reset fields to the Linamar Kesslar PDF estimate sample"
+              onClick={handleResetForm}
+              title="Clear all fields in this form"
             >
               <RefreshCw size={12} />
-              <span>Load Linamar Kesslar PDF Template</span>
+              <span>Reset / Clear Form</span>
             </button>
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm" 
-                onClick={() => setIsNewQuoteOpen(false)}
+                onClick={() => {
+                  setIsNewQuoteOpen(false);
+                  setEditingQuoteId(null);
+                }}
               >
                 Cancel
               </button>
@@ -1167,7 +1740,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 onClick={handleCreateQuotation}
               >
                 <CheckCircle size={13} />
-                <span>Generate Quotation</span>
+                <span>{editingQuoteId ? 'Save Changes' : 'Generate Quotation'}</span>
               </button>
             </div>
           </div>
@@ -1225,11 +1798,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Initial Status</label>
                 <select 
                   className="form-control" 
-                  value={formState.status || 'Draft'}
+                  value={formState.status || 'Under Review'}
                   onChange={(e) => setFormState({ ...formState, status: e.target.value })}
                   style={{ height: '28px', fontSize: '11px', fontWeight: 600 }}
                 >
-                  <option value="Draft">Draft</option>
                   <option value="Under Review">Under Review</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>

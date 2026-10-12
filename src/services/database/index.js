@@ -24,4 +24,5 @@ export { notificationService } from './notificationService';
 export { reportService } from './reportService';
 export { qualityService } from '../quality/qualityService';
 export { dashboardService } from '../dashboard/dashboardService';
+export { clientPaymentService } from './clientPaymentService';
 export { settingsService } from '../settings/settingsService';

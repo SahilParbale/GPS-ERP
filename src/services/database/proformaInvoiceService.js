@@ -165,6 +165,7 @@ export const proformaInvoiceService = {
       return {
         id: pi.pi_number || pi.id,
         dbId: pi.id,
+        quotationId: pi.quotation_id,
         piNumber: pi.pi_number,
         estimateNo: pi.pi_number,
         customer: pi.customer_name || 'T T B TOOLING',
@@ -342,7 +343,7 @@ export const proformaInvoiceService = {
       sgst_amount: sgst,
       igst_amount: igst,
       total_amount: Number(totalAmount || (calcSubtotal + calcTaxAmt)),
-      status: status === 'Sent' ? 'Sent' : 'Ready to Send',
+      status: (status === 'Ready to Send' || !status) ? 'Draft' : status,
       notes: combinedNotes
     };
 
@@ -372,10 +373,10 @@ export const proformaInvoiceService = {
    * Update PI status (Ready to Send or Sent)
    */
   async updateProformaInvoiceStatus(id, status) {
-    const validStatus = status === 'Sent' ? 'Sent' : 'Ready to Send';
+    const dbStatus = (status === 'Ready to Send' || !status) ? 'Draft' : status;
     const filterField = id.includes('-') && id.length === 36 ? 'id' : 'pi_number';
     return await baseService.update('proforma_invoices', { [filterField]: id }, {
-      status: validStatus,
+      status: dbStatus,
       updated_at: new Date().toISOString()
     });
   },
@@ -441,7 +442,7 @@ export const proformaInvoiceService = {
       sgst_amount: sgst,
       igst_amount: igst,
       total_amount: Number(totalAmount || (calcSubtotal + calcTaxAmt)),
-      status: status === 'Sent' ? 'Sent' : 'Ready to Send',
+      status: (status === 'Ready to Send' || !status) ? 'Draft' : status,
       notes: combinedNotes,
       updated_at: new Date().toISOString()
     };

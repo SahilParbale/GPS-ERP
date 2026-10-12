@@ -26,6 +26,7 @@ import CustomersScreen from './screens/CustomersScreen';
 import ContactsScreen from './screens/ContactsScreen';
 import SuppliersScreen from './screens/SuppliersScreen';
 import InvoicesScreen from './screens/InvoicesScreen';
+import PaymentsScreen from './screens/PaymentsScreen';
 import PurchaseOrderScreen from './screens/PurchaseOrderScreen';
 import ProformaInvoiceScreen from './screens/ProformaInvoiceScreen';
 import EWayBillScreen from './screens/EWayBillScreen';
@@ -47,7 +48,7 @@ const getInitialScreen = () => {
     const validScreens = [
       'dashboard', 'production', 'workforce', 'work-order-detail',
       'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
-      'sales', 'customers', 'contacts', 'suppliers', 'invoices',
+      'sales', 'customers', 'contacts', 'suppliers', 'invoices', 'payments',
       'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
       'documents', 'notifications', 'email-activity', 'reports', 'settings'
     ];
@@ -253,6 +254,13 @@ function AppContent() {
       case 'invoices':
         return (
           <InvoicesScreen 
+            onNavigate={setCurrentScreen}
+            onNotify={addToast}
+          />
+        );
+      case 'payments':
+        return (
+          <PaymentsScreen 
             onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
