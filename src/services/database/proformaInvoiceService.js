@@ -68,6 +68,10 @@ export const proformaInvoiceService = {
   /**
    * Fetch all Proforma Invoices with items
    */
+  async getAll(options = {}) {
+    return this.getProformaInvoices(options);
+  },
+
   async getProformaInvoices(options = {}) {
     const res = await baseService.select('proforma_invoices', {
       select: `
@@ -214,8 +218,8 @@ export const proformaInvoiceService = {
       };
     });
 
-    // Provide authentic TTB reference if list is empty and Clean Slate is inactive
-    if (normalizedData.length === 0 && !isCleanSlateMode()) {
+    // Provide authentic TTB reference if list is empty so that Client Directory has complete commercial data
+    if (normalizedData.length === 0) {
       normalizedData.push(DEFAULT_TTB_PROFORMA);
     }
 

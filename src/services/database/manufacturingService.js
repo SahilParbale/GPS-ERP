@@ -111,8 +111,8 @@ export const manufacturingService = {
 
       return {
         id: item.id,
-        bayId: bayId,
-        bayName: item.machine?.bay?.name || `Bay ${idx + 1} — Precision Cell`,
+        bayId: bayId.replace('bay', 'station'),
+        bayName: (item.machine?.bay?.name || `Station ${idx + 1} — Precision Cell`).replace(/Bay/gi, 'Station'),
         machine: `${item.machine?.code || 'CNC'} / ${item.machine?.name || 'Precision Rig'}`,
         machineName: item.machine?.name,
         assignedStaff: staffName,
@@ -129,12 +129,12 @@ export const manufacturingService = {
     });
 
     const defaultBays = [
-      { id: 'bay-1', bayId: 'bay-1', bayName: 'Bay 1 — CNC Turning & Boring', machine: 'CNC-01 / Okuma LB3000 Lathe', assignedStaff: 'Rahul Patil (Master Machinist)', employeeId: 'GPS-EMP-104', workOrder: 'WO-2026-104', spindleSerial: 'GPS-2026-0842', operation: 'Shaft Turning', started: '08:30 AM', duration: '2h 15m', progress: 75, status: 'Operating', utilization: 88 },
-      { id: 'bay-2', bayId: 'bay-2', bayName: 'Bay 2 — Precision Grinding', machine: 'GRD-01 / Studer S33 Cylindrical Grinder', assignedStaff: 'Suresh Sawant (Grinding Lead)', employeeId: 'GPS-EMP-105', workOrder: 'WO-2026-105', spindleSerial: 'GPS-2026-0845', operation: 'Bearing Journal Micro-Finish', started: '07:45 AM', duration: '3h 00m', progress: 85, status: 'Operating', utilization: 92 },
-      { id: 'bay-3', bayId: 'bay-3', bayName: 'Bay 3 — Induction Heat Treatment', machine: 'IND-01 / Custom Induction Rig', assignedStaff: 'Anil Joshi (Metallurgy Tech)', employeeId: 'GPS-EMP-108', workOrder: 'WO-2026-106', spindleSerial: 'GPS-2026-0846', operation: 'Shaft Hardening 58-62 HRC', started: '09:00 AM', duration: '1h 30m', progress: 50, status: 'Operating', utilization: 78 },
-      { id: 'bay-4', bayId: 'bay-4', bayName: 'Bay 4 — Cleanroom Assembly', machine: 'ASM-01 / Class 1000 Laminar Flow Hood', assignedStaff: 'Ganesh Kadam (Cleanroom Fitter)', employeeId: 'GPS-EMP-106', workOrder: 'WO-2026-107', spindleSerial: 'GPS-2026-0847', operation: 'Bearing Pack Assembly', started: '08:15 AM', duration: '2h 45m', progress: 65, status: 'Operating', utilization: 94 },
-      { id: 'bay-5', bayId: 'bay-5', bayName: 'Bay 5 — Dynamic Balancing', machine: 'BAL-01 / Schenck SmartBalancing Rig', assignedStaff: 'Sachin Jadhav (Vibration Specialist)', employeeId: 'GPS-EMP-107', workOrder: 'WO-2026-108', spindleSerial: 'GPS-2026-0848', operation: 'Dual-Plane ISO G0.4 Balancing', started: '09:30 AM', duration: '1h 00m', progress: 40, status: 'Operating', utilization: 85 },
-      { id: 'bay-6', bayId: 'bay-6', bayName: 'Bay 6 — Dynamic Run-in & Telemetry', machine: 'RUN-01 / Computerized Test Bench', assignedStaff: 'Vikram Shinde (Service Lead)', employeeId: 'GPS-EMP-109', workOrder: 'SRV-2026-0041', spindleSerial: 'GPS-2025-0740', operation: '4h High-Speed Run-in & Temp Test', started: '07:00 AM', duration: '3h 30m', progress: 90, status: 'Operating', utilization: 90 }
+      { id: 'station-1', bayId: 'station-1', bayName: 'Station 1 — CNC Turning & Boring', machine: 'CNC-01 / Okuma LB3000 Lathe', assignedStaff: 'Rahul Patil (Master Machinist)', employeeId: 'GPS-EMP-104', workOrder: 'WO-2026-104', spindleSerial: 'GPS-2026-0842', operation: 'Shaft Turning', started: '08:30 AM', duration: '2h 15m', progress: 75, status: 'Operating', utilization: 88 },
+      { id: 'station-2', bayId: 'station-2', bayName: 'Station 2 — Precision Grinding', machine: 'GRD-01 / Studer S33 Cylindrical Grinder', assignedStaff: 'Suresh Sawant (Grinding Lead)', employeeId: 'GPS-EMP-105', workOrder: 'WO-2026-105', spindleSerial: 'GPS-2026-0845', operation: 'Bearing Journal Micro-Finish', started: '07:45 AM', duration: '3h 00m', progress: 85, status: 'Operating', utilization: 92 },
+      { id: 'station-3', bayId: 'station-3', bayName: 'Station 3 — Induction Heat Treatment', machine: 'IND-01 / Custom Induction Rig', assignedStaff: 'Anil Joshi (Metallurgy Tech)', employeeId: 'GPS-EMP-108', workOrder: 'WO-2026-106', spindleSerial: 'GPS-2026-0846', operation: 'Shaft Hardening 58-62 HRC', started: '09:00 AM', duration: '1h 30m', progress: 50, status: 'Operating', utilization: 78 },
+      { id: 'station-4', bayId: 'station-4', bayName: 'Station 4 — Cleanroom Assembly', machine: 'ASM-01 / Class 1000 Laminar Flow Hood', assignedStaff: 'Ganesh Kadam (Cleanroom Fitter)', employeeId: 'GPS-EMP-106', workOrder: 'WO-2026-107', spindleSerial: 'GPS-2026-0847', operation: 'Bearing Pack Assembly', started: '08:15 AM', duration: '2h 45m', progress: 65, status: 'Operating', utilization: 94 },
+      { id: 'station-5', bayId: 'station-5', bayName: 'Station 5 — Dynamic Balancing', machine: 'BAL-01 / Schenck SmartBalancing Rig', assignedStaff: 'Sachin Jadhav (Vibration Specialist)', employeeId: 'GPS-EMP-107', workOrder: 'WO-2026-108', spindleSerial: 'GPS-2026-0848', operation: 'Dual-Plane ISO G0.4 Balancing', started: '09:30 AM', duration: '1h 00m', progress: 40, status: 'Operating', utilization: 85 },
+      { id: 'station-6', bayId: 'station-6', bayName: 'Station 6 — Dynamic Run-in & Testing', machine: 'RUN-01 / Computerized Test Bench', assignedStaff: 'Vikram Shinde (Service Lead)', employeeId: 'GPS-EMP-109', workOrder: 'SRV-2026-0041', spindleSerial: 'GPS-2025-0740', operation: '4h High-Speed Run-in & Temp Test', started: '07:00 AM', duration: '3h 30m', progress: 90, status: 'Operating', utilization: 90 }
     ];
 
     return {

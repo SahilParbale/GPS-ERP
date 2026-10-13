@@ -29,7 +29,7 @@ export const ROLE_METADATA = {
   PROD_MGR: {
     code: 'PROD_MGR',
     name: 'Production Manager',
-    description: 'Shop floor operations, work order scheduling, machine bays, and workforce routing',
+    description: 'Shop floor operations, work order scheduling, machine workstations, and workforce routing',
     color: '#1d4ed8',
     bg: '#eff6ff',
     accessLevel: 'Production & Shop Floor Control',
@@ -64,7 +64,7 @@ export const ROLE_METADATA = {
     bg: '#ecfeff',
     accessLevel: 'Procurement & Vendor Purchase Orders',
     allowedModules: ['Dashboard', 'Purchase Orders (PO)', 'Precision Suppliers', 'Inventory Catalog', 'Documents', 'Procurement Reports'],
-    deniedModules: ['Customer Sales & Quotes', 'Invoices & Billing', 'Production Bay Control', 'Metrology Sign-off', 'System Settings']
+    deniedModules: ['Customer Sales & Quotes', 'Invoices & Billing', 'Production Floor Control', 'Metrology Sign-off', 'System Settings']
   },
   STORES: {
     code: 'STORES',
@@ -89,7 +89,7 @@ export const ROLE_METADATA = {
   OPERATOR: {
     code: 'OPERATOR',
     name: 'Shop Floor Precision Technician',
-    description: 'Machining work logging, daily task completion, and personal shift attendance',
+    description: 'Machining work logging, daily task completion, and personal attendance',
     color: '#475569',
     bg: '#f1f5f9',
     accessLevel: 'Workforce & Personal Work Logging Only',
@@ -106,7 +106,7 @@ export const ROLE_METADATA = {
  * - Plant Facility Configuration (public.branches)
  * - Operating Shifts & Cycles (public.shifts)
  * - Authorized Personnel Directory (public.employees, public.departments, public.roles)
- * - Machine Bay Calibrations (public.machines, public.production_bays)
+ * - Machine Workstation Calibrations (public.machines)
  * - Immutable Administrative Audit Logging (public.audit_logs)
  */
 export const settingsService = {
@@ -598,7 +598,7 @@ export const settingsService = {
   },
 
   /**
-   * Fetch live machine calibrations from public.machines joined with production_bays
+   * Fetch live machine calibrations from public.machines
    * @returns {Promise<{ data: Array|null, error: object|null }>}
    */
   async getMachineCalibrations() {
@@ -631,7 +631,7 @@ export const settingsService = {
         return {
           id: m.id,
           asset: `${m.name}${m.model_number ? ` (${m.model_number})` : ''}`,
-          station: m.bay?.code ? `${m.bay.code} - ${m.bay.name.split(' - ')[1] || m.bay.name}` : (m.bay?.name || 'Shop Floor'),
+          station: m.bay?.name ? m.bay.name.replace(/Bay/gi, 'Station') : 'Shop Floor',
           standard: standard,
           last: m.last_calibration_date || '2026-01-15',
           next: m.next_calibration_due || '2026-07-15',

@@ -139,7 +139,7 @@ export function numberToIndianWords(num) {
   return res.join(' ') + ' Rupees only';
 }
 
-// Generator for classic solid black telephone icon (☎) matching exact reference image
+// Generator for classic solid black telephone icon matching exact reference image
 let cachedPhoneIconData = null;
 export const getBlackPhoneIconData = () => {
   if (cachedPhoneIconData) return cachedPhoneIconData;
@@ -2518,8 +2518,8 @@ export const exportInventoryValuationPdf = (items = [], summary = {}) => {
 
   const rows = (items.length > 0 ? items : [
     { sku: 'BRG-7014-CER', name: 'Ceramic Angular Contact Bearing 7014 P4S', category: 'Bearings', warehouseName: 'Central Raw Material Store', binLocation: 'BIN-A1-04', availableQty: 48, unit: 'Nos', unitCost: 18500, lineValuation: 888000, status: 'Optimal' },
-    { sku: 'SHF-BT40-4140', name: 'BT40 Spindle Shaft 4140 Alloy Forging', category: 'Raw Materials', warehouseName: 'Machining Bay Store', binLocation: 'RACK-B-12', availableQty: 12, unit: 'Nos', unitCost: 45000, lineValuation: 540000, status: 'Optimal' },
-    { sku: 'MOT-ST-18KW', name: 'Stator Pack 18kW 24,000 RPM Synchronous', category: 'Motors', warehouseName: 'Electrical Bay Store', binLocation: 'ELEC-ST-02', availableQty: 6, unit: 'Nos', unitCost: 92000, lineValuation: 552000, status: 'Low Stock' },
+    { sku: 'SHF-BT40-4140', name: 'BT40 Spindle Shaft 4140 Alloy Forging', category: 'Raw Materials', warehouseName: 'Machining Store', binLocation: 'RACK-B-12', availableQty: 12, unit: 'Nos', unitCost: 45000, lineValuation: 540000, status: 'Optimal' },
+    { sku: 'MOT-ST-18KW', name: 'Stator Pack 18kW 24,000 RPM Synchronous', category: 'Motors', warehouseName: 'Electrical Store', binLocation: 'ELEC-ST-02', availableQty: 6, unit: 'Nos', unitCost: 92000, lineValuation: 552000, status: 'Low Stock' },
     { sku: 'COL-HSK-A63', name: 'HSK-A63 Tool Clamping Collet Mechanism', category: 'Tooling', warehouseName: 'Assembly Cleanroom', binLocation: 'CLN-TOOL-01', availableQty: 18, unit: 'Nos', unitCost: 28000, lineValuation: 504000, status: 'Optimal' }
   ]).map((it, idx) => {
     const rawVal = it.lineValuation || ((it.availableQty || 1) * (typeof it.unitCost === 'number' ? it.unitCost : parseFloat(String(it.unitCost || 0).replace(/[^0-9.-]+/g, '')) || 1000));
@@ -2901,31 +2901,31 @@ export const exportExecutiveBiReportPdf = (analytics = {}, timeRange = 'q4') => 
 };
 
 // ==========================================
-// 13. SHIFT HANDOVER & SHOP FLOOR REPORT PDF
+// 13. SHOP FLOOR DAILY OPERATIONS REPORT PDF
 // ==========================================
 export const exportShiftReportPdf = (workOrders = []) => {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  let y = drawCorporateHeader(doc, 'SHIFT HANDOVER & SHOP FLOOR REPORT', 'DAY SHIFT (BAY 1-5)', 'Active Assembly Work Orders, Bay Bottlenecks & Operational Handoff');
+  let y = drawCorporateHeader(doc, 'SHOP FLOOR OPERATIONS REPORT', 'PLANT OPERATIONS', 'Active Assembly Work Orders & Production Summary');
 
   const rows = (workOrders.length > 0 ? workOrders : [
-    { id: 'WO-2026-081', spindleSerial: 'SN-2026-081', customer: 'Tata Motors Powertrain', model: 'GPS-HSK-A63-24K', currentOp: 'Bay 3 Assembly', technician: 'Rahul Shinde', status: 'In Progress' },
-    { id: 'WO-2026-082', spindleSerial: 'SN-2026-082', customer: 'Bharat Forge Mundhwa', model: 'GPS-BT40-15K', currentOp: 'Bay 4 Dynamic Balancing', technician: 'Prakash Kulkarni', status: 'In Progress' },
-    { id: 'WO-2026-083', spindleSerial: 'SN-2026-083', customer: 'L&T Heavy Engineering', model: 'GPS-BT50-8K', currentOp: 'Bay 5 4-Hr Thermal Run-in', technician: 'Amol Deshmukh', status: 'Testing' },
-    { id: 'WO-2026-084', spindleSerial: 'SN-2026-084', customer: 'Godrej Aerospace', model: 'GPS-HF-60K', currentOp: 'Bay 2 Precision Grinding', technician: 'Vikram Jadhav', status: 'In Progress' }
+    { id: 'WO-2026-081', spindleSerial: 'SN-2026-081', customer: 'Tata Motors Powertrain', model: 'GPS-HSK-A63-24K', currentOp: 'Cleanroom Assembly', technician: 'Rahul Shinde', status: 'In Progress' },
+    { id: 'WO-2026-082', spindleSerial: 'SN-2026-082', customer: 'Bharat Forge Mundhwa', model: 'GPS-BT40-15K', currentOp: 'Dynamic Balancing', technician: 'Prakash Kulkarni', status: 'In Progress' },
+    { id: 'WO-2026-083', spindleSerial: 'SN-2026-083', customer: 'L&T Heavy Engineering', model: 'GPS-BT50-8K', currentOp: '4-Hr Thermal Run-in', technician: 'Amol Deshmukh', status: 'Testing' },
+    { id: 'WO-2026-084', spindleSerial: 'SN-2026-084', customer: 'Godrej Aerospace', model: 'GPS-HF-60K', currentOp: 'Precision Cylindrical Grinding', technician: 'Vikram Jadhav', status: 'In Progress' }
   ]).map((wo, idx) => [
     idx + 1,
     wo.id,
     wo.spindleSerial || wo.serial || '—',
     wo.customer || 'Internal Stock',
     wo.model || wo.spindleModel || 'Precision Spindle',
-    wo.currentOp || wo.stage || 'Bay 3 Assembly',
+    wo.currentOp || wo.stage || 'Cleanroom Assembly',
     wo.technician || wo.assignedTo || 'Unassigned',
     wo.status || 'Active'
   ]);
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Work Order #', 'Spindle Serial', 'Client / Target Facility', 'Model Specification', 'Current Bay Operation', 'Lead Technician', 'Production Status']],
+    head: [['#', 'Work Order #', 'Spindle Serial', 'Client / Target Facility', 'Model Specification', 'Current Operation', 'Lead Technician', 'Production Status']],
     body: rows,
     theme: 'grid',
     headStyles: {
@@ -2955,7 +2955,7 @@ export const exportShiftReportPdf = (workOrders = []) => {
   });
 
   drawCorporateFooter(doc);
-  doc.save(`GPS_Shift_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  doc.save(`GPS_Operations_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
 // ==========================================
@@ -2993,19 +2993,19 @@ export const exportJobTravelerPdf = (wo, operations = []) => {
 
   // Operations Routing Grid
   const ops = (operations && operations.length > 0) ? operations : [
-    { op_number: '10', name: 'Bay 1: Raw Material Kitting & CNC Rough Turning', bay: 'Bay 1', technician: 'Suresh Patil', status: 'Completed' },
-    { op_number: '20', name: 'Bay 2: Precision CNC Cylindrical Grinding (Taper & Bearing Seats)', bay: 'Bay 2', technician: 'Vikram Jadhav', status: 'Completed' },
-    { op_number: '30', name: 'Bay 3: Cleanroom Assembly & Ceramic Bearing Preload Setting', bay: 'Bay 3', technician: 'Rahul Shinde', status: 'Completed' },
-    { op_number: '40', name: 'Bay 4: Dynamic Balancing @ Max RPM (Schenck Balancing Rig)', bay: 'Bay 4', technician: 'Prakash Kulkarni', status: 'In Progress' },
-    { op_number: '50', name: 'Bay 5: 4-Hour Thermal Run-in & Motor Stator Diagnostic', bay: 'Bay 5', technician: 'Amol Deshmukh', status: 'Pending' },
-    { op_number: '60', name: 'Bay 6: Final QA Micron Metrology Acceptance Sign-Off', bay: 'QA Lab', technician: 'Quality Inspector', status: 'Pending' },
-    { op_number: '70', name: 'Bay 7: Anti-corrosion VCI Packaging & Dispatch Box Crating', bay: 'Stores', technician: 'Warehouse Lead', status: 'Pending' }
+    { op_number: '10', name: 'Raw Material Kitting & CNC Rough Turning', station: 'CNC Turning', technician: 'Suresh Patil', status: 'Completed' },
+    { op_number: '20', name: 'Precision CNC Cylindrical Grinding (Taper & Seats)', station: 'Studer S33', technician: 'Vikram Jadhav', status: 'Completed' },
+    { op_number: '30', name: 'Cleanroom Assembly & Ceramic Bearing Preload Setting', station: 'Cleanroom', technician: 'Rahul Shinde', status: 'Completed' },
+    { op_number: '40', name: 'Dynamic Balancing @ Max RPM (Schenck Balancing Rig)', station: 'Schenck Rig', technician: 'Prakash Kulkarni', status: 'In Progress' },
+    { op_number: '50', name: '4-Hour Thermal Run-in & Motor Stator Diagnostic', station: 'Test Stand', technician: 'Amol Deshmukh', status: 'Pending' },
+    { op_number: '60', name: 'Final QA Micron Metrology Acceptance Sign-Off', station: 'QA Lab', technician: 'Quality Inspector', status: 'Pending' },
+    { op_number: '70', name: 'Anti-corrosion VCI Packaging & Dispatch Box Crating', station: 'Stores', technician: 'Warehouse Lead', status: 'Pending' }
   ];
 
   const tableRows = ops.map(o => [
     o.op_number || o.seq || '—',
     o.name,
-    o.bay || 'Shop Floor',
+    o.station || 'Shop Floor',
     o.technician || 'Technician',
     o.status === 'Completed' ? 'SIGNED OFF' : (o.status === 'In Progress' ? 'ACTIVE' : 'QUEUED'),
     '' // blank column for physical stamp/sign
@@ -3603,15 +3603,15 @@ export const exportWorkLogPdf = (workLogs = []) => {
   let y = drawCorporateHeader(doc, 'TECHNICIAN WORK LOG REGISTER', 'MONTHLY AUDIT', 'Daily Shop Floor Time Tracking, Operation Allocations & Productivity');
 
   const rows = (workLogs.length > 0 ? workLogs : [
-    { date: '2026-02-28', technician: 'Rahul Shinde', bay: 'Bay 3 Assembly', task: 'HSK-A63 Cleanroom Bearing Preload & Assembly', hours: 7.5, efficiency: '98%' },
-    { date: '2026-02-28', technician: 'Vikram Jadhav', bay: 'Bay 2 Grinding', task: 'BT40 Spindle Shaft Nose Taper Grinding', hours: 8.0, efficiency: '95%' },
-    { date: '2026-02-28', technician: 'Prakash Kulkarni', bay: 'Bay 4 Dynamic Balancing', task: '60,000 RPM Ultra High-Speed Dynamic Balancing', hours: 7.0, efficiency: '100%' },
-    { date: '2026-02-28', technician: 'Amol Deshmukh', bay: 'Bay 5 Testing', task: '4-Hour Thermal Run-in Verification & Vibration Logging', hours: 8.0, efficiency: '96%' }
+    { date: '2026-02-28', technician: 'Rahul Shinde', workstation: 'Cleanroom Assembly', task: 'HSK-A63 Cleanroom Bearing Preload & Assembly', hours: 7.5, efficiency: '98%' },
+    { date: '2026-02-28', technician: 'Vikram Jadhav', workstation: 'Studer Grinding', task: 'BT40 Spindle Shaft Nose Taper Grinding', hours: 8.0, efficiency: '95%' },
+    { date: '2026-02-28', technician: 'Prakash Kulkarni', workstation: 'Dynamic Balancing', task: '60,000 RPM Ultra High-Speed Dynamic Balancing', hours: 7.0, efficiency: '100%' },
+    { date: '2026-02-28', technician: 'Amol Deshmukh', workstation: 'Dynamic Testing', task: '4-Hour Thermal Run-in Verification & Vibration Logging', hours: 8.0, efficiency: '96%' }
   ]).map((l, idx) => [
     idx + 1,
     formatDate(l.date),
     l.technician || l.employee_name || 'Technician',
-    l.bay || l.workstation || 'Shop Floor',
+    l.workstation || 'Shop Floor',
     l.task || l.description || 'Production Operation',
     `${l.hours || 8.0} Hrs`,
     l.efficiency || '100%',
@@ -3620,7 +3620,7 @@ export const exportWorkLogPdf = (workLogs = []) => {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Date', 'Technician Name', 'Workstation / Bay', 'Assigned Task Description', 'Hours Logged', 'Productivity', 'Supervisor Sign']],
+    head: [['#', 'Date', 'Technician Name', 'Workstation', 'Assigned Task Description', 'Hours Logged', 'Productivity', 'Supervisor Sign']],
     body: rows,
     theme: 'grid',
     headStyles: {
@@ -3737,7 +3737,7 @@ export const exportServiceJobReportPdf = (job) => {
   doc.text(`Service Ticket: ${job?.id || 'SR-2026-088'}`, 18, y + 11.5);
   doc.text(`Spindle Serial: ${job?.spindleSerial || 'SN-2024-041'}`, 18, y + 16.5);
   doc.text(`Customer: ${job?.customer || 'Bharat Forge Ltd'}`, 18, y + 21.5);
-  doc.text(`Current Stage: ${job?.currentStage || 'Bay 3 Bearing Assembly'}`, 18, y + 26.5);
+  doc.text(`Current Stage: ${job?.currentStage || 'Cleanroom Bearing Assembly'}`, 18, y + 26.5);
 
   const colRight = pageWidth - 90;
   doc.text(`Received Date: ${formatDate(job?.inwardDate || '2026-02-15')}`, colRight, y + 11.5);
@@ -3756,7 +3756,7 @@ export const exportServiceJobReportPdf = (job) => {
   y += 4;
 
   const diagnosticsData = [
-    ['Spindle Taper & Runout', `Initial Runout: ${job?.taperRunoutInitial ? `${job.taperRunoutInitial} mm` : '0.0058 mm'} | Target Spec: ≤ 0.0010 mm`, 'Requires CNC nose re-grinding at Bay 2.'],
+    ['Spindle Taper & Runout', `Initial Runout: ${job?.taperRunoutInitial ? `${job.taperRunoutInitial} mm` : '0.0058 mm'} | Target Spec: ≤ 0.0010 mm`, 'Requires CNC nose re-grinding at Grinding Station.'],
     ['Bearings & Raceways', job?.notes || 'Front hybrid ceramic bearings suffered coolant contamination and raceway brinelling.', '100% replacement with matched P4S ceramic pair.'],
     ['Motor Stator Insulation', 'Megger test: 250 MOhm @ 1000V DC | Winding resistance balanced across all 3 phases.', 'Stator dried, revarnished and bake-cured.'],
     ['Tool Clamping / Drawbar', 'Collet retention force measured: 14.2 kN (Degraded disc spring stack).', 'Belleville spring stack rebuilt; force restored to 18.5 kN.'],
@@ -3910,6 +3910,148 @@ export const exportCustomerDirectoryPdf = (customers = []) => {
 
   drawCorporateFooter(doc);
   doc.save(`GPS_Customer_Directory_${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
+/**
+ * Generate official Delivery Challan & Dispatch Gate Pass PDF
+ */
+export const exportDeliveryChallanPdf = (item = {}) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const challanNo = item.challanNo || item.dispatchNumber || `DC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  const dispatchDate = item.dispatchDate || new Date().toLocaleDateString('en-GB');
+
+  let y = drawCorporateHeader(
+    doc,
+    'OFFICIAL DELIVERY CHALLAN & DISPATCH PASS',
+    'OUTWARD LOGISTICS',
+    'Goods in Transit under Rule 55 of CGST Rules 2017 • Precision Spindle Consignment'
+  );
+
+  // Metadata Card
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, y, 182, 36, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(THEME.primary[0], THEME.primary[1], THEME.primary[2]);
+  doc.text(`CHALLAN NO: ${challanNo}`, 18, y + 6);
+  doc.text(`DISPATCH DATE: ${dispatchDate}`, 110, y + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(THEME.textMain[0], THEME.textMain[1], THEME.textMain[2]);
+
+  doc.text(`Consignee / Client: ${item.customer || 'Customer Organization'}`, 18, y + 12);
+  doc.text(`Delivery Destination: ${item.destination || item.customerAddress || 'Industrial Area, Plant Premises'}`, 18, y + 17);
+  doc.text(`Client Contact / GSTIN: ${item.gstin || item.customerGstin || '27AAACG0821M1Z5'}`, 18, y + 22);
+
+  doc.text(`Transporter / Carrier: ${item.transporter || 'Blue Dart Express Ltd'}`, 110, y + 12);
+  doc.text(`Docket / AWB No: ${item.docketNo || item.trackingNo || 'BD-88492019'}`, 110, y + 17);
+  doc.text(`Vehicle / Truck No: ${item.vehicleNo || 'MH-12-RN-4820'}`, 110, y + 22);
+  doc.text(`Mode of Delivery: ${item.deliveryMode || 'Express Dedicated Transit'}`, 110, y + 27);
+
+  doc.text(`Packaging Type: ${item.packagingType || 'VCI Sealed Hardwood Export Crate with Shock-Watch Indicator'}`, 18, y + 27);
+  doc.text(`Gross Weight: ${item.grossWeight || '48.5 kg'}`, 18, y + 32);
+  doc.text(`Accompanying E-Way Bill: ${item.ewbNumber || '2418 9032 1198'}`, 110, y + 32);
+
+  y += 42;
+
+  // Spindle Item Details Table
+  const streamLabel = item.stream === 'service' || (item.id || '').startsWith('SR') ? 'Service & Overhaul (RMA)' : 'New OEM Manufacturing';
+  const tableRows = [
+    [
+      '1',
+      `${item.spindleModel || item.model || 'High Precision CNC Spindle'}\nSerial: ${item.spindleSerial || item.serial || 'GPS-2026-SP-001'}\nJob Ref: ${item.id || item.workOrder || 'WO-2026-0102'}`,
+      streamLabel,
+      '84669390',
+      '1 Unit',
+      item.packagingType || 'Shock-Crate',
+      'QC Passed\nRunout < 0.001mm\nG0.4 Dynamic'
+    ]
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Spindle Unit Description & Serial', 'Production Stream', 'HSN Code', 'Qty', 'Packaging Spec', 'QC Clearance Status']],
+    body: tableRows,
+    theme: 'grid',
+    headStyles: {
+      fillColor: THEME.primary,
+      textColor: THEME.white,
+      fontStyle: 'bold',
+      fontSize: 8,
+      halign: 'center'
+    },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 3,
+      textColor: THEME.textMain,
+      lineColor: THEME.border,
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { halign: 'left', cellWidth: 60 },
+      2: { halign: 'center', cellWidth: 32 },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { halign: 'center', cellWidth: 15 },
+      5: { halign: 'left', cellWidth: 25 },
+      6: { halign: 'center', cellWidth: 20 }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // Quality & Verification Stamp Box
+  doc.setFillColor(240, 253, 244);
+  doc.setDrawColor(134, 239, 172);
+  doc.roundedRect(14, y, 182, 24, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(21, 128, 61);
+  doc.text('PRE-DISPATCH QUALITY VERIFICATION & PACKING CLEARANCE', 18, y + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(THEME.textMain[0], THEME.textMain[1], THEME.textMain[2]);
+  doc.text('• Dynamic Balancing: Certified to ISO 1940 Grade G0.4 (Inspection Report Enclosed)', 18, y + 10);
+  doc.text('• Runout & Alignment: Taper radial runout verified ≤ 0.0008 mm in cleanroom metrology', 18, y + 14);
+  doc.text('• Preservation & Crating: Anti-corrosion VCI sealed with moisture desiccant & shock sensors', 18, y + 18);
+  doc.text('• Accompanying Docs: Calibration Certificate, Warranty Dossier, Installation Guide', 110, y + 10);
+  doc.text('• Transit Insurance: Covered under Open Marine Policy # OMP-2026-GPS-8820', 110, y + 14);
+
+  y += 32;
+
+  // Statutory Declarations & Signatures
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(THEME.textMuted[0], THEME.textMuted[1], THEME.textMuted[2]);
+  doc.text('Declaration: Goods dispatched for precision industrial delivery. Handover verified against purchase order / service work order.', 14, y);
+
+  y += 10;
+
+  // Signatures
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(THEME.textMain[0], THEME.textMain[1], THEME.textMain[2]);
+
+  doc.text('Prepared & Checked By', 14, y);
+  doc.text('Carrier / Transporter Signature', 80, y);
+  doc.text('Consignee Receiver Acknowledgment', 140, y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text('Logistics & Dispatch Desk', 14, y + 14);
+  doc.text('Name: ________________________', 80, y + 14);
+  doc.text('Received in Good Condition With Seals Intact', 140, y + 14);
+  doc.text('GPS Spindle Pvt. Ltd.', 14, y + 18);
+  doc.text('Date & Vehicle Sign: ___________', 80, y + 18);
+  doc.text('Sign & Stamp: ___________________', 140, y + 18);
+
+  drawCorporateFooter(doc);
+  doc.save(`Delivery_Challan_${challanNo}_${item.spindleSerial || 'Spindle'}.pdf`);
 };
 
 

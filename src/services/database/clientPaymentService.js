@@ -367,6 +367,7 @@ export const clientPaymentService = {
     referenceNumber = '',
     bankName = 'ICICI Bank Ltd',
     notes = '',
+    updatedDueDate = null,
     recordedBy = 'Commercial Desk Lead'
   }) {
     if (!invoiceId) {
@@ -378,7 +379,7 @@ export const clientPaymentService = {
     }
 
     // 1. Update official Invoice database record via invoiceService
-    const updateRes = await invoiceService.recordInvoicePayment(invoiceId, paymentNum);
+    const updateRes = await invoiceService.recordInvoicePayment(invoiceId, paymentNum, updatedDueDate);
     if (updateRes.error) {
       return { error: updateRes.error };
     }
@@ -405,6 +406,13 @@ export const clientPaymentService = {
     saveStoredReceipts(existingReceipts);
 
     return { data: newReceipt, error: null };
+  },
+
+  /**
+   * Directly update or extend invoice payment due date
+   */
+  async updateInvoiceDueDate(invoiceId, newDueDate) {
+    return await invoiceService.updateInvoiceDueDate(invoiceId, newDueDate);
   },
 
   /**

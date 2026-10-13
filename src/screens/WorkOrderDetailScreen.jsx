@@ -8,22 +8,23 @@ import { spindleModelService } from '../services/database/spindleModelService';
 import { DetailScreenSkeleton } from '../components/common/Skeleton';
 import { exportJobTravelerPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
+import Modal from '../components/common/Modal';
 import { 
   ArrowLeft, FileText, CheckCircle, Clock, ShieldCheck, 
   User, Printer, Check, Download, AlertCircle, Wrench,
-  Users, ArrowRight, RefreshCw
+  Users, ArrowRight, RefreshCw, MessageSquare, Plus
 } from 'lucide-react';
 
 // Standard fallback operations catalog for shop floor traveler steps
 const DEFAULT_OPERATIONS = [
-  { id: 1, name: 'Raw Material Inward & Ultrasonic Sub-Surface Crack Testing', machine: 'Bay 1 - Metrology Inward', operator: 'V. Shinde', status: 'Completed', date: 'Feb 10', qcSignOff: true },
-  { id: 2, name: 'CNC Rough Turning & Precision Boring (42CrMo4 Alloy)', machine: 'Bay 1 - Okuma CNC Lathe', operator: 'S. Sawant', status: 'Completed', date: 'Feb 12', qcSignOff: true },
+  { id: 1, name: 'Raw Material Inward & Ultrasonic Sub-Surface Crack Testing', machine: 'Metrology Inward Lab', operator: 'V. Shinde', status: 'Completed', date: 'Feb 10', qcSignOff: true },
+  { id: 2, name: 'CNC Rough Turning & Precision Boring (42CrMo4 Alloy)', machine: 'Okuma LB3000 CNC Lathe', operator: 'S. Sawant', status: 'Completed', date: 'Feb 12', qcSignOff: true },
   { id: 3, name: 'Vacuum Induction Hardening & Cryo Treatment (HRC 60-62)', machine: 'Heat Treat Sub-Station 3', operator: 'D. More', status: 'Completed', date: 'Feb 14', qcSignOff: true },
-  { id: 4, name: 'Sub-Micron CNC Cylindrical Grinding (Shaft & Bearing Journal)', machine: 'Bay 2 - Studer S33 Grinder', operator: 'P. Joshi', status: 'In Progress', date: 'Active Cell', qcSignOff: false },
-  { id: 5, name: 'Cleanroom Preload Ceramic Hybrid Bearings Fitting (ISO Class 6)', machine: 'Bay 4 - Cleanroom Cell', operator: 'R. Pawar', status: 'Upcoming', date: 'Next Stage', qcSignOff: false },
-  { id: 6, name: 'Dynamic Dual-Plane Balancing to ISO 1940 G0.4 (24,000 RPM)', machine: 'Bay 5 - Schenck Rig', operator: 'A. Kulkarni', status: 'Upcoming', date: 'Scheduled', qcSignOff: false },
-  { id: 7, name: '4-Hour Thermal Equilibrium Run-in & Vibration FFT Testing', machine: 'Bay 6 - Test Cell A', operator: 'M. Deshmukh', status: 'Upcoming', date: 'Scheduled', qcSignOff: false },
-  { id: 8, name: 'Final Laser Metrology, Taper Micron Dial QC & Traveler Sign-Off', machine: 'Bay 7 - Zeiss CMM Lab', operator: 'M. Joshi', status: 'Upcoming', date: 'Target Final', qcSignOff: false }
+  { id: 4, name: 'Sub-Micron CNC Cylindrical Grinding (Shaft & Bearing Journal)', machine: 'Studer S33 CNC Grinder', operator: 'P. Joshi', status: 'In Progress', date: 'Active Cell', qcSignOff: false },
+  { id: 5, name: 'Cleanroom Preload Ceramic Hybrid Bearings Fitting (ISO Class 6)', machine: 'Class 1000 Cleanroom Cell', operator: 'R. Pawar', status: 'Upcoming', date: 'Next Stage', qcSignOff: false },
+  { id: 6, name: 'Dynamic Dual-Plane Balancing to ISO 1940 G0.4 (24,000 RPM)', machine: 'Schenck Balancing Rig', operator: 'A. Kulkarni', status: 'Upcoming', date: 'Scheduled', qcSignOff: false },
+  { id: 7, name: '4-Hour Thermal Equilibrium Run-in & Vibration FFT Testing', machine: 'Run-in Test Bench A', operator: 'M. Deshmukh', status: 'Upcoming', date: 'Scheduled', qcSignOff: false },
+  { id: 8, name: 'Final Laser Metrology, Taper Micron Dial QC & Traveler Sign-Off', machine: 'Zeiss CMM Metrology Lab', operator: 'M. Joshi', status: 'Upcoming', date: 'Target Final', qcSignOff: false }
 ];
 
 const DEFAULT_BOM = [
@@ -44,6 +45,17 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
   const [isSigningOff, setIsSigningOff] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Operation Sign-off & Technician Note Modal State
+  const [isSignOffModalOpen, setIsSignOffModalOpen] = useState(false);
+  const [selectedOpForSignOff, setSelectedOpForSignOff] = useState(null);
+  const [signOffNoteText, setSignOffNoteText] = useState('');
+  const [signOffOperator, setSignOffOperator] = useState('');
+
+  // General Shop Floor Handover Note Modal State
+  const [isGeneralNoteModalOpen, setIsGeneralNoteModalOpen] = useState(false);
+  const [generalNoteText, setGeneralNoteText] = useState('');
+  const [generalNoteAuthor, setGeneralNoteAuthor] = useState('');
 
   // Sync state whenever workOrder prop changes
   useEffect(() => {
@@ -119,13 +131,27 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
     loadWorkOrderDetail();
   }, [loadWorkOrderDetail]);
 
-  const handleAdvanceOperation = async (targetOp = null) => {
-    // 1. Identify which operation to sign off
+  // Open Sign-off Modal with Notes for a specific operation or current active op
+  const handleOpenSignOff = (targetOp = null) => {
     const opToSign = targetOp || operations.find(o => o.status === 'In Progress') || operations.find(o => o.status !== 'Completed');
     if (!opToSign) {
       if (onNotify) onNotify('All operations for this work order are already signed off.');
       return;
     }
+    setSelectedOpForSignOff(opToSign);
+    setSignOffOperator(opToSign.operator || woData?.assignedOperator?.replace(/\s*\(.*\)/, '').trim() || 'V. Shinde');
+    setSignOffNoteText(opToSign.notes || '');
+    setIsSignOffModalOpen(true);
+  };
+
+  // Confirm signoff with technician remarks & inspection notes
+  const handleConfirmSignOff = async () => {
+    if (!selectedOpForSignOff) return;
+    const opToSign = selectedOpForSignOff;
+    const noteText = signOffNoteText.trim();
+    const operatorName = signOffOperator.trim() || 'Technician Lead';
+    const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + 
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     setIsSigningOff(true);
 
@@ -135,10 +161,10 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
 
     if (targetIndex === -1) {
       setIsSigningOff(false);
+      setIsSignOffModalOpen(false);
       return;
     }
 
-    // 2. Compute updated operations list
     let nextActiveOpName = null;
     const updatedOperations = operations.map((op, idx) => {
       if (idx === targetIndex) {
@@ -146,10 +172,11 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           ...op,
           status: 'Completed',
           qcSignOff: true,
-          date: 'Signed off today'
+          date: 'Signed off today',
+          operator: operatorName,
+          notes: noteText || op.notes
         };
       }
-      // If immediate next operation was not completed, activate it
       if (idx === targetIndex + 1 && op.status !== 'Completed') {
         nextActiveOpName = op.name;
         return {
@@ -161,34 +188,66 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
       return op;
     });
 
-    // 3. Update operations state immediately
     setOperations(updatedOperations);
 
-    // 4. Update overall work order progress and status
     const newCompletedCount = updatedOperations.filter(o => o.status === 'Completed').length;
     const newProgress = Math.round((newCompletedCount / updatedOperations.length) * 100);
     const newStage = nextActiveOpName || (newProgress === 100 ? 'Final QC Passed' : woData?.currentStage || 'Assembly');
     const newStatus = newProgress === 100 ? 'Completed' : 'In Progress';
 
-    setWoData(prev => ({
-      ...prev,
+    const newNoteEntry = noteText ? {
+      id: `note-${Date.now()}`,
+      stageKey: `OP-${(targetIndex + 1) * 10}`,
+      stageName: opToSign.name,
+      author: operatorName,
+      text: noteText,
+      timestamp: timestampStr
+    } : null;
+
+    const existingHistory = Array.isArray(woData?.notesHistory) ? woData.notesHistory : [];
+    const updatedHistory = newNoteEntry ? [newNoteEntry, ...existingHistory] : existingHistory;
+
+    const updatedWo = {
+      ...woData,
       progress: newProgress,
       progress_percentage: newProgress,
       currentStage: newStage,
-      status: newStatus
-    }));
+      status: newStatus,
+      assignedOperator: operatorName,
+      ...(noteText ? {
+        notes: noteText,
+        technicianNotes: noteText,
+        lastNoteBy: operatorName,
+        lastNoteAt: timestampStr,
+        notesHistory: updatedHistory
+      } : {
+        notesHistory: updatedHistory
+      })
+    };
 
-    // 5. Background sync with database if identifiers exist
+    setWoData(updatedWo);
+
+    // Save to local storage
+    try {
+      const stored = localStorage.getItem('gps_local_work_orders');
+      if (stored) {
+        const wos = JSON.parse(stored);
+        const nextWos = wos.map(w => (w.id === updatedWo.id || w.dbId === updatedWo.id) ? updatedWo : w);
+        localStorage.setItem('gps_local_work_orders', JSON.stringify(nextWos));
+      }
+    } catch (e) {
+      console.warn('Could not persist to local storage:', e);
+    }
+
+    // Live DB update
     try {
       if (opToSign.dbId) {
         await workOrderService.advanceWorkOrderItem(opToSign.dbId, 'Completed');
       }
-
       const nextOp = updatedOperations[targetIndex + 1];
       if (nextOp && nextOp.dbId) {
         await workOrderService.advanceWorkOrderItem(nextOp.dbId, 'In Progress');
       }
-
       const woDbId = woData?.dbId || workOrder?.dbId;
       if (woDbId) {
         await workOrderService.updateWorkOrderStatus(woDbId, newStatus, newProgress);
@@ -197,15 +256,79 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
       console.warn('[WorkOrderDetailScreen] Background sync error:', err);
     } finally {
       setIsSigningOff(false);
+      setIsSignOffModalOpen(false);
     }
+
+    // Trigger cross-tab event
+    window.dispatchEvent(new CustomEvent('gps_entities_updated', { detail: { entity: 'production' } }));
 
     if (onNotify) {
       onNotify(
         newProgress === 100
-          ? `Work Order ${woData?.id || ''} fully completed & signed off for dispatch!`
-          : `Stage OP-${(targetIndex + 1) * 10} signed off. Next stage activated.`
+          ? `Work Order ${woData?.id || ''} fully completed & signed off with technician note!`
+          : `Stage OP-${(targetIndex + 1) * 10} signed off by ${operatorName}. Technician note saved.`
       );
     }
+  };
+
+  // Open general note modal
+  const handleOpenGeneralNoteModal = () => {
+    setGeneralNoteAuthor(woData?.assignedOperator?.replace(/\s*\(.*\)/, '').trim() || 'V. Shinde');
+    setGeneralNoteText('');
+    setIsGeneralNoteModalOpen(true);
+  };
+
+  // Save standalone shop floor handover / observation note
+  const handleSaveGeneralNote = () => {
+    const text = generalNoteText.trim();
+    if (!text) return;
+    const author = generalNoteAuthor.trim() || 'Shop Floor Specialist';
+    const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + 
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const newNoteEntry = {
+      id: `note-${Date.now()}`,
+      stageKey: woData?.currentStage || 'Manufacturing',
+      stageName: woData?.currentStage || 'Shop Floor',
+      author,
+      text,
+      timestamp: timestampStr
+    };
+
+    const existingHistory = Array.isArray(woData?.notesHistory) ? woData.notesHistory : [];
+    const updatedHistory = [newNoteEntry, ...existingHistory];
+
+    const updatedWo = {
+      ...woData,
+      notes: text,
+      technicianNotes: text,
+      lastNoteBy: author,
+      lastNoteAt: timestampStr,
+      notesHistory: updatedHistory
+    };
+
+    setWoData(updatedWo);
+
+    try {
+      const stored = localStorage.getItem('gps_local_work_orders');
+      if (stored) {
+        const wos = JSON.parse(stored);
+        const nextWos = wos.map(w => (w.id === updatedWo.id || w.dbId === updatedWo.id) ? updatedWo : w);
+        localStorage.setItem('gps_local_work_orders', JSON.stringify(nextWos));
+      }
+    } catch (e) {
+      console.warn('Could not persist note:', e);
+    }
+
+    window.dispatchEvent(new CustomEvent('gps_entities_updated', { detail: { entity: 'production' } }));
+    setIsGeneralNoteModalOpen(false);
+    setGeneralNoteText('');
+    if (onNotify) onNotify(`Technician note logged on ${woData?.id || 'work order'}.`);
+  };
+
+  // Backward-compatible shortcut to advance operation
+  const handleAdvanceOperation = async (targetOp = null) => {
+    handleOpenSignOff(targetOp);
   };
 
   // Loading State
@@ -290,8 +413,18 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           </button>
           <button 
             type="button" 
+            className="btn btn-secondary btn-sm"
+            onClick={handleOpenGeneralNoteModal}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            title="Log technician handover remarks or metrology notes"
+          >
+            <MessageSquare size={14} color="#7A1F3D" />
+            <span>Technician Note</span>
+          </button>
+          <button 
+            type="button" 
             className="btn btn-primary btn-sm"
-            onClick={() => handleAdvanceOperation()}
+            onClick={() => handleOpenSignOff()}
             disabled={isSigningOff}
           >
             <Check size={14} />
@@ -352,8 +485,8 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
             <div className="mono" style={{ fontWeight: 600 }}>{wo.specifications?.maxSpeed || '24,000 RPM'} • {wo.specifications?.ratedPower || '15 kW'}</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Active Machine Bay</div>
-            <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{wo.shopBay ? wo.shopBay.split(' - ')[0] : 'Bay 1'}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Current Operation</div>
+            <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{wo.currentOperation || 'Material Preparation'}</div>
           </div>
         </div>
 
@@ -364,12 +497,40 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
           </div>
           <ProgressBar progress={computedProgress} height={8} />
         </div>
+
+        {wo.notes && (
+          <div style={{ margin: '0 20px 14px 20px', padding: '10px 14px', background: '#fdf2f4', border: '1px solid #f9d8e1', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+              <MessageSquare size={14} color="#7A1F3D" style={{ flexShrink: 0 }} />
+              <div>
+                <span style={{ color: '#7A1F3D', fontWeight: 600, marginRight: '6px' }}>Technician Note:</span>
+                <span style={{ color: 'var(--text-main)' }}>{wo.notes}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {wo.lastNoteAt && (
+                <span className="mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  {wo.lastNoteBy ? `${wo.lastNoteBy} · ` : ''}{wo.lastNoteAt}
+                </span>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleOpenGeneralNoteModal}
+                style={{ fontSize: '11px', padding: '2px 6px', height: '22px', color: '#7A1F3D' }}
+              >
+                + Add Note
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
       <Tabs 
         tabs={[
           { id: 'operations', label: 'Manufacturing Operations & Routing', count: operations.length },
+          { id: 'notes', label: 'Technician Notes & Log', count: (woData?.notesHistory?.length || (woData?.notes ? 1 : 0)) },
           { id: 'specs', label: 'Technical Specifications & Limits' },
           { id: 'bom', label: 'Bill of Materials (BOM)', count: bom.length },
           { id: 'team', label: 'Assigned Shop Technicians', count: 5 },
@@ -388,7 +549,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                 <tr>
                   <th>Seq #</th>
                   <th>Manufacturing Operation Description</th>
-                  <th>Machine Cell / Bay</th>
+                  <th>Machine / Workstation</th>
                   <th>Assigned Lead</th>
                   <th>Timestamp / Schedule</th>
                   <th>Status</th>
@@ -401,6 +562,12 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                     <td className="mono" style={{ fontWeight: 600 }}>OP-{(idx + 1) * 10}</td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{op.name}</div>
+                      {op.notes && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#7A1F3D', background: '#fdf2f4', border: '1px solid #f9d8e1', borderRadius: '4px', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <MessageSquare size={10} />
+                          <span>{op.notes}</span>
+                        </div>
+                      )}
                     </td>
                     <td style={{ fontSize: '12px' }}>{op.machine}</td>
                     <td style={{ fontSize: '12px' }}>{op.operator}</td>
@@ -413,24 +580,37 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                         <button 
                           type="button" 
                           className="btn btn-primary btn-sm"
-                          onClick={() => handleAdvanceOperation(op)}
+                          onClick={() => handleOpenSignOff(op)}
                           disabled={isSigningOff}
-                          style={{ minWidth: '78px', justifyContent: 'center' }}
+                          style={{ minWidth: '82px', justifyContent: 'center', gap: '4px' }}
+                          title="Sign off operation and add inspection note"
                         >
-                          {isSigningOff ? 'Signing...' : 'Sign Off'}
+                          <Check size={13} />
+                          <span>{isSigningOff ? 'Signing...' : 'Sign Off & Note'}</span>
                         </button>
                       ) : op.status === 'Completed' ? (
-                        <span style={{ fontSize: '12px', color: '#059669', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
-                          <CheckCircle size={14} /> Passed
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '12px', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                            <CheckCircle size={14} /> Passed
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleOpenSignOff(op)}
+                            title="Edit or add technician note for this stage"
+                            style={{ padding: '2px 5px', height: '22px' }}
+                          >
+                            <MessageSquare size={12} color="#7A1F3D" />
+                          </button>
+                        </div>
                       ) : (
                         <button 
                           type="button" 
                           className="btn btn-secondary btn-sm"
-                          onClick={() => handleAdvanceOperation(op)}
+                          onClick={() => handleOpenSignOff(op)}
                           disabled={isSigningOff}
                           style={{ minWidth: '78px', justifyContent: 'center', fontSize: '11px', padding: '3px 8px' }}
-                          title="Complete this operation stage"
+                          title="Complete this operation stage with note"
                         >
                           Sign Off
                         </button>
@@ -447,6 +627,96 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Technician Notes & Handover Log */}
+      {activeTab === 'notes' && (
+        <div className="section-card">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MessageSquare size={16} color="#7A1F3D" />
+                <span>Shop Floor Notes & Stage Handover Log</span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                Chronological inspection remarks, runout measurements, and operator handover notes for {wo.id}.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleOpenGeneralNoteModal}
+              style={{ background: '#7A1F3D', borderColor: '#7A1F3D', gap: '5px' }}
+            >
+              <Plus size={13} />
+              <span>+ Add Note</span>
+            </button>
+          </div>
+
+          <div style={{ padding: '20px' }}>
+            {(!woData.notesHistory || woData.notesHistory.length === 0) && !woData.notes ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                <MessageSquare size={36} style={{ opacity: 0.3, margin: '0 auto 10px', color: '#7A1F3D' }} />
+                <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-main)', marginBottom: '4px' }}>No Notes Recorded Yet</div>
+                <div style={{ fontSize: '12px', maxWidth: '340px', margin: '0 auto 14px' }}>
+                  Technicians can add notes when signing off manufacturing stages or log observations at any time.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleOpenGeneralNoteModal}
+                >
+                  <Plus size={13} />
+                  <span>Log First Note</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {woData.notes && (!woData.notesHistory || woData.notesHistory.length === 0) && (
+                  <div style={{ padding: '14px 16px', background: '#fdf2f4', border: '1px solid #f9d8e1', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span className="badge badge-primary mono" style={{ fontSize: '11px', background: '#7A1F3D', color: '#fff' }}>
+                        {woData.currentStage || 'Manufacturing'}
+                      </span>
+                      <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {woData.lastNoteAt || 'Active'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                      {woData.notes}
+                    </div>
+                    {woData.lastNoteBy && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                        Logged by: <strong>{woData.lastNoteBy}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {woData.notesHistory && woData.notesHistory.map((nh, nIdx) => (
+                  <div key={nh.id || nIdx} style={{ padding: '14px 16px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="badge badge-neutral mono" style={{ fontSize: '11px', color: '#7A1F3D', borderColor: '#e2ccd5', background: '#fff' }}>
+                          {nh.stageKey ? `${nh.stageKey}: ` : ''}{nh.stageName || 'Operation'}
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                          {nh.author || 'Technician'}
+                        </span>
+                      </div>
+                      <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {nh.timestamp}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                      {nh.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -547,11 +817,11 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
         <div className="section-card">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', padding: '20px' }}>
             {[
-              { role: 'Production Lead', name: 'V. R. Kulkarni', bay: 'Management Cell' },
-              { role: 'Machining Tech', name: 'Rajesh Patil', bay: 'Bay 1 CNC Turning' },
-              { role: 'Master Grinder', name: 'Suresh Sawant', bay: 'Bay 2 Studer S33' },
-              { role: 'Assembly Specialist', name: 'Vikram Shinde', bay: 'Bay 3 Clean Room' },
-              { role: 'QC Engineer', name: 'Milind Joshi', bay: 'Bay 6 Metrology Lab' }
+              { role: 'Production Lead', name: 'V. R. Kulkarni', station: 'Management Cell' },
+              { role: 'Machining Tech', name: 'Rajesh Patil', station: 'CNC Turning Center' },
+              { role: 'Master Grinder', name: 'Suresh Sawant', station: 'Studer S33 Grinding' },
+              { role: 'Assembly Specialist', name: 'Vikram Shinde', station: 'Clean Room Assembly' },
+              { role: 'QC Engineer', name: 'Milind Joshi', station: 'Metrology Lab' }
             ].map((member, idx) => (
               <div key={idx} style={{ padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px' }}>
@@ -560,7 +830,7 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '13.5px' }}>{member.name}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{member.role}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px', fontWeight: 500 }}>{member.bay}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px', fontWeight: 500 }}>{member.station}</div>
                 </div>
               </div>
             ))}
@@ -606,6 +876,214 @@ export default function WorkOrderDetailScreen({ workOrder, onNavigate, onNotify 
         doc={previewDoc}
         onNotify={onNotify}
       />
+
+      {/* Operation Sign-off & Technician Note Modal */}
+      {isSignOffModalOpen && selectedOpForSignOff && (
+        <Modal
+          isOpen={isSignOffModalOpen}
+          onClose={() => setIsSignOffModalOpen(false)}
+          title={`Operation Sign-off & Technician Note — ${selectedOpForSignOff.name}`}
+          maxWidth="600px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsSignOffModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmSignOff}
+                disabled={isSigningOff}
+                style={{ background: '#7A1F3D', borderColor: '#7A1F3D' }}
+              >
+                <Check size={14} />
+                <span>{isSigningOff ? 'Signing...' : 'Complete & Sign Off Stage'}</span>
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ padding: '12px 14px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px' }}>
+              <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '3px' }}>
+                <span className="mono">{wo.id}</span> · {wo.spindleModel} ({wo.spindleSerial})
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Machine: <strong>{selectedOpForSignOff.machine}</strong> • Workstation Status: <span className="badge badge-neutral mono" style={{ fontSize: '10.5px' }}>{selectedOpForSignOff.status}</span>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <User size={13} color="#7A1F3D" />
+                <span>Operating Technician / QC Sign-off Lead</span>
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={signOffOperator}
+                onChange={e => setSignOffOperator(e.target.value)}
+                placeholder="Operator name (e.g., V. Shinde, Studer S33 Cell Lead)"
+                style={{ fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <MessageSquare size={13} color="#7A1F3D" />
+                <span>Technician & Metrology Inspection Notes</span>
+              </label>
+
+              <textarea
+                className="form-control"
+                rows={3}
+                style={{ fontSize: '12px', lineHeight: '1.5' }}
+                value={signOffNoteText}
+                onChange={e => setSignOffNoteText(e.target.value)}
+                placeholder="Record measured journal diameters, nose runout limit, grinding tolerances, hardness readings, bearing preload, or handover remarks..."
+                autoFocus
+              />
+
+              <div style={{ marginTop: '6px' }}>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
+                  Quick Preset Chips:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {[
+                    '✓ Dimensions verified within ±0.002 mm tolerance',
+                    '✓ Hardness tested & verified (HRC 60-62)',
+                    '✓ Shaft journal runout < 0.0008 mm certified',
+                    '✓ Bearings hot-induction fitted in ISO Class 6 cell',
+                    '✓ Balanced to ISO 1940 Grade G0.4 @ 24,000 RPM',
+                    '✓ 4-Hour dynamic thermal run-in test passed',
+                    '✓ Drawbar clamping force verified (18 kN)',
+                    '✓ Metrology laser inspection accepted'
+                  ].map((preset, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: '10.5px',
+                        padding: '2px 7px',
+                        borderRadius: '12px',
+                        background: '#f8fafc',
+                        borderColor: '#e2e8f0'
+                      }}
+                      onClick={() => {
+                        setSignOffNoteText(prev => prev ? `${prev} • ${preset}` : preset);
+                      }}
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* General Shop Floor Handover Note Modal */}
+      {isGeneralNoteModalOpen && (
+        <Modal
+          isOpen={isGeneralNoteModalOpen}
+          onClose={() => setIsGeneralNoteModalOpen(false)}
+          title={`Log Technician Handover Note — ${wo.id}`}
+          maxWidth="560px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsGeneralNoteModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveGeneralNote}
+                style={{ background: '#7A1F3D', borderColor: '#7A1F3D' }}
+              >
+                <Check size={14} />
+                <span>Save Note</span>
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <User size={13} color="#7A1F3D" />
+                <span>Technician Name / Station</span>
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={generalNoteAuthor}
+                onChange={e => setGeneralNoteAuthor(e.target.value)}
+                placeholder="Technician name..."
+                style={{ fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <MessageSquare size={13} color="#7A1F3D" />
+                <span>Technician Note / Observation</span>
+                <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+
+              <textarea
+                className="form-control"
+                rows={4}
+                style={{ fontSize: '12px', lineHeight: '1.5' }}
+                value={generalNoteText}
+                onChange={e => setGeneralNoteText(e.target.value)}
+                placeholder="Log shop floor notes, machine calibration status, tooling wear observations, or shift handover remarks..."
+                autoFocus
+              />
+
+              <div style={{ marginTop: '6px' }}>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
+                  Quick Preset Chips:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {[
+                    '✓ Shift handover: rough turning complete, staged for heat treat',
+                    '✓ Bearing journals pre-ground; ready for finish pass',
+                    '✓ Cleanroom assembly staged; waiting for dynamic rig',
+                    '✓ Vibration spectrum FFT baseline verified within limits',
+                    '⚠ Tool wear detected on Okuma LB3000 insert; replaced'
+                  ].map((preset, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: '10.5px',
+                        padding: '2px 7px',
+                        borderRadius: '12px',
+                        background: '#f8fafc',
+                        borderColor: '#e2e8f0'
+                      }}
+                      onClick={() => {
+                        setGeneralNoteText(prev => prev ? `${prev} • ${preset}` : preset);
+                      }}
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import { baseService } from './baseService';
 import { supabase } from '../supabase/supabaseClient';
 import { PURCHASE_ORDERS } from '../../data/mockData';
+import { inventoryService } from './inventoryService';
+import { supplierService } from './supplierService';
 
 const LOCAL_STORAGE_KEY = 'gps_erp_custom_purchase_orders';
 const RAISED_MATERIALS_KEY = 'gps_erp_po_raised_materials';
@@ -345,8 +347,15 @@ export const purchaseOrderService = {
       }
     }
 
+    const normalizedCombined = combined.map(po => {
+      if (po.status === 'Draft' || po.status === 'Approved') {
+        return { ...po, status: 'Sent' };
+      }
+      return po;
+    });
+
     return {
-      data: combined,
+      data: normalizedCombined,
       error: null
     };
   },
@@ -402,7 +411,7 @@ export const purchaseOrderService = {
       balance,
       roundOff,
       termsAndConditions,
-      status = 'Approved',
+      status = 'Sent',
       notes,
       items = []
     } = poData;
@@ -471,6 +480,16 @@ export const purchaseOrderService = {
         }
       ]
     };
+
+    // Automatically register or update the vendor in Precision Vendors & Component Suppliers directory
+    try {
+      const suppResult = await supplierService.ensureSupplierFromPO(normalizedPO);
+      if (suppResult) {
+        normalizedPO.supplierCode = suppResult.supplier_code || suppResult.id;
+      }
+    } catch (e) {
+      console.warn('[purchaseOrderService] Failed to auto-register vendor from PO:', e);
+    }
 
     // Save to local storage immediately so it reflects instantly across the app
     saveCustomPO(normalizedPO);
@@ -563,7 +582,7 @@ export const purchaseOrderService = {
         balance: Number(poData.balance != null ? poData.balance : (calcTotal - (Number(poData.advance) || 0))),
         termsAndConditions: poData.termsAndConditions || poData.notes || existing.termsAndConditions || 'Thanks for doing business with us!',
         notes: poData.notes || existing.notes,
-        status: poData.status || existing.status || 'Draft',
+        status: poData.status || existing.status || 'Sent',
         items: (poData.items || existing.items || []).map((it, idx) => ({
           id: it.id || idx + 1,
           item: it.item || it.name || '120TAC20FME2DBCP5P01-NSK',
@@ -576,6 +595,13 @@ export const purchaseOrderService = {
           total: Number(it.total) || ((Number(it.qty) || 1) * Number(it.rate || it.unitPrice || 0))
         }))
       };
+
+      // Ensure vendor details are kept synchronized with Precision Vendors & Component Suppliers
+      try {
+        await supplierService.ensureSupplierFromPO(updated);
+      } catch (e) {
+        console.warn('[purchaseOrderService] Failed to update vendor from PO:', e);
+      }
 
       saveCustomPO(updated);
       return { data: updated, error: null };
@@ -595,21 +621,46 @@ export const purchaseOrderService = {
     try {
       const custom = getStoredCustomPOs();
       const existingIdx = custom.findIndex(p => p.id === id || p.poNumber === id);
+      let targetPO = null;
+      let prevStatus = null;
+
       if (existingIdx >= 0) {
+        prevStatus = custom[existingIdx].status;
         custom[existingIdx] = { ...custom[existingIdx], status: newStatus };
+        targetPO = custom[existingIdx];
       } else {
         // If it was in mockData or database, copy to custom with new status so it overrides base
         const baseMatch = PURCHASE_ORDERS.find(p => p.id === id || p.poNumber === id);
         if (baseMatch) {
-          custom.unshift({ ...baseMatch, status: newStatus });
+          prevStatus = baseMatch.status;
+          targetPO = { ...baseMatch, status: newStatus };
+          custom.unshift(targetPO);
         } else {
-          custom.unshift({ id, poNumber: id, status: newStatus });
+          targetPO = { id, poNumber: id, status: newStatus };
+          custom.unshift(targetPO);
         }
       }
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(custom));
 
       if (newStatus === 'Cancelled') {
         removeRaisedMaterial(id);
+      }
+
+      // Automatically inward stock into Materials, Spares & Tooling Inventory
+      let stockResult = null;
+      if (newStatus === 'Received' && prevStatus !== 'Received' && targetPO) {
+        try {
+          const invRes = await inventoryService.receivePurchaseOrderStock(targetPO);
+          stockResult = invRes?.data;
+        } catch (invErr) {
+          console.warn('[purchaseOrderService] Error updating inventory stock for received PO:', invErr);
+        }
+      } else if (prevStatus === 'Received' && newStatus !== 'Received' && targetPO) {
+        try {
+          await inventoryService.reversePurchaseOrderStock(targetPO);
+        } catch (invErr) {
+          console.warn('[purchaseOrderService] Error reversing inventory stock for PO:', invErr);
+        }
       }
 
       if (typeof window !== 'undefined') {
@@ -627,12 +678,12 @@ export const purchaseOrderService = {
         status: newStatus,
         updated_at: new Date().toISOString()
       }, filterField);
-      if (res && !res.error) return res;
+      if (res && !res.error) return { ...res, stockResult };
     } catch (err) {
       console.warn('[purchaseOrderService] Supabase update notice:', err);
     }
 
-    return { data: [{ id, status: newStatus }], error: null };
+    return { data: [{ id, status: newStatus }], stockResult, error: null };
   },
 
   /**

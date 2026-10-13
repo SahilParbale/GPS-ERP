@@ -37,7 +37,7 @@ export const SERVICE_PIPELINE_STAGES = [
 
 const SEED_DASHBOARD_METRICS = [
   { id: "active_jobs", label: "Active Jobs", value: "24", trend: "+3 this week", isUp: true, icon: "Cpu" },
-  { id: "in_prod", label: "In Production", value: "18", trend: "Bays at 88% cap", isUp: true, icon: "Cog" },
+  { id: "in_prod", label: "In Production", value: "18", trend: "Workstations at 88% cap", isUp: true, icon: "Cog" },
   { id: "pending_qc", label: "Pending QC", value: "4", trend: "2 urgent", isUp: false, alert: true, icon: "CheckCircle2" },
   { id: "ready_dispatch", label: "Ready Dispatch", value: "6", trend: "Pickup today", isUp: true, icon: "Truck" },
   { id: "active_service", label: "Active Service", value: "7", trend: "Avg TAT 4.2d", isUp: true, icon: "Wrench" },
@@ -57,7 +57,7 @@ const SEED_SPINDLES = [
     category: "manufactured",
     customer: "Tata Advanced Systems Ltd",
     customerId: "CUST-01",
-    plantLocation: "Pune Plant 1 (Assembly Bay 2)",
+    plantLocation: "Pune Plant 1 (Assembly Section 2)",
     type: "Motorized Electro-Spindle",
     rpm: "24,000 RPM",
     maxRpm: 24000,
@@ -121,7 +121,7 @@ const SEED_SPINDLES = [
     category: "manufactured",
     customer: "Godrej & Boyce Aerospace",
     customerId: "CUST-03",
-    plantLocation: "Pune Plant 1 (Dispatch Bay)",
+    plantLocation: "Pune Plant 1 (Dispatch Section)",
     type: "High Frequency Direct Drive",
     rpm: "60,000 RPM",
     maxRpm: 60000,
@@ -217,7 +217,7 @@ const SEED_SPINDLES = [
     category: "manufactured",
     customer: "Ace Designers Ltd - Bangalore",
     customerId: "CUST-07",
-    plantLocation: "Pune Plant 1 (Machining Bay)",
+    plantLocation: "Pune Plant 1 (Machining Center)",
     type: "High Speed Micro-Milling",
     rpm: "42,000 RPM",
     maxRpm: 42000,
@@ -254,7 +254,7 @@ const SEED_SPINDLES = [
     customer: "Linamar India Pvt Ltd",
     customerId: "CUST-08",
     machineTool: "DMG Mori NHX 5000 (HMC)",
-    plantLocation: "Service Cleanroom Bay 3",
+    plantLocation: "Service Cleanroom Station 3",
     type: "Motorized Electro-Spindle",
     rpm: "18,000 RPM",
     maxRpm: 18000,
@@ -402,7 +402,7 @@ const SEED_SPINDLES = [
     customer: "Bharat Heavy Electricals Ltd (BHEL)",
     customerId: "CUST-11",
     machineTool: "Heavy Shaft Milling Center",
-    plantLocation: "Service Cleanroom Bay 1",
+    plantLocation: "Service Cleanroom Station 1",
     type: "Belt Driven Milling Spindle",
     rpm: "10,000 RPM",
     maxRpm: 10000,
@@ -577,7 +577,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-01",
     currentOperation: "Studer S33 Finish Grinding of Spindle Nose Taper",
     currentStage: "grinding",
-    shopBay: "Bay 2 - Studer CNC Cylindrical Grinding",
+    shopBay: "Studer CNC Cylindrical Grinding Workstation",
     assignedOperator: "Suresh Sawant (Sr. Precision Grinder)",
     priority: "High",
     dueDate: "2026-03-05",
@@ -598,14 +598,14 @@ const SEED_WORK_ORDERS = [
       bearingArrangement: "Triplex Tandem Front / Duplex Back-to-Back Rear"
     },
     operations: [
-      { id: 1, name: "Raw Bar Stock Cutting & Stress Relieving", machine: "Bay 1 - Saw & Pit Furnace", operator: "D. Shinde", status: "Completed", date: "Feb 18, 08:30" },
-      { id: 2, name: "CNC Rough Turning & Deep Hole Gun Drilling", machine: "Bay 1 - Okuma LB3000 Lathe", operator: "R. Patil", status: "Completed", date: "Feb 20, 14:15" },
+      { id: 1, name: "Raw Bar Stock Cutting & Stress Relieving", machine: "Saw & Pit Furnace", operator: "D. Shinde", status: "Completed", date: "Feb 18, 08:30" },
+      { id: 2, name: "CNC Rough Turning & Deep Hole Gun Drilling", machine: "Okuma LB3000 Lathe", operator: "R. Patil", status: "Completed", date: "Feb 20, 14:15" },
       { id: 3, name: "Case Carburizing & Cryogenic Tempering (60-62 HRC)", machine: "Heat Treatment Facility", operator: "Heat Tech Pune", status: "Completed", date: "Feb 23, 11:00" },
-      { id: 4, name: "Cylindrical Grinding of Bearing Journals & Nose", machine: "Bay 2 - Studer S33 CNC Grinder", operator: "S. Sawant", status: "In Progress", date: "Feb 26 - Active" },
-      { id: 5, name: "Class 1000 Cleanroom Bearing Assembly (Hot Induction)", machine: "Bay 3 - Clean Room Assembly", operator: "V. Shinde", status: "Upcoming", date: "Est. Mar 01" },
-      { id: 6, name: "Dynamic Balancing to ISO 1940 Grade G0.4", machine: "Bay 4 - Schenck Dynamic Rig", operator: "A. Kulkarni", status: "Upcoming", date: "Est. Mar 02" },
-      { id: 7, name: "4-Hour Dynamic Run-in & Thermal Stabilization Bench", machine: "Bay 5 - Run-in Test Bench 2", operator: "R. Deshmukh", status: "Upcoming", date: "Est. Mar 03" },
-      { id: 8, name: "Final QC Air Gauging, Micron Inspection & Packing", machine: "Bay 6 - Metrology Lab", operator: "M. Joshi (QC Lead)", status: "Upcoming", date: "Est. Mar 04" },
+      { id: 4, name: "Cylindrical Grinding of Bearing Journals & Nose", machine: "Studer S33 CNC Grinder", operator: "S. Sawant", status: "In Progress", date: "Feb 26 - Active" },
+      { id: 5, name: "Class 1000 Cleanroom Bearing Assembly (Hot Induction)", machine: "Clean Room Assembly", operator: "V. Shinde", status: "Upcoming", date: "Est. Mar 01" },
+      { id: 6, name: "Dynamic Balancing to ISO 1940 Grade G0.4", machine: "Schenck Dynamic Rig", operator: "A. Kulkarni", status: "Upcoming", date: "Est. Mar 02" },
+      { id: 7, name: "4-Hour Dynamic Run-in & Thermal Stabilization Bench", machine: "Run-in Test Bench 2", operator: "R. Deshmukh", status: "Upcoming", date: "Est. Mar 03" },
+      { id: 8, name: "Final QC Air Gauging, Micron Inspection & Packing", machine: "Metrology Lab", operator: "M. Joshi (QC Lead)", status: "Upcoming", date: "Est. Mar 04" },
     ],
     bom: [
       { partNo: "GPS-SHF-6324", name: "Spindle Shaft 18CrNiMo7-6 (Alloy Steel)", qty: 1, unit: "Pc", batch: "B-2026-089", status: "Fitted" },
@@ -617,10 +617,10 @@ const SEED_WORK_ORDERS = [
     ],
     team: [
       { role: "Production Lead", name: "V. R. Kulkarni", bay: "Management" },
-      { role: "Machining Tech", name: "Rajesh Patil", bay: "Bay 1 CNC" },
-      { role: "Master Grinder", name: "Suresh Sawant", bay: "Bay 2 Studer" },
-      { role: "Assembly Specialist", name: "Vikram Shinde", bay: "Bay 3 Clean Room" },
-      { role: "QC Engineer", name: "Milind Joshi", bay: "Bay 6 QC Lab" },
+      { role: "Machining Tech", name: "Rajesh Patil", bay: "Machining Center" },
+      { role: "Master Grinder", name: "Suresh Sawant", bay: "Precision Grinding" },
+      { role: "Assembly Specialist", name: "Vikram Shinde", bay: "Clean Room Assembly" },
+      { role: "QC Engineer", name: "Milind Joshi", bay: "QC Metrology Lab" },
     ],
     documents: [
       { name: "Approved CAD Manufacturing Drawing DWG-A63-24K-REV4.pdf", size: "4.8 MB", date: "15-Feb-2026" },
@@ -636,7 +636,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-02",
     currentOperation: "Final Metrology CMM & Dial Test Indicator Inspection",
     currentStage: "qc",
-    shopBay: "Bay 6 - Precision QC & Metrology Lab",
+    shopBay: "Precision QC & Metrology Lab",
     assignedOperator: "Milind Joshi (QC Lead)",
     priority: "Normal",
     dueDate: "2026-02-28",
@@ -655,7 +655,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-03",
     currentOperation: "Anti-Corrosion Wax Coating & Wooden Shock-Crate Packing",
     currentStage: "dispatch",
-    shopBay: "Bay 7 - Packaging & Dispatch Bay",
+    shopBay: "Packaging & Dispatch Station",
     assignedOperator: "D. More (Logistics)",
     priority: "High",
     dueDate: "2026-02-27",
@@ -674,7 +674,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-04",
     currentOperation: "Raw Bar Stock Cutting & Ultrasonic Flaw Detection",
     currentStage: "material",
-    shopBay: "Bay 1 - Material Prep & Sawing",
+    shopBay: "Material Prep & Sawing Station",
     assignedOperator: "Dilip Shinde",
     priority: "Normal",
     dueDate: "2026-03-18",
@@ -693,7 +693,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-07",
     currentOperation: "CNC Rough Turning & Internal Bore Boring",
     currentStage: "machining",
-    shopBay: "Bay 1 - Okuma LB3000 Lathe",
+    shopBay: "Okuma LB3000 Lathe Station",
     assignedOperator: "Amit Kulkarni",
     priority: "Critical",
     dueDate: "2026-03-08",
@@ -712,7 +712,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-03",
     currentOperation: "Class 1000 Cleanroom Bearing Pack Induction Fitting",
     currentStage: "assembly",
-    shopBay: "Bay 3 - Clean Room Assembly",
+    shopBay: "Clean Room Assembly Station",
     assignedOperator: "Vikram Shinde",
     priority: "High",
     dueDate: "2026-03-10",
@@ -731,7 +731,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-05",
     currentOperation: "Dynamic Balancing Dual Plane on Schenck Balancing Rig",
     currentStage: "balancing",
-    shopBay: "Bay 4 - Dynamic Balancing Rig",
+    shopBay: "Dynamic Balancing Rig Station",
     assignedOperator: "Ramesh Deshmukh",
     priority: "Normal",
     dueDate: "2026-03-12",
@@ -750,7 +750,7 @@ const SEED_WORK_ORDERS = [
     customerId: "CUST-06",
     currentOperation: "4-Hour Dynamic Run-in & Bearing Temp Stabilization Test",
     currentStage: "testing",
-    shopBay: "Bay 5 - Run-in Test Bench 1",
+    shopBay: "Run-in Test Bench 1",
     assignedOperator: "Milind Joshi",
     priority: "Normal",
     dueDate: "2026-03-02",
@@ -763,14 +763,7 @@ const SEED_WORK_ORDERS = [
   }
 ];
 
-const SEED_SHOP_BAYS = [
-  { id: "bay-1", name: "Bay 1 - CNC Turning & Boring", machine: "Okuma LB3000 Space Turn", status: "Operating", operator: "Rajesh Patil", currentWo: "WO-2026-106", utilization: "92%" },
-  { id: "bay-2", name: "Bay 2 - Precision CNC Grinding", machine: "Studer S33 Cylindrical Grinder", status: "Operating", operator: "Suresh Sawant", currentWo: "WO-2026-104", utilization: "96%" },
-  { id: "bay-3", name: "Bay 3 - Clean Room Assembly", machine: "Clean Room Class 1000 Station", status: "Operating", operator: "Vikram Shinde", currentWo: "WO-2026-107", utilization: "85%" },
-  { id: "bay-4", name: "Bay 4 - Dynamic Balancing", machine: "Schenck SmartBalancing Rig", status: "Operating", operator: "Ramesh Deshmukh", currentWo: "WO-2026-108", utilization: "78%" },
-  { id: "bay-5", name: "Bay 5 - Dynamic Run-in Test", machine: "Dual Channel Motor Test Bench", status: "Operating", operator: "Milind Joshi", currentWo: "WO-2026-109", utilization: "88%" },
-  { id: "bay-6", name: "Bay 6 - QC & Metrology Lab", machine: "Zeiss CMM & Mahr Air Gauges", status: "Inspection", operator: "M. Joshi / S. Sawant", currentWo: "WO-2026-103", utilization: "94%" },
-];
+const SEED_SHOP_BAYS = [];
 
 const SEED_SERVICE_JOBS = [
   {
@@ -868,7 +861,7 @@ const SEED_INVENTORY_ITEMS = [
     reservedQty: 18,
     minStock: 25,
     unit: "Meters",
-    location: "Rack A-04 (Heavy Steel Bay)",
+    location: "Rack A-04 (Heavy Steel Yard)",
     status: "In Stock",
     supplier: "Bharat Special Steels Ltd",
     unitCost: "₹6,800/m",
@@ -936,7 +929,7 @@ const SEED_INVENTORY_ITEMS = [
     reservedQty: 6,
     minStock: 8,
     unit: "Sets",
-    location: "Bin T-12 (Tooling Bay)",
+    location: "Bin T-12 (Tooling Store)",
     status: "In Stock",
     supplier: "OTT Jakob",
     unitCost: "₹54,000/set",
@@ -1172,8 +1165,8 @@ const SEED_QUALITY_INSPECTIONS = [
       postBalance: "Pending Rebuild",
       repairsDone: "Incoming teardown audit. Severe fretting in HSK cone; front ceramic bearings washed out."
     },
-    notes: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Bay 2 for grinding & rebuild.",
-    remarks: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Bay 2 for grinding & rebuild.",
+    notes: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Precision Grinding Workstation for grinding & rebuild.",
+    remarks: "Incoming metrology audit failed. Severe taper fretting, runout 5.8 µm exceeds allowable threshold. Transferred to Precision Grinding Workstation for grinding & rebuild.",
     parameters: [
       { id: 1, parameter_name: "Incoming Spindle Nose Taper Dynamic Runout", name: "Incoming Spindle Nose Taper Dynamic Runout", required: "≤ 0.0010 mm", actual: "0.0058 mm", nominal_value: 0, tolerance_max: 0.0010, measured_value: 0.0058, unit_of_measure: "mm", instrument: "Mahr Federal Air Gauge", result: "Fail", result_status: "Fail" },
       { id: 2, parameter_name: "Incoming Dynamic Balance Grade (ISO 1940-1)", name: "Incoming Dynamic Balance Grade (ISO 1940-1)", required: "Grade G0.40", actual: "Grade G3.20", nominal_value: 0.40, tolerance_max: 0.40, measured_value: 3.20, unit_of_measure: "ISO G", instrument: "Schenck SmartBalancing Rig", result: "Fail", result_status: "Fail" },
@@ -1238,8 +1231,16 @@ const SEED_QUOTATIONS = [
   },
   {
     id: "Q-2026-089",
+    estimateNo: "Q-2026-089",
     customer: "Tata Advanced Systems Ltd",
+    customerAddress: "Chakan Industrial Zone, Pune, Maharashtra-410501",
     contactPerson: "Rajendra Deshmukh (Head - CNC Procurement)",
+    contactNo: "+91 20 6733 8000",
+    customerEmail: "r.deshmukh@tataadvanced.com",
+    gstin: "27AABCT2934K1Z4",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    spindleSerial: "TASL-HSK63-042",
     date: "2026-02-22",
     validUntil: "2026-03-24",
     status: "Approved",
@@ -1255,8 +1256,16 @@ const SEED_QUOTATIONS = [
   },
   {
     id: "Q-2026-090",
+    estimateNo: "Q-2026-090",
     customer: "Bharat Forge Ltd - Chakan",
+    customerAddress: "Mundhwa & Chakan, Pune, Maharashtra-411036",
     contactPerson: "Sunil Kadam (DGM Maintenance & Tooling)",
+    contactNo: "+91 20 6704 2777",
+    customerEmail: "sunil.kadam@bharatforge.com",
+    gstin: "27AAACB3842F1Z1",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    spindleSerial: "BFL-BT40-109",
     date: "2026-02-24",
     validUntil: "2026-03-26",
     status: "Under Review",
@@ -1270,8 +1279,16 @@ const SEED_QUOTATIONS = [
   },
   {
     id: "Q-2026-091",
+    estimateNo: "Q-2026-091",
     customer: "Mahindra Heavy Engines",
+    customerAddress: "Chakan Phase II, Pune, Maharashtra-410501",
     contactPerson: "Praveen Shinde (Plant Maintenance)",
+    contactNo: "+91 2135 66 5000",
+    customerEmail: "p.shinde@mahindra.com",
+    gstin: "27AAACM1294P1Z2",
+    state: "27-Maharashtra",
+    placeOfSupply: "27-Maharashtra",
+    spindleSerial: "MHE-BT50-018",
     date: "2026-02-25",
     validUntil: "2026-03-27",
     status: "Draft",
@@ -1544,7 +1561,7 @@ const SEED_INVOICES = [
 
 const SEED_RECENT_ACTIVITY = [
   { id: 1, time: "10 mins ago", type: "qc", text: "Spindle GPS-2026-0841 passed Final QC Inspection (Runout 0.0007 mm)", user: "Milind Joshi" },
-  { id: 2, time: "35 mins ago", type: "prod", text: "Studer Grinding Bay 2 commenced nose taper grinding on WO-2026-104", user: "Suresh Sawant" },
+  { id: 2, time: "35 mins ago", type: "prod", text: "Studer Grinding Station commenced nose taper grinding on WO-2026-104", user: "Suresh Sawant" },
   { id: 3, time: "1 hour ago", type: "service", text: "PO approval received for Service SR-2026-042 (Kirloskar Oil Engines)", user: "Sales Desk" },
   { id: 4, time: "2 hours ago", type: "stock", text: "Ceramic bearings FAG-HC7008 dropped below reorder threshold (8 pairs left)", user: "Stores Alert" },
   { id: 5, time: "3 hours ago", type: "dispatch", text: "Spindle GPS-2026-0840 crated and cleared for Godrej Aerospace dispatch", user: "D. More" },
@@ -1558,10 +1575,10 @@ const SEED_UPCOMING_DELIVERIES = [
 
 const SEED_WORKFORCE_KPIS = [
   { id: "total_staff", label: "Total Staff", value: "42", trend: "Full Roster", isUp: true, icon: "Users" },
-  { id: "working_now", label: "Working Now", value: "31", trend: "74% active on bays", isUp: true, icon: "Cpu" },
+  { id: "working_now", label: "Working Now", value: "31", trend: "74% active on floor", isUp: true, icon: "Cpu" },
   { id: "on_break", label: "On Break", value: "4", trend: "Shift tea rotation", isUp: true, icon: "Clock" },
   { id: "idle_staff", label: "Idle / Available", value: "5", trend: "Ready to deploy", isUp: true, icon: "CheckCircle2" },
-  { id: "overloaded", label: "Overloaded", value: "2", trend: ">95% bay cap", alert: true, isUp: false, icon: "AlertTriangle" },
+  { id: "overloaded", label: "Overloaded", value: "2", trend: ">95% station load", alert: true, isUp: false, icon: "AlertTriangle" },
   { id: "tasks_done", label: "Tasks Completed Today", value: "27", trend: "+8 vs run rate", isUp: true, icon: "CheckSquare" }
 ];
 
@@ -1580,7 +1597,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0842",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Studer S33",
-    bay: "Bay 2",
+    bay: "Station 2",
     started: "08:42 AM",
     duration: "2h 14m",
     progress: 72,
@@ -1614,7 +1631,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0847",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Cleanroom Station",
-    bay: "Bay 3",
+    bay: "Station 3",
     started: "09:10 AM",
     duration: "1h 46m",
     progress: 54,
@@ -1646,7 +1663,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0839",
     spindleModel: "GPS-BT50-10K",
     machine: "Schenck SmartBalancing Rig",
-    bay: "Bay 4",
+    bay: "Station 4",
     started: "08:05 AM",
     duration: "2h 51m",
     progress: 88,
@@ -1679,7 +1696,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0835",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Zeiss CMM & Mahr Gauges",
-    bay: "Bay 6",
+    bay: "Station 6",
     started: "10:02 AM",
     duration: "54m",
     progress: 91,
@@ -1711,7 +1728,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0842",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Studer S33 Grinder",
-    bay: "Bay 2",
+    bay: "Station 2",
     started: "08:00 AM",
     duration: "2h 56m",
     progress: 96,
@@ -1742,7 +1759,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0844",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Okuma LB3000 Lathe",
-    bay: "Bay 1",
+    bay: "Station 1",
     started: "08:15 AM",
     duration: "2h 41m",
     progress: 82,
@@ -1773,7 +1790,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0843",
     spindleModel: "GPS-BT50-10K",
     machine: "Bandsaw & Pit Furnace",
-    bay: "Bay 1",
+    bay: "Station 1",
     started: "07:30 AM",
     duration: "3h 26m",
     progress: 60,
@@ -1803,7 +1820,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0847",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Run-in Test Bench 1",
-    bay: "Bay 5",
+    bay: "Station 5",
     started: "08:30 AM",
     duration: "2h 26m",
     progress: 75,
@@ -1834,7 +1851,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0846",
     spindleModel: "GPS-GR-18K",
     machine: "Schenck SmartBalancing Rig",
-    bay: "Bay 4",
+    bay: "Station 4",
     started: "09:30 AM",
     duration: "1h 26m",
     progress: 65,
@@ -1864,7 +1881,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0848",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Clean Room Station",
-    bay: "Bay 3",
+    bay: "Station 3",
     started: "09:45 AM",
     duration: "1h 11m",
     progress: 40,
@@ -1893,8 +1910,8 @@ const SEED_WORKFORCE_STAFF = [
     workOrder: "SR-2026-042",
     spindleSerial: "GPS-2025-0721",
     spindleModel: "GPS-HSK-A63-24K",
-    machine: "Service Bay Hydraulic Bench",
-    bay: "Service Bay",
+    machine: "Service Hydraulic Bench",
+    bay: "Service Workshop",
     started: "08:10 AM",
     duration: "2h 46m",
     progress: 68,
@@ -1925,7 +1942,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0842",
     spindleModel: "GPS-HSK-A63-24K",
     machine: "Mahr Air Gauge Stand",
-    bay: "Bay 6",
+    bay: "Station 6",
     started: "10:15 AM",
     duration: "41m",
     progress: 100,
@@ -1964,7 +1981,7 @@ const SEED_WORKFORCE_STAFF = [
     utilization: 65,
     avatarColor: "#7A1F3D",
     activity: [
-      { time: "10:30 AM", title: "Kitted OTT-Jakob gripper assembly", detail: "Dispatched to Bay 3 Cleanroom" }
+      { time: "10:30 AM", title: "Kitted OTT-Jakob gripper assembly", detail: "Dispatched to Station 3 Cleanroom" }
     ],
     taskHistory: [
       { wo: "WO-2026-106", task: "Alloy Round Bar Kitting", spindle: "GPS-2026-0844", duration: "30m", status: "Completed" }
@@ -1984,7 +2001,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "—",
     spindleModel: "—",
     machine: "Dual Channel Test Bench",
-    bay: "Bay 5",
+    bay: "Station 5",
     started: "—",
     duration: "—",
     progress: 0,
@@ -2013,7 +2030,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "—",
     spindleModel: "—",
     machine: "Okuma Lathe Station",
-    bay: "Bay 1",
+    bay: "Station 1",
     started: "10:30 AM",
     duration: "25m",
     progress: 50,
@@ -2042,7 +2059,7 @@ const SEED_WORKFORCE_STAFF = [
     spindleSerial: "GPS-2026-0840",
     spindleModel: "GPS-HF-60K",
     machine: "Shock Crate Rig",
-    bay: "Bay 7",
+    bay: "Station 7",
     started: "07:00 AM",
     duration: "4h 00m",
     progress: 100,
@@ -2074,7 +2091,7 @@ const SEED_DEPARTMENTS_WORKLOAD = [
 const SEED_BAY_ALLOCATIONS = [
   {
     bayId: 1,
-    bayName: "Bay 1 — CNC Lathe / Okuma",
+    bayName: "Station 1 — CNC Lathe / Okuma",
     machine: "Okuma LB3000 Space Turn",
     assignedStaff: "Rajesh Patil (EMP-011)",
     spindleSerial: "GPS-2026-0844",
@@ -2085,7 +2102,7 @@ const SEED_BAY_ALLOCATIONS = [
   },
   {
     bayId: 2,
-    bayName: "Bay 2 — Studer S33 Grinder",
+    bayName: "Station 2 — Studer S33 Grinder",
     machine: "Studer S33 Precision Cylindrical Grinder",
     assignedStaff: "Rahul Patil (EMP-021)",
     spindleSerial: "GPS-2026-0842",
@@ -2096,7 +2113,7 @@ const SEED_BAY_ALLOCATIONS = [
   },
   {
     bayId: 3,
-    bayName: "Bay 3 — Cleanroom Assembly",
+    bayName: "Station 3 — Cleanroom Assembly",
     machine: "Class 1000 Clean Room Workstation",
     assignedStaff: "Amit Kulkarni (EMP-014)",
     spindleSerial: "GPS-2026-0847",
@@ -2107,7 +2124,7 @@ const SEED_BAY_ALLOCATIONS = [
   },
   {
     bayId: 4,
-    bayName: "Bay 4 — Schenck Balancing",
+    bayName: "Station 4 — Schenck Balancing",
     machine: "Schenck SmartBalancing Rig Dual-Plane",
     assignedStaff: "Vikram Shinde (EMP-032)",
     spindleSerial: "GPS-2026-0839",
@@ -2118,7 +2135,7 @@ const SEED_BAY_ALLOCATIONS = [
   },
   {
     bayId: 5,
-    bayName: "Bay 5 — Spindle Test Bench",
+    bayName: "Station 5 — Spindle Test Bench",
     machine: "Dual Channel Motor Test Bench 24k RPM",
     assignedStaff: "Milind Joshi (EMP-005)",
     spindleSerial: "GPS-2026-0847",
@@ -2129,7 +2146,7 @@ const SEED_BAY_ALLOCATIONS = [
   },
   {
     bayId: 6,
-    bayName: "Bay 6 — QC Metrology",
+    bayName: "Station 6 — QC Metrology",
     machine: "Zeiss CMM & Mahr Precision Air Gauges",
     assignedStaff: "Priya Deshmukh (EMP-018)",
     spindleSerial: "GPS-2026-0835",
@@ -2141,11 +2158,11 @@ const SEED_BAY_ALLOCATIONS = [
 ];
 
 const SEED_WORKFORCE_ALERTS = [
-  { id: 1, type: "danger", title: "Rahul Patil is at 96% utilization", subtitle: "Continuous high-duty grinding on Bay 2 with zero queue buffer", icon: "AlertTriangle" },
-  { id: 2, type: "warning", title: "Bay 2 has 2 queued operators", subtitle: "Suresh Sawant and Rahul Patil waiting for Studer CBN dressing wheel", icon: "Clock" },
+  { id: 1, type: "danger", title: "Rahul Patil is at 96% utilization", subtitle: "Continuous high-duty grinding on Station 2 with zero queue buffer", icon: "AlertTriangle" },
+  { id: 2, type: "warning", title: "Station 2 has 2 queued operators", subtitle: "Suresh Sawant and Rahul Patil waiting for Studer CBN dressing wheel", icon: "Clock" },
   { id: 3, type: "warning", title: "3 grinding tasks are approaching their due time", subtitle: "WO-2026-104, WO-2026-105 require shift sign-off before 14:00", icon: "AlertCircle" },
   { id: 4, type: "danger", title: "1 critical work order has no assigned operator", subtitle: "WO-2026-108 emergency balance check currently unallocated", icon: "AlertTriangle" },
-  { id: 5, type: "success", title: "Assembly workload normalized", subtitle: "Cleanroom Bay 3 running smoothly at 85% optimal throughput", icon: "CheckCircle2" }
+  { id: 5, type: "success", title: "Assembly workload normalized", subtitle: "Cleanroom Station 3 running smoothly at 85% optimal throughput", icon: "CheckCircle2" }
 ];
 
 const SEED_SHIFT_SUMMARY = {
@@ -2257,8 +2274,8 @@ const SEED_PURCHASE_ORDERS = [
     date: "04 Sep 2026",
     expectedDelivery: "18 Sep 2026",
     paymentTerms: "20% Advance, Balance upon Metallurgical Clearance",
-    deliveryAddress: "GPS Spindle Works, Raw Material Stores Bay 1, Pune - 411041",
-    status: "Draft",
+    deliveryAddress: "GPS Spindle Works, Raw Material Stores Section 1, Pune - 411041",
+    status: "Sent",
     subtotal: 181780,
     taxRate: 18,
     gstAmount: 32720,
@@ -2285,8 +2302,8 @@ const SEED_PURCHASE_ORDERS = [
     date: "05 Sep 2026",
     expectedDelivery: "20 Sep 2026",
     paymentTerms: "Net 45 Days / 100% Irrevocable Letter of Credit",
-    deliveryAddress: "GPS Spindle Cleanroom Assembly Bay 3, Nanded City, Pune - 411041",
-    status: "Approved",
+    deliveryAddress: "GPS Spindle Cleanroom Assembly Station 3, Nanded City, Pune - 411041",
+    status: "Sent",
     subtotal: 319322,
     taxRate: 18,
     gstAmount: 57478,
@@ -2369,7 +2386,7 @@ const SEED_PROFORMA_INVOICES = [
     customerContact: "Mr. Tanmay Sharma (DGM - Procurement)",
     customerEmail: "tanmay@tataadvanced.com",
     billingAddress: "Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510",
-    shippingAddress: "Tata Advanced Systems Tooling Bay, Chakan MIDC Phase II, Pune - 410501, Maharashtra",
+    shippingAddress: "Tata Advanced Systems Tooling Section, Chakan MIDC Phase II, Pune - 410501, Maharashtra",
     gstin: "36AAACT2718E1ZQ",
     salesOrder: "SO-2026-041",
     date: "04 Sep 2026",
@@ -2410,7 +2427,7 @@ const SEED_PROFORMA_INVOICES = [
     customerContact: "Mr. Sunil Kadam (DGM - Maintenance & Tooling)",
     customerEmail: "procurement@bharatforge.com",
     billingAddress: "Mundhwa, Pune Cantonment, Pune - 411036, Maharashtra, India",
-    shippingAddress: "Heavy Forging Division Bay 4, Bharat Forge Works, Mundhwa, Pune - 411036",
+    shippingAddress: "Heavy Forging Division Section 4, Bharat Forge Works, Mundhwa, Pune - 411036",
     gstin: "27AAACB1829D1Z2",
     salesOrder: "SO-2026-045",
     date: "05 Sep 2026",
@@ -2726,7 +2743,7 @@ const SEED_E_WAY_BILLS = [
       { id: 1, product: "Alloy Shaft 18CrNiMo7-6 Sets", hsn: "84669390", quantity: 2, unit: "Sets", taxableValue: 661017, gstRate: 18, totalValue: 780000 }
     ],
     timeline: [
-      { id: 1, title: "Transit Closed & Inwarded", detail: "Customer plant signed GRN; EWB expired upon delivery completion", time: "25 Aug 2026, 04:00 PM", user: "Mahindra Inward Bay" }
+      { id: 1, title: "Transit Closed & Inwarded", detail: "Customer plant signed GRN; EWB expired upon delivery completion", time: "25 Aug 2026, 04:00 PM", user: "Mahindra Inward Dock" }
     ]
   },
   {
@@ -2789,7 +2806,7 @@ export const PRODUCTION_PIPELINE_STAGES = isCleanSlateMode()
 export const DASHBOARD_METRICS = isCleanSlateMode()
   ? [
       { id: "active_jobs", label: "Active Jobs", value: "0", trend: "0 in rotation", isUp: true, icon: "Cpu" },
-      { id: "in_prod", label: "In Production", value: "0", trend: "Bays idle", isUp: true, icon: "Cog" },
+      { id: "in_prod", label: "In Production", value: "0", trend: "Floor idle", isUp: true, icon: "Cog" },
       { id: "pending_qc", label: "Pending QC", value: "0", trend: "All certified", isUp: true, alert: false, icon: "CheckCircle2" },
       { id: "ready_dispatch", label: "Ready Dispatch", value: "0", trend: "No pending pickup", isUp: true, icon: "Truck" },
       { id: "active_service", label: "Active Service", value: "0", trend: "0 active jobs", isUp: true, icon: "Wrench" },
@@ -2801,16 +2818,7 @@ export const DASHBOARD_METRICS = isCleanSlateMode()
 export const SPINDLES = isCleanSlateMode() ? [] : SEED_SPINDLES;
 export const WORK_ORDERS = isCleanSlateMode() ? [] : SEED_WORK_ORDERS;
 
-export const SHOP_BAYS = isCleanSlateMode()
-  ? [
-      { id: 1, name: "Bay 1 - CNC Turning & Boring", machine: "Okuma LB3000 Lathe", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-      { id: 2, name: "Bay 2 - Precision Grinding", machine: "Studer S33 Cylindrical Grinder", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-      { id: 3, name: "Bay 3 - Induction Hardening", machine: "Custom Induction Rig", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-      { id: 4, name: "Bay 4 - Cleanroom Assembly", machine: "Class 1000 Laminar Flow", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-      { id: 5, name: "Bay 5 - Dynamic Balancing", machine: "Schenck SmartBalancing Rig", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-      { id: 6, name: "Bay 6 - Dynamic Run-in Cell", machine: "Computerized Test Bench", status: "Idle", load: "0%", currentJob: null, operator: "Standby" },
-    ]
-  : SEED_SHOP_BAYS;
+export const SHOP_BAYS = [];
 
 export const SERVICE_JOBS = isCleanSlateMode() ? [] : SEED_SERVICE_JOBS;
 export const INVENTORY_ITEMS = isCleanSlateMode() ? [] : SEED_INVENTORY_ITEMS;
@@ -2826,7 +2834,7 @@ export const WORKFORCE_KPIS = isCleanSlateMode()
   ? [
       { id: "active_workers", label: "Active Technicians", value: "0", sub: "Shift A", isAlert: false },
       { id: "overall_efficiency", label: "Plant Efficiency", value: "0%", sub: "Clean slate", isAlert: false },
-      { id: "bays_utilized", label: "Bays Operating", value: "0/6", sub: "0% active", isAlert: false },
+      { id: "stations_utilized", label: "Stations Operating", value: "0/6", sub: "0% active", isAlert: false },
       { id: "delayed_ops", label: "Delayed Ops", value: "0", sub: "All clear", isAlert: false },
     ]
   : SEED_WORKFORCE_KPIS;
@@ -2841,11 +2849,18 @@ export const SHIFT_SUMMARY = isCleanSlateMode()
       activeOperators: 0,
       wipSpindles: 0,
       qcSignoffsPending: 0,
-      baysOperational: "0/6"
+      stationsOperational: "0/6"
     }
   : SEED_SHIFT_SUMMARY;
 
 export const PURCHASE_ORDERS = isCleanSlateMode() ? [] : SEED_PURCHASE_ORDERS;
 export const PROFORMA_INVOICES = isCleanSlateMode() ? [] : SEED_PROFORMA_INVOICES;
 export const E_WAY_BILLS = isCleanSlateMode() ? [] : SEED_E_WAY_BILLS;
+
+export {
+  SEED_QUOTATIONS,
+  SEED_CUSTOMERS,
+  SEED_INVOICES,
+  SEED_PROFORMA_INVOICES
+};
 

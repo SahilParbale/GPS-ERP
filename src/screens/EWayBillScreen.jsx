@@ -15,8 +15,9 @@ import {
   CheckCircle2, AlertTriangle, Calendar, DollarSign,
   ChevronRight, ArrowRight, ShieldCheck, Truck, 
   Share2, FileCheck, Navigation, RefreshCw, AlertCircle,
-  Package, Box
+  Package, Box, Sparkles, Cpu, Layers, QrCode
 } from 'lucide-react';
+import { isCleanSlateMode } from '../utils/dataMode';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 
@@ -84,6 +85,17 @@ const PRESET_INVOICES = [
 ];
 
 export default function EWayBillScreen({ onNavigate, onNotify }) {
+  const [isCleanSlate, setIsCleanSlate] = useState(isCleanSlateMode());
+  const [showDemoPreview, setShowDemoPreview] = useState(false);
+
+  useEffect(() => {
+    const handleModeChange = (e) => {
+      setIsCleanSlate(e.detail?.cleanSlate ?? isCleanSlateMode());
+    };
+    window.addEventListener('gps_data_mode_changed', handleModeChange);
+    return () => window.removeEventListener('gps_data_mode_changed', handleModeChange);
+  }, []);
+
   const [activeMainTab, setActiveMainTab] = useState('ewb');
   const [eWayBills, setEWayBills] = useState([]);
   const [dispatches, setDispatches] = useState([]);
@@ -450,6 +462,87 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
     }
   };
 
+  if (isCleanSlate) {
+    return (
+      <div className="content-area">
+        <PageHeader 
+          title="E-Way Bill System" 
+          subtitle="Consignment transit passes, Part-A/Part-B transporter logistics & GST dispatch compliance"
+          badge="Coming Soon"
+        />
+
+        <div className="content-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '62vh', padding: '32px 16px' }}>
+          <div 
+            className="section-card" 
+            style={{ 
+              maxWidth: '520px', 
+              width: '100%', 
+              textAlign: 'center', 
+              padding: '48px 36px',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px -20px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-surface)'
+            }}
+          >
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, rgba(122, 31, 61, 0.08) 0%, rgba(2, 132, 199, 0.1) 100%)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+              color: 'var(--primary)'
+            }}>
+              <Truck size={30} />
+            </div>
+
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              background: 'rgba(122, 31, 61, 0.08)',
+              color: 'var(--primary)',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              marginBottom: '16px'
+            }}>
+              <Clock size={12} />
+              <span>Coming Soon</span>
+            </div>
+
+            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 10px', letterSpacing: '-0.3px' }}>
+              E-Way Bill System
+            </h2>
+
+            <p style={{ fontSize: '13.5px', color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 auto 24px', maxWidth: '420px' }}>
+              This module is currently under development and will be available in an upcoming release.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={() => onNavigate && onNavigate('invoices')}
+                style={{ height: '36px', fontSize: '12.5px', padding: '0 16px', gap: '6px' }}
+              >
+                <FileText size={14} />
+                <span>Go to Invoices</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <TablePageSkeleton columns={['120px', '160px', '140px', '120px', '90px', '80px', '70px']} rows={6} />;
   }
@@ -530,6 +623,35 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
       </PageHeader>
 
       <div className="content-body">
+
+        {isCleanSlate && showDemoPreview && (
+          <div style={{
+            background: 'rgba(2, 132, 199, 0.08)',
+            border: '1px solid rgba(2, 132, 199, 0.25)',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Eye size={15} color="#0284c7" />
+              <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600 }}>
+                You are previewing the simulated E-Way Bill prototype interface.
+              </span>
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowDemoPreview(false)}
+              style={{ height: '26px', fontSize: '11px', padding: '0 10px' }}
+            >
+              Return to Coming Soon
+            </button>
+          </div>
+        )}
 
       {/* Top Module Navigation Tabs */}
       <Tabs
@@ -799,7 +921,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
 
             <div className="metric-card">
               <div className="metric-top">
-                <span className="metric-label">Preparing in Bay</span>
+                <span className="metric-label">Preparing Packaging</span>
                 <div className="metric-icon-wrap"><Package size={16} /></div>
               </div>
               <div className="metric-value" style={{ color: '#b45309' }}>{dispatchMetrics.preparing}</div>
@@ -896,7 +1018,10 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                           <td>
                             <div style={{ fontWeight: 600, fontSize: '12px' }}>{dsp.transporter}</div>
                             {dsp.transporterPhone && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {dsp.transporterPhone}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                                <Phone size={10} />
+                                <span>{dsp.transporterPhone}</span>
+                              </div>
                             )}
                           </td>
                           <td>

@@ -17,7 +17,7 @@ export const DEMO_USERS = [
     designation: 'Plant Head & Operations',
     phone: '+91 98220 14921',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['CNC Machining', 'Production Scheduling', 'Six Sigma', 'Plant Admin']
   },
@@ -33,7 +33,7 @@ export const DEMO_USERS = [
     designation: 'Production Head & Director',
     phone: '+91 98220 14920',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'General Shift',
+    shift: '08:30 - 17:30',
     avatarColor: '#5a1329',
     skills: ['Executive Leadership', 'P&L Management', 'Plant Expansion']
   },
@@ -49,7 +49,7 @@ export const DEMO_USERS = [
     designation: 'Sr. Precision Machining Lead',
     phone: '+91 98220 14923',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Studer S33 Grinding', 'Taper Journal Lapping', 'Shop Floor Traveler']
   },
@@ -65,7 +65,7 @@ export const DEMO_USERS = [
     designation: 'Quality Assurance Lead',
     phone: '+91 98220 14922',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Air Gauging', 'ISO 1940 Balancing', 'CMM Metrology', 'NCR Sign-off']
   },
@@ -81,7 +81,7 @@ export const DEMO_USERS = [
     designation: 'Commercial Desk Lead',
     phone: '+91 98220 14926',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'General Shift',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Quotation Costing', 'GST E-Way Bills', 'Client SLA Management', 'Proforma Invoicing']
   },
@@ -97,7 +97,7 @@ export const DEMO_USERS = [
     designation: 'Procurement Lead',
     phone: '+91 98220 14927',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'General Shift',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Vendor Sourcing', 'PO Management', 'FAG & OTT-Jakob Procurement']
   },
@@ -113,7 +113,7 @@ export const DEMO_USERS = [
     designation: 'Inventory & Stores Lead',
     phone: '+91 98220 14925',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Warehouse ERP', 'Bin Kitting', 'FIFO Control', 'GRN Inwarding']
   },
@@ -129,7 +129,7 @@ export const DEMO_USERS = [
     designation: 'Sr. Spindle Service Engineer',
     phone: '+91 98220 14928',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Spindle Overhaul', '9-Stage Restoration', 'Dynamic In-situ Balancing']
   },
@@ -145,7 +145,7 @@ export const DEMO_USERS = [
     designation: 'Cleanroom Assembly Technician',
     phone: '+91 98220 14924',
     branch: 'Nanded City Plant 1 (HQ)',
-    shift: 'Shift A (07:00 - 15:30)',
+    shift: '08:30 - 17:30',
     avatarColor: '#7A1F3D',
     skills: ['Ceramic Bearings Fitting', 'Preload Clamping', 'Daily Work Logging']
   }

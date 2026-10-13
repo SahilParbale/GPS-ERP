@@ -34,7 +34,7 @@ import {
 /**
  * Universal Search Service for GPS Precision Spindle ERP
  * Indexes and searches across all software modules:
- * - Work Orders & Jobs (Production, Bays, Stages)
+ * - Work Orders & Jobs (Production, Operations, Stages)
  * - Quotations & Commercial Estimates
  * - Invoices & GST Billing
  * - Proforma Invoices (PI)
@@ -58,7 +58,7 @@ export const SEARCH_CATEGORIES = [
   { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, color: '#7A1F3D', bg: '#F5E8ED' },
   { id: 'inventory', label: 'Inventory & Spares', icon: Package, color: '#d97706', bg: '#fffbeb' },
   { id: 'spindles', label: 'Spindle Fleet', icon: Cpu, color: '#0284c7', bg: '#f0f9ff' },
-  { id: 'customers', label: 'Customers', icon: Building2, color: '#0891b2', bg: '#ecfeff' },
+  { id: 'customers', label: 'Client Directory', icon: Building2, color: '#0891b2', bg: '#ecfeff' },
   { id: 'suppliers', label: 'Suppliers', icon: Truck, color: '#475569', bg: '#f8fafc' },
   { id: 'quality', label: 'Quality / QC', icon: ShieldCheck, color: '#0d9488', bg: '#f0fdfa' },
   { id: 'service', label: 'Service & Repair', icon: Wrench, color: '#ea580c', bg: '#fff7ed' },
@@ -72,11 +72,11 @@ export const SYSTEM_ACTIONS = [
     category: 'actions',
     docNumber: 'Executive Dashboard',
     title: 'Manufacturing Dashboard',
-    subtitle: 'Shift A live metrics, cell throughput, KPI overview & delivery timeline',
+    subtitle: 'Plant operations live metrics, cell throughput, KPI overview & delivery timeline',
     targetScreen: 'dashboard',
     badgeColor: '#7A1F3D',
     icon: Layers,
-    keywords: ['dashboard', 'home', 'kpi', 'metrics', 'shift', 'overview']
+    keywords: ['dashboard', 'home', 'kpi', 'metrics', 'overview', 'operations']
   },
   {
     id: 'act-wo',
@@ -84,11 +84,23 @@ export const SYSTEM_ACTIONS = [
     category: 'actions',
     docNumber: 'Production Board',
     title: 'Shop Floor Production & Travelers',
-    subtitle: 'Active CNC turning, cylindrical grinding, cleanroom assembly & balancing bays',
+    subtitle: 'Active CNC turning, cylindrical grinding, cleanroom assembly & balancing workstations',
     targetScreen: 'production',
     badgeColor: '#4f46e5',
     icon: Factory,
-    keywords: ['production', 'traveler', 'bay', 'machining', 'grinding', 'assembly', 'balancing', 'create wo']
+    keywords: ['production', 'traveler', 'workstation', 'machining', 'grinding', 'assembly', 'balancing', 'create wo']
+  },
+  {
+    id: 'act-dispatch',
+    docType: 'Quick Action',
+    category: 'actions',
+    docNumber: 'Dispatch & Logistics',
+    title: 'Outward Dispatch & Logistics Desk',
+    subtitle: 'Dispatch ready production & service spindles, parcel notifications, challans & courier tracking',
+    targetScreen: 'dispatch',
+    badgeColor: '#059669',
+    icon: Truck,
+    keywords: ['dispatch', 'shipping', 'parcel', 'ready for dispatch', 'courier', 'docket', 'challan', 'delivery', 'transport', 'gate pass', 'air freight']
   },
   {
     id: 'act-sales',
@@ -214,13 +226,13 @@ export const SYSTEM_ACTIONS = [
     id: 'act-cust',
     docType: 'Quick Action',
     category: 'actions',
-    docNumber: 'Customer Directory',
-    title: 'Client Organizations & Accounts',
-    subtitle: 'Linamar, Tata Advanced Systems, Bharat Forge, Godrej Aerospace accounts',
+    docNumber: 'Client Directory',
+    title: 'Client Accounts, Contacts & Email CC Directory',
+    subtitle: 'Linamar, Tata Motors, Bharat Forge, Godrej Aerospace accounts and contacts',
     targetScreen: 'customers',
     badgeColor: '#0891b2',
     icon: Building2,
-    keywords: ['customers', 'clients', 'accounts', 'directory']
+    keywords: ['customers', 'clients', 'accounts', 'directory', 'contacts', 'emails', 'cc']
   },
   {
     id: 'act-supp',
@@ -239,12 +251,12 @@ export const SYSTEM_ACTIONS = [
     docType: 'Quick Action',
     category: 'actions',
     docNumber: 'Plant Analytics',
-    title: 'Shift Analytics & PDF Reports',
-    subtitle: 'OEE, bay cycle times, spindle delivery rate & executive shift export',
+    title: 'Operations Analytics & PDF Reports',
+    subtitle: 'OEE, workstation cycle times, spindle delivery rate & executive export',
     targetScreen: 'reports',
     badgeColor: '#7A1F3D',
     icon: FileCheck,
-    keywords: ['reports', 'analytics', 'pdf', 'shift report', 'oee', 'metrics']
+    keywords: ['reports', 'analytics', 'pdf', 'performance report', 'oee', 'metrics']
   }
 ];
 
@@ -276,7 +288,7 @@ export const universalSearchService = {
         docType: 'Work Order',
         docNumber: wo.id,
         title: `${wo.id} • ${wo.spindleModel}`,
-        subtitle: `${wo.customer} • Serial: ${wo.spindleSerial} • ${wo.shopBay}`,
+        subtitle: `${wo.customer} • Serial: ${wo.spindleSerial} • ${wo.currentOperation || 'Machining'}`,
         metaPrimary: wo.value || '₹8,45,000',
         metaSecondary: wo.status,
         status: wo.status,
@@ -284,7 +296,7 @@ export const universalSearchService = {
         icon: Factory,
         badgeColor: '#4f46e5',
         badgeBg: '#eef2ff',
-        searchText: `${wo.id} ${wo.spindleModel} ${wo.spindleSerial} ${wo.customer} ${wo.currentOperation} ${wo.shopBay} ${wo.assignedOperator} ${wo.status} ${wo.priority}`.toLowerCase()
+        searchText: `${wo.id} ${wo.spindleModel} ${wo.spindleSerial} ${wo.customer} ${wo.currentOperation} ${wo.assignedOperator} ${wo.status} ${wo.priority}`.toLowerCase()
       });
     });
 
@@ -296,15 +308,15 @@ export const universalSearchService = {
           docType: 'Work Order',
           docNumber: lwo.woNo,
           title: `${lwo.woNo} • ${lwo.model || 'GPS-HSK-A63-24K'}`,
-          subtitle: `${lwo.customer} • Serial: ${lwo.serial || '—'} • Routed to Shop Floor Bay 1`,
+          subtitle: `${lwo.customer} • Serial: ${lwo.serial || '—'} • Routed to Shop Floor Stage 1`,
           metaPrimary: 'In Production',
-          metaSecondary: 'Bay 1',
+          metaSecondary: 'Stage 1',
           status: 'In Production',
           targetScreen: 'production',
           icon: Factory,
           badgeColor: '#059669',
           badgeBg: '#ecfdf5',
-          searchText: `${lwo.woNo} ${lwo.model || ''} ${lwo.serial || ''} ${lwo.customer || ''} in production bay 1 quotation launched`.toLowerCase()
+          searchText: `${lwo.woNo} ${lwo.model || ''} ${lwo.serial || ''} ${lwo.customer || ''} in production stage 1 quotation launched`.toLowerCase()
         });
       }
     });

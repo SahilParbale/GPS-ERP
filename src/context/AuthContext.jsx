@@ -6,6 +6,7 @@ export const ROLE_PERMISSIONS = {
   ADMIN: [
     'dashboard', 'production', 'workforce', 'work-order-detail',
     'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
+    'dispatch',
     'sales', 'customers', 'contacts', 'suppliers', 'invoices', 'payments',
     'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
     'documents', 'notifications', 'email-activity',
@@ -14,24 +15,24 @@ export const ROLE_PERMISSIONS = {
   MANAGEMENT: [
     'dashboard', 'production', 'spindles', 'spindle-detail', 'work-order-detail',
     'sales', 'proforma-invoices', 'invoices', 'payments', 'e-way-bills', 'customers', 'contacts',
-    'purchase-orders', 'suppliers', 'inventory', 'quality', 'service', 'workforce',
+    'purchase-orders', 'suppliers', 'inventory', 'quality', 'service', 'workforce', 'dispatch',
     'documents', 'notifications', 'email-activity',
     'reports', 'settings'
   ],
   PROD_MGR: [
     'dashboard', 'production', 'workforce', 'work-order-detail',
-    'spindles', 'spindle-detail', 'quality', 'inventory',
+    'spindles', 'spindle-detail', 'quality', 'inventory', 'dispatch',
     'documents', 'notifications',
     'reports'
   ],
   QA_MGR: [
     'dashboard', 'quality', 'spindles', 'spindle-detail',
-    'production', 'work-order-detail',
+    'production', 'work-order-detail', 'dispatch',
     'documents', 'notifications',
     'reports'
   ],
   SALES: [
-    'dashboard', 'sales', 'proforma-invoices', 'invoices', 'payments', 'e-way-bills',
+    'dashboard', 'sales', 'proforma-invoices', 'invoices', 'payments', 'e-way-bills', 'dispatch',
     'customers', 'contacts', 'sales-activity',
     'documents', 'notifications', 'email-activity',
     'reports'
@@ -42,12 +43,12 @@ export const ROLE_PERMISSIONS = {
     'reports'
   ],
   STORES: [
-    'dashboard', 'inventory', 'purchase-orders', 'suppliers',
+    'dashboard', 'inventory', 'purchase-orders', 'suppliers', 'dispatch',
     'documents', 'notifications',
     'reports'
   ],
   SERVICE: [
-    'dashboard', 'service', 'spindles', 'spindle-detail', 'quality',
+    'dashboard', 'service', 'spindles', 'spindle-detail', 'quality', 'dispatch',
     'documents', 'notifications',
     'reports'
   ],

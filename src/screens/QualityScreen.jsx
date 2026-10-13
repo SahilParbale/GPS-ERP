@@ -301,7 +301,7 @@ export default function QualityScreen({ onNotify }) {
 
       const spindleSerial = selectedInspection.spindle?.serial_number || selectedInspection.spindleSerial || selectedInspection.inspection_number;
       if (onNotify) {
-        onNotify(`Spindle ${spindleSerial} flagged for rework at Bay 2 (Grinding Cell)`);
+        onNotify(`Spindle ${spindleSerial} flagged for rework at Grinding Workstation`);
       }
     } catch (err) {
       if (onNotify) onNotify(err.message || 'Rework request failed.');
@@ -652,7 +652,9 @@ export default function QualityScreen({ onNotify }) {
                   <ArrowRight size={12} color="#9a3412" />
                   <strong className="mono" style={{ fontSize: '13px', color: '#059669' }}>{currentInsp.restorationSummary?.postRunout || '0.8 µm'}</strong>
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500 }}>✓ Within OEM Spec (&lt;1.0 µm)</div>
+                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={11} strokeWidth={2.5} /> Within OEM Spec (&lt;1.0 µm)
+                </div>
               </div>
 
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '5px', border: '1px solid #fed7aa' }}>
@@ -662,7 +664,9 @@ export default function QualityScreen({ onNotify }) {
                   <ArrowRight size={12} color="#9a3412" />
                   <strong className="mono" style={{ fontSize: '13px', color: '#059669' }}>{currentInsp.restorationSummary?.postBalance || 'G0.28'}</strong>
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500 }}>✓ ISO 1940 G0.4 Achieved</div>
+                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={11} strokeWidth={2.5} /> ISO 1940 G0.4 Achieved
+                </div>
               </div>
 
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '5px', border: '1px solid #fed7aa' }}>
@@ -672,7 +676,9 @@ export default function QualityScreen({ onNotify }) {
                   <ArrowRight size={12} color="#9a3412" />
                   <strong className="mono" style={{ fontSize: '13px', color: '#059669' }}>{currentInsp.restorationSummary?.postVibration || '0.26 mm/s'}</strong>
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500 }}>✓ Vibration Resolved (&lt;0.5 mm/s)</div>
+                <div style={{ fontSize: '10.5px', color: '#059669', marginTop: '2px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={11} strokeWidth={2.5} /> Vibration Resolved (&lt;0.5 mm/s)
+                </div>
               </div>
 
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '5px', border: '1px solid #fed7aa' }}>

@@ -10,7 +10,8 @@ import {
   Building, Users, Bell, Wrench, Save, 
   Loader2, AlertCircle, RefreshCw, ShieldCheck, ShieldAlert,
   QrCode, CreditCard, KeyRound, UserPlus, Lock, CheckCircle2,
-  XCircle, Copy, Eye, EyeOff, Sparkles, Filter, ChevronRight, Shield, Check, Search
+  XCircle, Copy, Eye, EyeOff, Sparkles, Filter, ChevronRight, Shield, Check, Search,
+  Zap
 } from 'lucide-react';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId, setActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
@@ -18,7 +19,7 @@ import { getActiveUpiId, setActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/u
 // Complete ERP Screens Directory for Permissions Visualizer
 const ALL_ERP_SCREENS = [
   { id: 'dashboard', name: 'Executive Dashboard', category: 'Executive & Overview' },
-  { id: 'production', name: 'Production & Shop Floor Bays', category: 'Manufacturing' },
+  { id: 'production', name: 'Production & Shop Floor Operations', category: 'Manufacturing' },
   { id: 'workforce', name: 'Staff & Workforce Management', category: 'Manufacturing' },
   { id: 'work-order-detail', name: 'Work Order Job Travelers', category: 'Manufacturing' },
   { id: 'spindles', name: 'Spindle Fleet Registry', category: 'Assets & Fleet' },
@@ -27,8 +28,8 @@ const ALL_ERP_SCREENS = [
   { id: 'inventory', name: 'Materials & Stock Control', category: 'Supply Chain & Inventory' },
   { id: 'quality', name: 'Quality Control & Metrology', category: 'Quality & Metrology' },
   { id: 'sales', name: 'Quotations & Commercial Desk', category: 'Commercial & Sales' },
-  { id: 'customers', name: 'Customer Accounts Directory', category: 'Commercial & Sales' },
-  { id: 'contacts', name: 'Customer Key Contacts', category: 'Commercial & Sales' },
+  { id: 'customers', name: 'Client Directory (Ledger & Contacts)', category: 'Commercial & Sales' },
+  { id: 'contacts', name: 'Client Directory (Contacts Tab)', category: 'Commercial & Sales' },
   { id: 'suppliers', name: 'Precision Vendors & Suppliers', category: 'Supply Chain & Inventory' },
   { id: 'invoices', name: 'Invoices & GST Billing', category: 'Commercial & Sales' },
   { id: 'purchase-orders', name: 'Purchase Order Management', category: 'Supply Chain & Inventory' },
@@ -551,8 +552,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
         tabs={[
           { id: 'profile', label: 'Company Profile & Facility' },
           { id: 'users', label: 'User Access Control & ID Generation' },
-          { id: 'calibration', label: 'Machine Bay Calibration Cycles' },
-          { id: 'notifications', label: 'Alert & Shift Preferences' },
+          { id: 'calibration', label: 'Machine & Equipment Calibration Cycles' },
+          { id: 'notifications', label: 'Alert & Operating Preferences' },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -641,16 +642,12 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               </div>
 
               <div className="form-group">
-                <label className="form-label">Current Operating Shift Mode</label>
-                <CustomSelect 
-                  value={formData.shiftMode}
-                  onChange={(e) => handleInputChange('shiftMode', e.target.value)}
-                  disabled={!isManagement || isSaving}
-                  options={[
-                    { value: 'Continuous 3-Shift 24x7 Operation', label: 'Continuous 3-Shift 24x7 Operation' },
-                    { value: 'Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)', label: 'Shift A (07:00 - 15:30) & Shift B (15:30 - 00:00)' },
-                    { value: 'Single General Shift', label: 'Single General Shift' }
-                  ]}
+                <label className="form-label">Plant Operating Schedule</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value="Fixed Single Working Schedule (08:30 - 17:30)" 
+                  disabled 
                 />
               </div>
 
@@ -1106,7 +1103,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               <span>Machine Tool & Air Gauge Master Calibration Log</span>
             </div>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Source: <strong className="mono" style={{ color: 'var(--primary)' }}>public.machines & public.production_bays</strong>
+              Source: <strong className="mono" style={{ color: 'var(--primary)' }}>public.machines</strong>
             </span>
           </div>
           <div className="table-responsive">
@@ -1259,9 +1256,9 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                   <button
                     type="button"
                     onClick={() => setNewUserForm(prev => ({ ...prev, employeeCode: generateEmpCode() }))}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    ⚡ Auto-Generate
+                    <Zap size={11} /> Auto-Generate
                   </button>
                 </label>
                 <input
@@ -1424,7 +1421,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 <option value="STORES">STORES — Warehouse & Inventory Lead (Stock bin tracking, GRN, Dispatch)</option>
                 <option value="SERVICE">SERVICE — Service & Rebuild Lead (9-Stage overhaul, spindle repair)</option>
                 <option value="QA_MGR">QA_MGR — Quality Assurance Manager (Metrology sign-off, Calibration, NCR)</option>
-                <option value="PROD_MGR">PROD_MGR — Production Manager (Work orders, bay scheduling, assembly)</option>
+                <option value="PROD_MGR">PROD_MGR — Production Manager (Work orders, stage scheduling, assembly)</option>
                 <option value="MANAGEMENT">MANAGEMENT — Executive Director (Full operational visibility & reports)</option>
                 <option value="ADMIN">ADMIN — Plant Administrator (Full master configuration & user rights)</option>
               </select>
@@ -1507,8 +1504,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                     </div>
                   )}
 
-                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
-                    🔒 <strong>Security guarantee:</strong> When this employee logs in, unauthorized screens and the header role switcher are completely hidden from them.
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Lock size={12} color="var(--primary)" /> <span><strong>Security guarantee:</strong> When this employee logs in, unauthorized screens and the header role switcher are completely hidden from them.</span>
                   </div>
                 </div>
               );
@@ -1521,9 +1518,9 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 <button
                   type="button"
                   onClick={() => setNewUserForm(prev => ({ ...prev, password: generateRandomPassword() }))}
-                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  🔄 Generate New Password
+                  <RefreshCw size={11} /> Generate New Password
                 </button>
               </label>
               <div style={{ position: 'relative' }}>
@@ -1681,7 +1678,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <Copy size={14} />
-                <span>📋 Copy Login Credentials</span>
+                <span>Copy Login Credentials</span>
               </button>
             </div>
           </div>

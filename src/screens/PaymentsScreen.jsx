@@ -9,8 +9,35 @@ import {
   Send, RefreshCw, Plus, Search, Filter, 
   Building2, Calendar, FileText, ArrowUpRight, 
   CreditCard, Download, Mail, ExternalLink, 
-  ChevronRight, AlertCircle, Check, Eye
+  ChevronRight, AlertCircle, Check, Eye, Info
 } from 'lucide-react';
+
+// Date parsing helper
+const parseInvDate = (dateStr) => {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmy) {
+    return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+  }
+  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (ymd) {
+    return new Date(parseInt(ymd[1], 10), parseInt(ymd[2], 10) - 1, parseInt(ymd[3], 10));
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// Date to YYYY-MM-DD input format
+const formatForDateInput = (dateVal) => {
+  if (!dateVal) return '';
+  const d = parseInvDate(dateVal);
+  if (!d || isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export default function PaymentsScreen({ onNavigate, onNotify }) {
   // Main Data States
@@ -36,6 +63,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
   const [activeTab, setActiveTab] = useState('invoices'); // 'invoices' | 'clients' | 'receipts'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'OVERDUE' | 'DUE_SOON' | 'PARTIAL' | 'PAID'
+  const [periodFilter, setPeriodFilter] = useState('ALL'); // 'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'THIS_QUARTER' | 'FY_2026_27' | 'CUSTOM'
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [agingFilter, setAgingFilter] = useState('ALL'); // 'ALL' | 'CURRENT' | '1-15' | '16-30' | '31-60' | '60+'
   const [selectedClientFilter, setSelectedClientFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('overdue'); // 'overdue' | 'balance_desc' | 'date_desc'
 
@@ -53,10 +84,19 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
   const [formInvoiceId, setFormInvoiceId] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formPaymentDate, setFormPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formDueDate, setFormDueDate] = useState('');
+  const [isUpdatingDueDateInPayment, setIsUpdatingDueDateInPayment] = useState(false);
   const [formPaymentMode, setFormPaymentMode] = useState('NEFT/RTGS');
   const [formReferenceNumber, setFormReferenceNumber] = useState('');
   const [formBankName, setFormBankName] = useState('ICICI Bank Ltd');
   const [formNotes, setFormNotes] = useState('');
+
+  // Standalone Manage Client Due Date Modal State
+  const [isDueDateModalOpen, setIsDueDateModalOpen] = useState(false);
+  const [dueDateInvoice, setDueDateInvoice] = useState(null);
+  const [modalNewDueDate, setModalNewDueDate] = useState('');
+  const [dueDateReasonNotes, setDueDateReasonNotes] = useState('');
+  const [isSavingDueDate, setIsSavingDueDate] = useState(false);
 
   // Load payment ledger data
   const loadLedgerData = useCallback(async () => {
@@ -85,6 +125,30 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
     loadLedgerData();
   }, [loadLedgerData]);
 
+  // Handle auto-opening record payment when directed from Invoices or other screens
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.__TARGET_PAYMENT_INVOICE_ID__ && invoices.length > 0) {
+      const targetId = window.__TARGET_PAYMENT_INVOICE_ID__;
+      window.__TARGET_PAYMENT_INVOICE_ID__ = null;
+      const found = invoices.find(i => i.id === targetId || i.dbId === targetId || i.invoiceNumber === targetId);
+      if (found) {
+        handleOpenRecordPayment(found);
+      }
+    }
+  }, [invoices]);
+
+  // Navigate to Tax Invoice on Invoices screen
+  const handleViewTaxInvoice = useCallback((inv) => {
+    if (!inv) return;
+    const targetId = inv.dbId || inv.id || inv.invoiceNumber;
+    if (typeof window !== 'undefined') {
+      window.__TARGET_TAX_INVOICE_ID__ = targetId;
+    }
+    if (onNavigate) {
+      onNavigate('invoices');
+    }
+  }, [onNavigate]);
+
   // Open Record Payment Modal for a specific invoice
   const handleOpenRecordPayment = (inv = null) => {
     if (inv) {
@@ -92,6 +156,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
       setFormInvoiceId(inv.id);
       setFormAmount(inv.balanceNum > 0 ? String(inv.balanceNum) : '');
       setFormNotes(`Payment received against ${inv.invoiceNumber || inv.id}`);
+      setFormDueDate(formatForDateInput(inv.dueDate));
+      setIsUpdatingDueDateInPayment(false);
     } else {
       // Find first pending invoice if available
       const firstPending = invoices.find(i => i.balanceNum > 0) || invoices[0];
@@ -100,11 +166,15 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
         setFormInvoiceId(firstPending.id);
         setFormAmount(firstPending.balanceNum > 0 ? String(firstPending.balanceNum) : '');
         setFormNotes(`Payment received against ${firstPending.invoiceNumber || firstPending.id}`);
+        setFormDueDate(formatForDateInput(firstPending.dueDate));
+        setIsUpdatingDueDateInPayment(false);
       } else {
         setSelectedInvoice(null);
         setFormInvoiceId('');
         setFormAmount('');
         setFormNotes('');
+        setFormDueDate('');
+        setIsUpdatingDueDateInPayment(false);
       }
     }
     setFormPaymentDate(new Date().toISOString().split('T')[0]);
@@ -122,6 +192,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
     if (target) {
       setFormAmount(target.balanceNum > 0 ? String(target.balanceNum) : '');
       setFormNotes(`Payment received against ${target.invoiceNumber || target.id}`);
+      setFormDueDate(formatForDateInput(target.dueDate));
+      setIsUpdatingDueDateInPayment(false);
     }
   };
 
@@ -150,7 +222,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
         paymentMode: formPaymentMode,
         referenceNumber: formReferenceNumber,
         bankName: formBankName,
-        notes: formNotes
+        notes: formNotes,
+        updatedDueDate: (isUpdatingDueDateInPayment && formDueDate) ? formDueDate : null
       });
 
       if (res.error) {
@@ -167,6 +240,47 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
       if (onNotify) onNotify('Error recording payment transaction.', 'error');
     } finally {
       setIsSubmittingPayment(false);
+    }
+  };
+
+  // Open Standalone Manage Due Date Modal
+  const handleOpenManageDueDate = (inv) => {
+    if (!inv) return;
+    setDueDateInvoice(inv);
+    setModalNewDueDate(formatForDateInput(inv.dueDate) || new Date().toISOString().split('T')[0]);
+    setDueDateReasonNotes('');
+    setIsDueDateModalOpen(true);
+  };
+
+  // Submit Standalone Due Date update
+  const handleConfirmDueDateUpdate = async (e) => {
+    if (e) e.preventDefault();
+    if (!dueDateInvoice || !modalNewDueDate) {
+      if (onNotify) onNotify('Please select a valid new due date.', 'warning');
+      return;
+    }
+
+    setIsSavingDueDate(true);
+    try {
+      const res = await clientPaymentService.updateInvoiceDueDate(
+        dueDateInvoice.dbId || dueDateInvoice.id || dueDateInvoice.invoiceNumber,
+        modalNewDueDate
+      );
+
+      if (res.error) {
+        if (onNotify) onNotify(res.error.message || 'Failed to update due date.', 'error');
+      } else {
+        if (onNotify) {
+          onNotify(`Updated due date for ${dueDateInvoice.invoiceNumber || dueDateInvoice.id} to ${modalNewDueDate}!`);
+        }
+        setIsDueDateModalOpen(false);
+        await loadLedgerData();
+      }
+    } catch (err) {
+      console.error('Error updating due date:', err);
+      if (onNotify) onNotify('Error updating invoice due date.', 'error');
+    } finally {
+      setIsSavingDueDate(false);
     }
   };
 
@@ -200,9 +314,108 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
     }
   };
 
+
+  // Check if invoice matches active period filter
+  const matchesPeriod = useCallback((dateObj, period, startStr, endStr) => {
+    if (period === 'ALL') return true;
+    if (!dateObj) return false;
+
+    const now = new Date();
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+
+    if (period === 'THIS_MONTH') {
+      return year === now.getFullYear() && month === now.getMonth();
+    }
+    if (period === 'LAST_MONTH') {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return year === lastMonth.getFullYear() && month === lastMonth.getMonth();
+    }
+    if (period === 'THIS_QUARTER') {
+      const curQ = Math.floor(now.getMonth() / 3);
+      const invQ = Math.floor(month / 3);
+      return year === now.getFullYear() && curQ === invQ;
+    }
+    if (period === 'FY_2026_27') {
+      const fyStart = new Date(2026, 3, 1);
+      const fyEnd = new Date(2027, 2, 31, 23, 59, 59);
+      return dateObj >= fyStart && dateObj <= fyEnd;
+    }
+    if (period === 'CUSTOM') {
+      if (startStr) {
+        const s = new Date(startStr);
+        if (dateObj < s) return false;
+      }
+      if (endStr) {
+        const e = new Date(endStr);
+        e.setHours(23, 59, 59, 999);
+        if (dateObj > e) return false;
+      }
+      return true;
+    }
+    return true;
+  }, []);
+
+  // Check if invoice matches active aging bucket
+  const matchesAging = useCallback((inv, aging) => {
+    if (aging === 'ALL') return true;
+    if (aging === 'CURRENT') {
+      return inv.balanceNum > 0 && !inv.isOverdue;
+    }
+    if (aging === '1-15') {
+      return inv.isOverdue && inv.overdueDays >= 1 && inv.overdueDays <= 15;
+    }
+    if (aging === '16-30') {
+      return inv.isOverdue && inv.overdueDays >= 16 && inv.overdueDays <= 30;
+    }
+    if (aging === '31-60') {
+      return inv.isOverdue && inv.overdueDays >= 31 && inv.overdueDays <= 60;
+    }
+    if (aging === '60+') {
+      return inv.isOverdue && inv.overdueDays > 60;
+    }
+    return true;
+  }, []);
+
+  // Filter invoices strictly by period for metrics and lists
+  const periodFilteredInvoices = useMemo(() => {
+    return invoices.filter(inv => {
+      const d = parseInvDate(inv.invoiceDate || inv.date);
+      return matchesPeriod(d, periodFilter, customStartDate, customEndDate);
+    });
+  }, [invoices, periodFilter, customStartDate, customEndDate, matchesPeriod]);
+
+  // Executive KPIs dynamically computed for current period
+  const displayedKpis = useMemo(() => {
+    const list = periodFilteredInvoices;
+    const totalBilled = list.reduce((sum, inv) => sum + (inv.totalNum || 0), 0);
+    const totalCollected = list.reduce((sum, inv) => sum + (inv.paidNum || 0), 0);
+    const totalReceivables = list.reduce((sum, inv) => sum + (inv.balanceNum || 0), 0);
+    const overdueAmount = list.filter(inv => inv.isOverdue).reduce((sum, inv) => sum + (inv.balanceNum || 0), 0);
+    const overdueInvoicesCount = list.filter(inv => inv.isOverdue && inv.balanceNum > 0).length;
+    const pendingInvoicesCount = list.filter(inv => inv.balanceNum > 0).length;
+    const fullyPaidInvoicesCount = list.filter(inv => inv.balanceNum === 0).length;
+
+    const clientsSet = new Set(list.map(i => (i.customer || '').trim()).filter(Boolean));
+    const clientsPendingSet = new Set(list.filter(i => i.balanceNum > 0).map(i => (i.customer || '').trim()).filter(Boolean));
+
+    return {
+      totalBilled,
+      totalCollected,
+      totalReceivables,
+      overdueAmount,
+      overdueInvoicesCount,
+      pendingInvoicesCount,
+      fullyPaidInvoicesCount,
+      clientsWithPendingCount: clientsPendingSet.size,
+      totalClientsCount: clientsSet.size,
+      collectionEfficiency: totalBilled > 0 ? ((totalCollected / totalBilled) * 100).toFixed(1) : '100.0'
+    };
+  }, [periodFilteredInvoices]);
+
   // Filtered & Sorted Invoices
   const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => {
+    return periodFilteredInvoices.filter(inv => {
       // Search filter
       const q = searchQuery.toLowerCase().trim();
       const matchSearch = !q || (
@@ -227,16 +440,18 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
         matchStatus = inv.balanceNum > 0;
       }
 
+      // Aging filter
+      const matchAging = matchesAging(inv, agingFilter);
+
       // Client filter
       let matchClient = true;
       if (selectedClientFilter !== 'ALL') {
         matchClient = (inv.customer || '').trim() === selectedClientFilter.trim();
       }
 
-      return matchSearch && matchStatus && matchClient;
+      return matchSearch && matchStatus && matchAging && matchClient;
     }).sort((a, b) => {
       if (sortBy === 'overdue') {
-        // Overdue first by days descending, then pending, then settled
         if (a.isOverdue && !b.isOverdue) return -1;
         if (!a.isOverdue && b.isOverdue) return 1;
         if (a.isOverdue && b.isOverdue) return b.overdueDays - a.overdueDays;
@@ -244,11 +459,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
       } else if (sortBy === 'balance_desc') {
         return b.balanceNum - a.balanceNum;
       } else if (sortBy === 'date_desc') {
-        return new Date(b.date || b.invoiceDate) - new Date(a.date || a.invoiceDate);
+        const dA = parseInvDate(a.date || a.invoiceDate) || 0;
+        const dB = parseInvDate(b.date || b.invoiceDate) || 0;
+        return dB - dA;
       }
       return 0;
     });
-  }, [invoices, searchQuery, statusFilter, selectedClientFilter, sortBy]);
+  }, [periodFilteredInvoices, searchQuery, statusFilter, agingFilter, selectedClientFilter, sortBy, matchesAging]);
 
   // Filtered Clients
   const filteredClients = useMemo(() => {
@@ -307,6 +524,18 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           <span>Refresh</span>
         </button>
 
+        {onNavigate && (
+          <button 
+            type="button" 
+            className="btn btn-secondary"
+            onClick={() => onNavigate('invoices')}
+            title="Open official Tax Invoices Register"
+          >
+            <FileText size={14} />
+            <span>Tax Invoices Register</span>
+          </button>
+        )}
+
         <button 
           type="button" 
           className="btn btn-primary"
@@ -322,46 +551,65 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
         <div className="metrics-grid">
           <div className="metric-card">
             <div className="metric-top">
-              <span className="metric-label">Total Receivables (Pending)</span>
+              <span className="metric-label">
+                Total Receivables (Pending)
+                {periodFilter !== 'ALL' && <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 600, marginLeft: '4px' }}>• {periodFilter.replace('_', ' ')}</span>}
+              </span>
               <div className="metric-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)' }}>
                 <DollarSign size={16} />
               </div>
             </div>
-            <div className="metric-value" style={{ color: kpis.totalReceivables > 0 ? 'var(--danger)' : 'var(--text-main)' }}>
-              ₹{Number(kpis.totalReceivables || 0).toLocaleString('en-IN')}
+            <div className="metric-value" style={{ color: displayedKpis.totalReceivables > 0 ? 'var(--danger)' : 'var(--text-main)' }}>
+              ₹{Number(displayedKpis.totalReceivables || 0).toLocaleString('en-IN')}
             </div>
             <div className="metric-footer" style={{ color: 'var(--text-muted)' }}>
-              {kpis.pendingInvoicesCount} invoices pending payment
+              {displayedKpis.pendingInvoicesCount} invoices pending payment
             </div>
           </div>
 
           <div className="metric-card">
             <div className="metric-top">
-              <span className="metric-label">Critical Overdue Dues</span>
+              <span className="metric-label">
+                Critical Overdue Dues
+                {periodFilter !== 'ALL' && <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 600, marginLeft: '4px' }}>• Filtered</span>}
+              </span>
               <div className="metric-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)' }}>
                 <AlertTriangle size={16} />
               </div>
             </div>
-            <div className="metric-value" style={{ color: kpis.overdueAmount > 0 ? 'var(--warning)' : 'var(--success)' }}>
-              ₹{Number(kpis.overdueAmount || 0).toLocaleString('en-IN')}
+            <div className="metric-value" style={{ color: displayedKpis.overdueAmount > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              ₹{Number(displayedKpis.overdueAmount || 0).toLocaleString('en-IN')}
             </div>
-            <div className="metric-footer" style={{ color: kpis.overdueInvoicesCount > 0 ? 'var(--danger)' : 'var(--success)' }}>
-              {kpis.overdueInvoicesCount > 0 ? `⚠️ ${kpis.overdueInvoicesCount} invoices past due date` : 'No overdue invoices!'}
+            <div className="metric-footer" style={{ color: displayedKpis.overdueInvoicesCount > 0 ? 'var(--danger)' : 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {displayedKpis.overdueInvoicesCount > 0 ? (
+                <>
+                  <AlertTriangle size={12} />
+                  <span>{displayedKpis.overdueInvoicesCount} invoices past due date</span>
+                </>
+              ) : (
+                <>
+                  <Check size={12} />
+                  <span>No overdue invoices!</span>
+                </>
+              )}
             </div>
           </div>
 
           <div className="metric-card">
             <div className="metric-top">
-              <span className="metric-label">Total Collections Received</span>
+              <span className="metric-label">
+                Total Collections Received
+                {periodFilter !== 'ALL' && <span style={{ fontSize: '10.5px', color: 'var(--success)', fontWeight: 600, marginLeft: '4px' }}>• Filtered</span>}
+              </span>
               <div className="metric-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)' }}>
                 <CheckCircle2 size={16} />
               </div>
             </div>
             <div className="metric-value" style={{ color: 'var(--success)' }}>
-              ₹{Number(kpis.totalCollected || 0).toLocaleString('en-IN')}
+              ₹{Number(displayedKpis.totalCollected || 0).toLocaleString('en-IN')}
             </div>
             <div className="metric-footer" style={{ color: 'var(--success)' }}>
-              Collection rate: {kpis.collectionEfficiency}%
+              Collection rate: {displayedKpis.collectionEfficiency}%
             </div>
           </div>
 
@@ -373,10 +621,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
             </div>
             <div className="metric-value">
-              {kpis.clientsWithPendingCount} / {kpis.totalClientsCount}
+              {displayedKpis.clientsWithPendingCount} / {displayedKpis.totalClientsCount}
             </div>
             <div className="metric-footer" style={{ color: 'var(--text-muted)' }}>
-              {kpis.fullyPaidInvoicesCount} invoices fully settled
+              {displayedKpis.fullyPaidInvoicesCount} invoices fully settled
             </div>
           </div>
         </div>
@@ -620,6 +868,117 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
             )}
           </div>
 
+          {/* Secondary Period & Aging Filter Bar */}
+          {activeTab === 'invoices' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 16px',
+              background: 'var(--bg-subtle)',
+              borderBottom: '1px solid var(--border-color)',
+              fontSize: '12px',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              {/* Period & Aging Selectors */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  <Calendar size={13} color="var(--primary)" />
+                  <span>Period:</span>
+                </div>
+                <select
+                  value={periodFilter}
+                  onChange={(e) => setPeriodFilter(e.target.value)}
+                  className="form-control"
+                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '135px' }}
+                >
+                  <option value="ALL">All Time</option>
+                  <option value="THIS_MONTH">This Month</option>
+                  <option value="LAST_MONTH">Last Month</option>
+                  <option value="THIS_QUARTER">This Quarter</option>
+                  <option value="FY_2026_27">FY 2026-27</option>
+                  <option value="CUSTOM">Custom Range...</option>
+                </select>
+
+                {periodFilter === 'CUSTOM' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="form-control"
+                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '130px' }}
+                      title="From Date"
+                    />
+                    <span style={{ color: 'var(--text-muted)' }}>to</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="form-control"
+                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '130px' }}
+                      title="To Date"
+                    />
+                  </div>
+                )}
+
+                <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  <Clock size={13} color="var(--warning)" />
+                  <span>Aging:</span>
+                </div>
+                <select
+                  value={agingFilter}
+                  onChange={(e) => setAgingFilter(e.target.value)}
+                  className="form-control"
+                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '145px' }}
+                >
+                  <option value="ALL">All Aging Buckets</option>
+                  <option value="CURRENT">Current (Not Due)</option>
+                  <option value="1-15">1 - 15 Days Overdue</option>
+                  <option value="16-30">16 - 30 Days Overdue</option>
+                  <option value="31-60">31 - 60 Days Overdue</option>
+                  <option value="60+">60+ Days Overdue (Critical)</option>
+                </select>
+              </div>
+
+              {/* Status & Reset */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                  Showing <strong>{filteredInvoices.length}</strong> of {invoices.length} Tax Invoices
+                </span>
+                {(periodFilter !== 'ALL' || agingFilter !== 'ALL' || statusFilter !== 'ALL' || selectedClientFilter !== 'ALL' || searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriodFilter('ALL');
+                      setCustomStartDate('');
+                      setCustomEndDate('');
+                      setAgingFilter('ALL');
+                      setStatusFilter('ALL');
+                      setSelectedClientFilter('ALL');
+                      setSearchQuery('');
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: INVOICES & RECEIVABLES LEDGER */}
           {activeTab === 'invoices' && (
             <div style={{ overflowX: 'auto' }}>
@@ -662,10 +1021,15 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                         >
                           {/* Invoice & Date */}
                           <td style={{ padding: '12px 14px' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div 
+                              style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => handleViewTaxInvoice(inv)}
+                              title="Click to view official Tax Invoice"
+                            >
                               <span>{inv.invoiceNumber || inv.id}</span>
+                              <ArrowUpRight size={11} style={{ opacity: 0.8 }} />
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                               <Calendar size={11} />
                               <span>{inv.invoiceDate || inv.date}</span>
                             </div>
@@ -694,8 +1058,33 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
 
                           {/* Due Date & Aging Status */}
                           <td style={{ padding: '12px 14px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)', marginBottom: '4px' }}>
-                              {inv.dueDate || 'Immediate'}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+                                {inv.dueDate || 'Immediate'}
+                              </span>
+                              {!isZeroBalance && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenManageDueDate(inv)}
+                                  title="Manage / Reschedule Due Date for this client"
+                                  style={{
+                                    background: 'var(--bg-surface-subtle)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    fontSize: '10.5px',
+                                    fontWeight: 600,
+                                    color: 'var(--primary)',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                >
+                                  <Calendar size={10} />
+                                  <span>Reschedule</span>
+                                </button>
+                              )}
                             </div>
                             {isZeroBalance ? (
                               <span className="badge badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
@@ -781,6 +1170,18 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                           {/* Action Buttons */}
                           <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                              {/* View Tax Invoice Button */}
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleViewTaxInvoice(inv)}
+                                title="Open official Tax Invoice in Billing screen"
+                                style={{ gap: '4px', fontSize: '11px', height: '26px', padding: '0 8px' }}
+                              >
+                                <FileText size={12} color="var(--primary)" />
+                                <span>Tax Invoice</span>
+                              </button>
+
                               {/* 1-Click Send Reminder Email Button */}
                               {!isZeroBalance && (
                                 <button
@@ -789,7 +1190,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                   onClick={() => handleOpenInvoiceReminder(inv)}
                                   style={{
                                     borderColor: inv.isOverdue ? 'rgba(239, 68, 68, 0.4)' : undefined,
-                                    color: inv.isOverdue ? 'var(--danger)' : undefined
+                                    color: inv.isOverdue ? 'var(--danger)' : undefined,
+                                    fontSize: '11px',
+                                    height: '26px',
+                                    padding: '0 8px'
                                   }}
                                   title="Draft & send automated reminder email with ICICI bank details"
                                 >
@@ -805,6 +1209,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                   className="btn btn-primary btn-sm"
                                   onClick={() => handleOpenRecordPayment(inv)}
                                   title="Record incoming payment receipt against this invoice"
+                                  style={{ fontSize: '11px', height: '26px', padding: '0 8px', gap: '4px' }}
                                 >
                                   <Plus size={12} />
                                   <span>Pay Receipt</span>
@@ -818,6 +1223,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                     setIsDetailModalOpen(true);
                                   }}
                                   title="View payment receipt details"
+                                  style={{ fontSize: '11px', height: '26px', padding: '0 8px', gap: '4px' }}
                                 >
                                   <Eye size={12} />
                                   <span>History</span>
@@ -1013,8 +1419,20 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                         <td style={{ padding: '12px 14px', fontWeight: 600 }}>
                           {rcp.customerName}
                         </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--primary)' }}>
-                          {rcp.invoiceNumber || rcp.invoiceId}
+                        <td 
+                          style={{ padding: '12px 14px', color: 'var(--primary)', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              window.__TARGET_TAX_INVOICE_ID__ = rcp.invoiceNumber || rcp.invoiceId;
+                            }
+                            if (onNavigate) onNavigate('invoices');
+                          }}
+                          title="Click to view Tax Invoice in billing"
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>{rcp.invoiceNumber || rcp.invoiceId}</span>
+                            <ArrowUpRight size={11} style={{ opacity: 0.8 }} />
+                          </div>
                         </td>
                         <td style={{ padding: '12px 14px' }}>
                           <span className="badge badge-info" style={{ fontSize: '11px' }}>
@@ -1122,9 +1540,60 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                     required
                   />
                   {selectedInvoice && selectedInvoice.balanceNum > 0 && (
-                    <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '4px', cursor: 'pointer' }}
-                         onClick={() => setFormAmount(String(selectedInvoice.balanceNum))}>
-                      Click to auto-fill full balance: ₹{selectedInvoice.balanceNum.toLocaleString('en-IN')}
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '11px', height: '24px', padding: '0 8px' }}
+                        onClick={() => setFormAmount(String(selectedInvoice.balanceNum))}
+                      >
+                        Full Balance (₹{selectedInvoice.balanceNum.toLocaleString('en-IN')})
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '11px', height: '24px', padding: '0 8px' }}
+                        onClick={() => setFormAmount(String(Math.round(selectedInvoice.balanceNum * 0.5)))}
+                      >
+                        50% (₹{Math.round(selectedInvoice.balanceNum * 0.5).toLocaleString('en-IN')})
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '11px', height: '24px', padding: '0 8px' }}
+                        onClick={() => setFormAmount('')}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Real-Time Live Calculation Callout */}
+                  {selectedInvoice && formAmount && Number(formAmount) > 0 && (
+                    <div style={{
+                      marginTop: '8px',
+                      background: 'rgba(2, 132, 199, 0.05)',
+                      border: '1px dashed rgba(2, 132, 199, 0.3)',
+                      borderRadius: '6px',
+                      padding: '8px 10px',
+                      fontSize: '11.5px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>
+                        New Paid: <strong>₹{(selectedInvoice.paidNum + Number(formAmount)).toLocaleString('en-IN')}</strong>
+                      </span>
+                      <span>
+                        Remaining: <strong style={{ color: Math.max(0, selectedInvoice.balanceNum - Number(formAmount)) === 0 ? 'var(--success)' : 'var(--warning)' }}>
+                          ₹{Math.max(0, selectedInvoice.balanceNum - Number(formAmount)).toLocaleString('en-IN')}
+                        </strong>
+                      </span>
+                      <span>
+                        Status: <strong style={{ color: Number(formAmount) >= selectedInvoice.balanceNum ? 'var(--success)' : '#0284c7' }}>
+                          {Number(formAmount) >= selectedInvoice.balanceNum ? 'Fully Paid' : 'Partially Paid'}
+                        </strong>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1141,6 +1610,98 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Client Due Date Management in Record Payment Modal */}
+              <div style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <Calendar size={13} color="var(--primary)" />
+                    <span>Client Payment Due Date Schedule</span>
+                  </label>
+                  {selectedInvoice && (
+                    <span style={{ fontSize: '11.5px', color: selectedInvoice.isOverdue ? 'var(--danger)' : 'var(--text-muted)' }}>
+                      Current Due: <strong>{selectedInvoice.dueDate || 'N/A'}</strong> {selectedInvoice.isOverdue ? `(Overdue ${selectedInvoice.overdueDays}d)` : ''}
+                    </span>
+                  )}
+                </div>
+
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={isUpdatingDueDateInPayment}
+                    onChange={(e) => setIsUpdatingDueDateInPayment(e.target.checked)}
+                    style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                  />
+                  <span style={{ fontWeight: 500 }}>
+                    Update / Reschedule Client Due Date for Remaining Balance
+                  </span>
+                </label>
+
+                {isUpdatingDueDateInPayment && (
+                  <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={formDueDate}
+                        onChange={(e) => setFormDueDate(e.target.value)}
+                        className="form-control"
+                        style={{ height: '34px', fontSize: '12.5px' }}
+                        required={isUpdatingDueDateInPayment}
+                      />
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '11px', height: '28px', padding: '0 8px' }}
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 7);
+                            setFormDueDate(d.toISOString().split('T')[0]);
+                          }}
+                        >
+                          +7 Days
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '11px', height: '28px', padding: '0 8px' }}
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 15);
+                            setFormDueDate(d.toISOString().split('T')[0]);
+                          }}
+                        >
+                          +15 Days
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '11px', height: '28px', padding: '0 8px' }}
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 30);
+                            setFormDueDate(d.toISOString().split('T')[0]);
+                          }}
+                        >
+                          +30 Days
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Info size={12} />
+                      <span>Updates the invoice commitment deadline and recalculates overdue aging status across the ERP.</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Payment Mode & Deposited Bank */}
@@ -1292,7 +1853,19 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  handleViewTaxInvoice(selectedInvoice);
+                }}
+                style={{ gap: '6px' }}
+              >
+                <FileText size={13} />
+                <span>Open Official Tax Invoice</span>
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1302,6 +1875,191 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* STANDALONE MANAGE CLIENT DUE DATE MODAL */}
+      {isDueDateModalOpen && dueDateInvoice && (
+        <Modal
+          isOpen={isDueDateModalOpen}
+          onClose={() => setIsDueDateModalOpen(false)}
+          title={`Manage Client Due Date: ${dueDateInvoice.invoiceNumber || dueDateInvoice.id}`}
+        >
+          <form onSubmit={handleConfirmDueDateUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '12px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '8px',
+              fontSize: '12px'
+            }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Client: </span>
+                <strong>{dueDateInvoice.customer || dueDateInvoice.customerFullName}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Current Due Date: </span>
+                <strong style={{ color: dueDateInvoice.isOverdue ? 'var(--danger)' : 'inherit' }}>
+                  {dueDateInvoice.dueDate || 'N/A'} {dueDateInvoice.isOverdue ? `(Overdue ${dueDateInvoice.overdueDays}d)` : ''}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Total Billed: </span>
+                <span>₹{dueDateInvoice.totalNum.toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Pending Balance: </span>
+                <span style={{ fontWeight: 700, color: 'var(--danger)' }}>
+                  ₹{dueDateInvoice.balanceNum.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
+                New Payment Due Date *
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={modalNewDueDate}
+                  onChange={(e) => setModalNewDueDate(e.target.value)}
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  required
+                />
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11.5px', height: '32px', padding: '0 9px' }}
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 7);
+                      setModalNewDueDate(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    +7 Days
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11.5px', height: '32px', padding: '0 9px' }}
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 15);
+                      setModalNewDueDate(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    +15 Days
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11.5px', height: '32px', padding: '0 9px' }}
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 30);
+                      setModalNewDueDate(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    +30 Days
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11.5px', height: '32px', padding: '0 9px' }}
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 45);
+                      setModalNewDueDate(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    +45 Days
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Projected Status Preview */}
+            {modalNewDueDate && (
+              <div style={{
+                background: 'rgba(2, 132, 199, 0.05)',
+                border: '1px dashed rgba(2, 132, 199, 0.3)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Clock size={14} color="#0284c7" />
+                <span>
+                  {(() => {
+                    const parsed = parseInvDate(modalNewDueDate);
+                    if (!parsed) return 'Please select a valid date';
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = Math.round((parsed.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays < 0) {
+                      return `Selected date is ${Math.abs(diffDays)} days in the past (Overdue).`;
+                    } else if (diffDays === 0) {
+                      return 'Status will be: Due Today.';
+                    } else if (diffDays <= 7) {
+                      return `Status will be: Due Soon (in ${diffDays} days).`;
+                    } else {
+                      return `Status will be: Current / Not Due (in ${diffDays} days).`;
+                    }
+                  })()}
+                </span>
+              </div>
+            )}
+
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>
+                Reschedule Reason & Commercial Notes (Optional)
+              </label>
+              <textarea
+                value={dueDateReasonNotes}
+                onChange={(e) => setDueDateReasonNotes(e.target.value)}
+                placeholder="e.g. Client requested extension pending spindle testing inspection"
+                rows="2"
+                className="form-control"
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsDueDateModalOpen(false)}
+                disabled={isSavingDueDate}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isSavingDueDate}
+                style={{ gap: '6px' }}
+              >
+                {isSavingDueDate ? (
+                  <>
+                    <RefreshCw size={13} className="spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={13} />
+                    <span>Update Due Date</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

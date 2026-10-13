@@ -20,7 +20,8 @@ import {
   User, Phone, MapPin, Mail, Clock, ShoppingCart,
   CheckCircle2, AlertCircle, Calendar, DollarSign,
   ChevronRight, ArrowRight, ShieldCheck, Link2, RefreshCw,
-  Maximize2, Minimize2, CheckCircle, XCircle, FileCheck, Loader2, Sparkles, ZoomIn, ZoomOut, ChevronDown
+  Maximize2, Minimize2, CheckCircle, XCircle, FileCheck, Loader2, Sparkles, ZoomIn, ZoomOut, ChevronDown,
+  Info, AlertTriangle
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 
@@ -891,7 +892,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                           <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                             <span>{pi.piNumber ? `PI No. ${pi.piNumber}` : pi.id}</span>
                             {getLinkedTaxInvoice(pi) && (
-                              <span 
+                              <span
                                 title={`Tax Invoice issued: ${getLinkedTaxInvoice(pi).invoiceNumber || getLinkedTaxInvoice(pi).id || ''}`}
                                 style={{
                                   fontSize: '9.5px',
@@ -1302,8 +1303,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                             }
                           }}
                           disabled={isConvertingToTaxInvoice}
-                          title={linkedTaxInvoice 
-                            ? `Tax Invoice ${linkedTaxInvoice.invoiceNumber || linkedTaxInvoice.id || ''} has already been issued. Click to view Tax Invoices.` 
+                          title={linkedTaxInvoice
+                            ? `Tax Invoice ${linkedTaxInvoice.invoiceNumber || linkedTaxInvoice.id || ''} has already been issued. Click to view Tax Invoices.`
                             : "Issue official Tax Invoice from this approved Proforma Invoice"}
                           style={{
                             height: '28px',
@@ -1527,7 +1528,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                               <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
                                 SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
                                 DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                                ☎+919764252188 /9764032929<br />
+                                <Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929<br />
                                 Email: process@gpsspindles.net<br />
                                 GSTIN: 27AATFG1527D1ZF<br />
                                 State: 27-Maharashtra
@@ -1892,7 +1893,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         onClose={() => setIsCreateModalOpen(false)}
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px' }}>
-            <span>{editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "+ Create Proforma Invoice"}</span>
+            <span>{editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "Create Proforma Invoice"}</span>
             {!editingPIId && (
               <button
                 onClick={handleResetForm}
@@ -1976,8 +1977,9 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                 placeholder="Search approved quotation by customer name or ID..."
               />
               {approvedQuotations.length === 0 ? (
-                <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px' }}>
-                  💡 No approved quotations found in system right now. You can create a Proforma Invoice standalone directly below!
+                <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Info size={12} />
+                  <span>No approved quotations found in system right now. You can create a Proforma Invoice standalone directly below!</span>
                 </div>
               ) : (
                 <div style={{ fontSize: '11px', color: '#15803d', marginTop: '4px' }}>
@@ -2339,8 +2341,9 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: '1.45', margin: 0 }}>
               Are you sure you want to delete Proforma Invoice <strong className="mono" style={{ color: '#000000' }}>{piToDelete?.piNumber || piToDelete?.id}</strong> for <strong>{piToDelete?.customer}</strong>?
             </p>
-            <p style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '8px', marginBottom: 0, fontWeight: 500 }}>
-              ⚠️ This will remove the proforma record and all associated line items.
+            <p style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '8px', marginBottom: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <AlertTriangle size={12} />
+              <span>This will remove the proforma record and all associated line items.</span>
             </p>
           </div>
         </div>

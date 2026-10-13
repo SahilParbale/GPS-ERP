@@ -6,7 +6,6 @@ import {
   PRODUCTION_PIPELINE_STAGES,
   SERVICE_PIPELINE_STAGES,
   WORK_ORDERS,
-  SHOP_BAYS,
   INVENTORY_ITEMS,
   UPCOMING_DELIVERIES,
   RECENT_ACTIVITY,
@@ -69,7 +68,7 @@ export const dashboardService = {
       return {
         data: [
           { id: 'active_jobs', label: 'Active Jobs', value: '0', trend: '0 in machining', isUp: true, icon: 'Cpu' },
-          { id: 'in_prod', label: 'In Production', value: '0', trend: 'Floor bays idle', isUp: true, icon: 'Cog' },
+          { id: 'in_prod', label: 'In Production', value: '0', trend: 'Shop floor idle', isUp: true, icon: 'Cog' },
           { id: 'pending_qc', label: 'Pending QC', value: '0', trend: 'All certified', isUp: true, alert: false, icon: 'CheckCircle2' },
           { id: 'ready_dispatch', label: 'Ready Dispatch', value: '0', trend: 'No pending dispatches', isUp: true, icon: 'Truck' },
           { id: 'active_service', label: 'Active Service', value: '0', trend: '0 spindle rebuilds', isUp: true, icon: 'Wrench' },
@@ -166,7 +165,7 @@ export const dashboardService = {
               id: 'in_prod',
               label: 'In Production',
               value: String(inProdCount),
-              trend: 'Floor bays active',
+              trend: 'Shop floor active',
               isUp: true,
               icon: 'Cog'
             },
@@ -233,7 +232,7 @@ export const dashboardService = {
     return {
       data: DASHBOARD_METRICS && DASHBOARD_METRICS.length > 0 ? DASHBOARD_METRICS : [
         { id: 'active_jobs', label: 'Active Jobs', value: '24', trend: '+3 this week', isUp: true, icon: 'Cpu' },
-        { id: 'in_prod', label: 'In Production', value: '18', trend: 'Bays at 88% cap', isUp: true, icon: 'Cog' },
+        { id: 'in_prod', label: 'In Production', value: '18', trend: 'Workstations active', isUp: true, icon: 'Cog' },
         { id: 'pending_qc', label: 'Pending QC', value: '4', trend: '2 urgent sign-offs', isUp: false, alert: true, icon: 'CheckCircle2' },
         { id: 'ready_dispatch', label: 'Ready Dispatch', value: '6', trend: 'Dispatch today', isUp: true, icon: 'Truck' },
         { id: 'active_service', label: 'Active Service', value: '7', trend: 'Avg TAT 4.2d', isUp: true, icon: 'Wrench' },
@@ -396,7 +395,7 @@ export const dashboardService = {
           spindleSerial: wo.spindle?.serial_number || 'N/A',
           spindleModel: wo.spindle?.model?.model_name || wo.spindle?.model?.model_code || 'Precision Spindle',
           customer: wo.customer_name || 'Commercial Client',
-          shopBay: wo.assigned_bay?.name || wo.current_stage || 'Bay 1 - Machining',
+          shopBay: wo.assigned_bay?.name?.replace(/Bay/gi, 'Station') || wo.current_stage || 'Stage 1 - Machining',
           dueDate: wo.target_delivery_date || wo.planned_start_date || 'In Rotation',
           progress: Number(wo.progress_percentage) || 0,
           status: wo.status || 'In Progress',
@@ -417,7 +416,7 @@ export const dashboardService = {
       spindleSerial: wo.spindleSerial || wo.serial || 'GPS-2026-0842',
       spindleModel: wo.spindleModel || 'GPS-HSK-A63-24K',
       customer: wo.customer || 'Tata Advanced Systems Ltd',
-      shopBay: wo.shopBay || 'Bay 4 - Cleanroom Assembly',
+      shopBay: (wo.shopBay || 'Cleanroom Assembly').replace(/Bay/gi, 'Station'),
       dueDate: wo.dueDate || '2026-03-20',
       progress: wo.progress || 65,
       status: wo.status || 'In Progress',
@@ -555,53 +554,11 @@ export const dashboardService = {
   },
 
   /**
-   * Fetch live shop floor bay utilization
-   * @param {number} [limit=6]
+   * Fetch live shop floor bay utilization (Deprecated - safely returns empty)
+   * @param {number} [_limit=6]
    */
-  async getShopBayUtilization(limit = 6) {
-    if (isCleanSlateMode()) {
-      const bays = [
-        { id: 1, name: 'Bay 1 - CNC Turning & Boring', machine: 'Okuma LB3000 Lathe', operator: 'Rahul Patil', utilization: '0%', status: 'Idle', load: '0%', currentJob: null },
-        { id: 2, name: 'Bay 2 - Precision Grinding', machine: 'Studer S33 Cylindrical Grinder', operator: 'Suresh Sawant', utilization: '0%', status: 'Idle', load: '0%', currentJob: null },
-        { id: 3, name: 'Bay 3 - Induction Hardening', machine: 'Custom Induction Rig', operator: 'Anil Joshi', utilization: '0%', status: 'Idle', load: '0%', currentJob: null },
-        { id: 4, name: 'Bay 4 - Cleanroom Assembly', machine: 'Class 1000 Laminar Flow', operator: 'Ganesh Kadam', utilization: '0%', status: 'Idle', load: '0%', currentJob: null },
-        { id: 5, name: 'Bay 5 - Dynamic Balancing', machine: 'Schenck SmartBalancing Rig', operator: 'Sachin Jadhav', utilization: '0%', status: 'Idle', load: '0%', currentJob: null },
-        { id: 6, name: 'Bay 6 - Dynamic Run-in Cell', machine: 'Computerized Test Bench', operator: 'Vikram Shinde', utilization: '0%', status: 'Idle', load: '0%', currentJob: null }
-      ];
-      return { data: bays, error: null };
-    }
-
-    try {
-      const [baysRes, woRes] = await Promise.all([
-        supabase.from('production_bays').select('id, code, name, bay_type, status').limit(limit),
-        supabase.from('work_orders').select('assigned_bay_id, status').eq('status', 'In Progress')
-      ]);
-
-      const bays = baysRes?.data || [];
-      const activeWos = woRes?.data || [];
-
-      if (bays.length > 0) {
-        const formatted = bays.map((bay, idx) => {
-          const count = activeWos.filter(w => w.assigned_bay_id === bay.id).length;
-          const utilPercent = count > 0 ? Math.min(65 + count * 15, 96) : (75 + (idx * 4) % 20);
-
-          return {
-            id: bay.id,
-            name: bay.name || `Bay ${idx + 1}`,
-            operator: `${bay.bay_type || 'Machining'} Specialist`,
-            utilization: `${utilPercent}%`,
-            load: `${utilPercent}%`,
-            status: bay.status || 'Active'
-          };
-        });
-
-        return { data: formatted, error: null };
-      }
-    } catch (err) {
-      console.info('[GPS-ERP Dashboard] getShopBayUtilization live notice:', err.message);
-    }
-
-    return { data: (SHOP_BAYS || []).slice(0, limit), error: null };
+  async getShopBayUtilization(_limit = 6) {
+    return { data: [], error: null };
   },
 
   /**

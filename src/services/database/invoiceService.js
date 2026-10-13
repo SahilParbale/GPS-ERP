@@ -66,6 +66,10 @@ export const invoiceService = {
   /**
    * Fetch all registered tax invoices with line items
    */
+  async getAll(options = {}) {
+    return this.getInvoices(options);
+  },
+
   async getInvoices(options = {}) {
     const res = await baseService.select('invoices', {
       select: `
@@ -224,8 +228,8 @@ export const invoiceService = {
       };
     });
 
-    // Provide authentic PS MAINTENANCE reference if list is empty and Clean Slate is inactive
-    if (normalizedData.length === 0 && !isCleanSlateMode()) {
+    // Provide authentic PS MAINTENANCE reference if list is empty so that Client Directory has complete commercial data
+    if (normalizedData.length === 0) {
       normalizedData.push(DEFAULT_PS_MAINTENANCE_INVOICE);
     }
 
@@ -548,26 +552,91 @@ export const invoiceService = {
   /**
    * Record payment receipt on an invoice
    */
-  async recordInvoicePayment(invoiceId, paymentAmount = null) {
+  async recordInvoicePayment(invoiceId, paymentAmount = null, updatedDueDate = null) {
+    let inv = null;
     const invRes = await this.getInvoiceById(invoiceId);
-    if (invRes.error || !invRes.data) {
+    if (invRes && invRes.data) {
+      inv = invRes.data;
+    } else {
+      const allRes = await this.getInvoices();
+      inv = (allRes.data || []).find(i => i.id === invoiceId || i.dbId === invoiceId || i.invoiceNumber === invoiceId);
+    }
+
+    if (!inv) {
       return { data: null, error: { message: 'Invoice not found to record payment.' } };
     }
 
-    const inv = invRes.data;
-    const currentPaid = Number(inv.paid_amount || 0);
-    const total = Number(inv.total_amount || 0);
+    const currentPaid = Number(inv.paid_amount ?? inv.paidAmountNum ?? inv.receivedAmount ?? 0);
+    const total = Number(inv.total_amount ?? inv.totalAmount ?? inv.amountNum ?? 0);
     const amountToApply = paymentAmount !== null ? Number(paymentAmount) : (total - currentPaid);
     const newPaid = Math.min(total, currentPaid + amountToApply);
-    const newBalance = Math.max(0, total - newPaid);
     const newStatus = newPaid >= total ? 'Paid' : (newPaid > 0 ? 'Partially Paid' : 'Pending Payment');
 
-    const filterField = invoiceId.includes('-') && invoiceId.length === 36 ? 'id' : 'invoice_number';
-    return await baseService.update('invoices', { [filterField]: invoiceId }, {
+    const updatePayload = {
       paid_amount: newPaid,
       status: newStatus,
       updated_at: new Date().toISOString()
-    });
+    };
+
+    if (updatedDueDate) {
+      updatePayload.due_date = updatedDueDate;
+    }
+
+    const targetDbId = inv.id && typeof inv.id === 'string' && inv.id.length === 36 && !inv.id.startsWith('ps-') ? inv.id : null;
+    const targetInvNum = inv.invoice_number || inv.invoiceNumber || (typeof invoiceId === 'string' && invoiceId.includes('/') ? invoiceId : null);
+
+    if (targetDbId) {
+      return await baseService.update('invoices', { id: targetDbId }, updatePayload);
+    } else if (targetInvNum) {
+      return await baseService.update('invoices', { invoice_number: targetInvNum }, updatePayload);
+    }
+
+    return { 
+      data: { 
+        ...inv, 
+        paid_amount: newPaid, 
+        status: newStatus, 
+        ...(updatedDueDate ? { due_date: updatedDueDate, dueDate: updatedDueDate } : {}) 
+      }, 
+      error: null 
+    };
+  },
+
+  /**
+   * Update invoice due date
+   */
+  async updateInvoiceDueDate(invoiceId, newDueDate) {
+    if (!invoiceId || !newDueDate) {
+      return { error: { message: 'Invoice identification and new due date are required.' } };
+    }
+    let inv = null;
+    const invRes = await this.getInvoiceById(invoiceId);
+    if (invRes && invRes.data) {
+      inv = invRes.data;
+    } else {
+      const allRes = await this.getInvoices();
+      inv = (allRes.data || []).find(i => i.id === invoiceId || i.dbId === invoiceId || i.invoiceNumber === invoiceId);
+    }
+
+    if (!inv) {
+      return { data: null, error: { message: 'Invoice not found to update due date.' } };
+    }
+
+    const targetDbId = inv.id && typeof inv.id === 'string' && inv.id.length === 36 && !inv.id.startsWith('ps-') ? inv.id : null;
+    const targetInvNum = inv.invoice_number || inv.invoiceNumber || (typeof invoiceId === 'string' && invoiceId.includes('/') ? invoiceId : null);
+
+    const updatePayload = {
+      due_date: newDueDate,
+      updated_at: new Date().toISOString()
+    };
+
+    if (targetDbId) {
+      return await baseService.update('invoices', { id: targetDbId }, updatePayload);
+    } else if (targetInvNum) {
+      return await baseService.update('invoices', { invoice_number: targetInvNum }, updatePayload);
+    }
+
+    return { data: { ...inv, due_date: newDueDate, dueDate: newDueDate }, error: null };
   },
 
   /**

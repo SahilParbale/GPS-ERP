@@ -124,9 +124,9 @@ export default function UserProfileModal({ isOpen, onClose }) {
           <div style={{ padding: '10px 12px', border: '1px solid #E8D5DA', borderRadius: '8px', backgroundColor: '#FFFFFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7A5260', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
               <Clock size={13} color="#7A1F3D" />
-              <span>Current Shift</span>
+              <span>Plant Working Hours</span>
             </div>
-            <div style={{ fontWeight: '500', color: '#2A0E17' }}>{emp.shift || 'Shift A (07:00 - 15:30)'}</div>
+            <div style={{ fontWeight: '500', color: '#2A0E17' }}>08:30 - 17:30 (Fixed Standard Time)</div>
           </div>
         </div>
 

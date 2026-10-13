@@ -86,7 +86,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [totalWoCount, setTotalWoCount] = useState(0);
   const [criticalMaterials, setCriticalMaterials] = useState([]);
   const [upcomingDeliveries, setUpcomingDeliveries] = useState([]);
-  const [shopBays, setShopBays] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [operationalSummary, setOperationalSummary] = useState(null);
 
@@ -102,7 +101,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Quick Modal States
-  const [selectedBayTelemetry, setSelectedBayTelemetry] = useState(null);
   const [isNewWoModalOpen, setIsNewWoModalOpen] = useState(false);
   const [isCreatingWo, setIsCreatingWo] = useState(false);
   const [newWoForm, setNewWoForm] = useState({
@@ -320,7 +318,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         woRes,
         materialsRes,
         deliveriesRes,
-        baysRes,
         activityRes,
         summaryRes
       ] = await Promise.all([
@@ -330,7 +327,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         dashboardService.getRecentWorkOrders(6),
         dashboardService.getCriticalMaterials(10),
         dashboardService.getUpcomingDeliveries(4),
-        dashboardService.getShopBayUtilization(6),
         dashboardService.getRecentActivityFeed(6),
         dashboardService.getPlantOperationalSummary()
       ]);
@@ -366,7 +362,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       setTotalWoCount(woRes.totalCount || (woRes.data ? woRes.data.length : 0));
       setCriticalMaterials(displayMaterials);
       setUpcomingDeliveries(deliveriesRes.data || []);
-      setShopBays(baysRes.data || []);
       setRecentActivity(activityRes.data || []);
       setOperationalSummary(summaryRes || null);
 
@@ -412,9 +407,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       if (!matchesSearch) return false;
 
       if (woFilter === 'all') return true;
-      if (woFilter === 'machining') return (wo.currentStage || '').toLowerCase().includes('machin') || (wo.shopBay || '').toLowerCase().includes('turn');
+      if (woFilter === 'machining') return (wo.currentStage || '').toLowerCase().includes('machin');
       if (woFilter === 'grinding') return (wo.currentStage || '').toLowerCase().includes('grind');
-      if (woFilter === 'assembly') return (wo.currentStage || '').toLowerCase().includes('assembl') || (wo.shopBay || '').toLowerCase().includes('clean');
+      if (woFilter === 'assembly') return (wo.currentStage || '').toLowerCase().includes('assembl');
       if (woFilter === 'balancing') return (wo.currentStage || '').toLowerCase().includes('balanc');
       if (woFilter === 'qc') return (wo.status || '').toLowerCase() === 'qc' || (wo.currentStage || '').toLowerCase().includes('qc');
       return true;
@@ -478,20 +473,20 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           onClick={() => {
             setPreviewDoc({
               type: 'Report',
-              reportTitle: 'SHOP FLOOR PRODUCTION & SHIFT OPERATIONS REPORT',
-              id: `SHIFT-REP-${new Date().toISOString().split('T')[0]}`,
+              reportTitle: 'SHOP FLOOR PRODUCTION & DAILY OPERATIONS REPORT',
+              id: `DAILY-REP-${new Date().toISOString().split('T')[0]}`,
               metrics: [
                 { label: 'Active Spindle Orders', value: totalWoCount || workOrders.length },
                 { label: 'Critical Deliveries', value: upcomingDeliveries.length },
-                { label: 'Active Shop Cells', value: `${shopBays.filter(b => b.status === 'Active' || b.status === 'Operating').length} Bays` }
+                { label: 'Manufacturing Pipeline', value: '8 Stages' }
               ],
-              headers: ['#', 'WO Number', 'Spindle Model & Serial', 'Customer', 'Current Cell', 'Target Date', 'Status'],
+              headers: ['#', 'WO Number', 'Spindle Model & Serial', 'Customer', 'Current Stage', 'Target Date', 'Status'],
               rows: workOrders.map((wo, idx) => [
                 idx + 1,
                 wo.id || wo.workOrderNumber,
                 `${wo.spindleModel} (${wo.spindleSerial || wo.serial || '—'})`,
                 wo.customer,
-                wo.currentStage || wo.shopBay || 'Machining',
+                wo.currentStage || wo.currentOperation || 'Machining',
                 wo.dueDate || '—',
                 wo.status || 'In Progress'
               ])
@@ -500,7 +495,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           }}
         >
           <Download size={14} />
-          <span>Shift Report (PDF)</span>
+          <span>Daily Operations Report (PDF)</span>
         </button>
 
         <button
@@ -515,7 +510,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       </PageHeader>
 
       <div className="content-body">
-        {/* Plant Environment & Shift Operations Bar */}
+        {/* Plant Environment & Shop Floor Operations Bar */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -533,7 +528,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)' }} />
               <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>Plant 1 Active</strong>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>• Shift A (06:00 - 14:30)</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>• Standard Hours (08:30 - 17:30)</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -568,7 +563,11 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
               }}
               title="Click to toggle between clean slate and demo dataset"
             >
-              {isClean ? '🌿 Clean Slate View' : '📦 Demo Mode Loaded'}
+              {isClean ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Sparkles size={12} /> Clean Slate View</span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Package size={12} /> Demo Mode Loaded</span>
+              )}
             </button>
           </div>
         </div>
@@ -695,7 +694,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                 {isClean ? '0' : (workOrders.length || '18')}
               </span>
               <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
-                {isClean ? '0 active work orders' : 'Floor bays operating'}
+                {isClean ? '0 active work orders' : 'Shop floor operating'}
               </span>
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -840,10 +839,13 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                     cursor: 'pointer',
                     background: activePipelineType === 'manufacturing' ? '#ffffff' : 'transparent',
                     color: activePipelineType === 'manufacturing' ? '#7A1F3D' : 'var(--text-muted)',
-                    boxShadow: activePipelineType === 'manufacturing' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                    boxShadow: activePipelineType === 'manufacturing' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px'
                   }}
                 >
-                  ⚙️ OEM Manufacturing (8 Stages)
+                  <Cog size={12} /> OEM Manufacturing (8 Stages)
                 </button>
                 <button
                   type="button"
@@ -857,10 +859,13 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                     cursor: 'pointer',
                     background: activePipelineType === 'service' ? '#ffffff' : 'transparent',
                     color: activePipelineType === 'service' ? '#7A1F3D' : 'var(--text-muted)',
-                    boxShadow: activePipelineType === 'service' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                    boxShadow: activePipelineType === 'service' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px'
                   }}
                 >
-                  🔧 RMA Service Overhaul (9 Stages)
+                  <Wrench size={12} /> RMA Service Overhaul (9 Stages)
                 </button>
               </div>
             </div>
@@ -883,98 +888,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           </div>
         </div>
 
-        {/* Interactive Shop Floor Bays (6 Precision Workcells) */}
-        <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">
-              <Factory size={16} color="#7A1F3D" />
-              <span>Shop Floor Workcells & Machine Bay Telemetry (6 Active Precision Cells)</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => onNavigate && onNavigate('production')}
-            >
-              <span>Manage Bays</span>
-              <ArrowUpRight size={13} />
-            </button>
-          </div>
-          <div style={{ padding: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              {shopBays.map((bay) => (
-                <div 
-                  key={bay.id}
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
-                        {bay.name ? bay.name.split(' - ')[0] : `Bay ${bay.id}`}
-                      </span>
-                      <span 
-                        className="nav-badge"
-                        style={{
-                          background: bay.status === 'Active' || bay.status === 'Operating' ? '#ecfdf5' : '#fef3c7',
-                          color: bay.status === 'Active' || bay.status === 'Operating' ? '#047857' : '#92400e',
-                          fontWeight: 600,
-                          fontSize: '10px'
-                        }}
-                      >
-                        {bay.status}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {bay.machine || 'Precision Rig'} • {bay.operator || 'Master Machinist'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Cell Load / Capacity</span>
-                      <strong className="mono" style={{ color: 'var(--primary)' }}>{bay.utilization || bay.load || '0%'}</strong>
-                    </div>
-                    <ProgressBar progress={parseInt(bay.utilization || bay.load, 10) || 0} showLabel={false} height={6} />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px dashed var(--border-color)', fontSize: '11px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      Active: <strong className="mono" style={{ color: 'var(--text-main)' }}>{bay.spindleSerial || bay.workOrder || 'Standby'}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBayTelemetry(bay)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--primary)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: '2px 4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px'
-                      }}
-                      title="Inspect live temperature, vibration, and runout sensors"
-                    >
-                      <Activity size={12} />
-                      <span>Telemetry</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* Main Two-Column Layout */}
         <div className="grid-2col">
@@ -1064,7 +977,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                       <th>WO Number</th>
                       <th>Spindle Model & Serial</th>
                       <th>Customer</th>
-                      <th>Bay / Operation</th>
+                      <th>Current Stage / Operation</th>
                       <th>Due Date</th>
                       <th>Progress</th>
                       <th>Status</th>
@@ -1111,7 +1024,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                             {wo.customer}
                           </td>
                           <td style={{ fontSize: '12px' }}>
-                            {wo.shopBay || wo.currentStage || 'Bay 1 - Machining'}
+                            {wo.currentOperation || wo.currentStage || 'Machining'}
                           </td>
                           <td className="mono" style={{ fontSize: '12px' }}>
                             {wo.dueDate}
@@ -1559,9 +1472,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
                 onChange={(e) => setNewWoForm({ ...newWoForm, initialStage: e.target.value })}
                 options={[
                   { value: 'material', label: '01. Material Sawing & Inspection' },
-                  { value: 'machining', label: '02. CNC Lathe Turning & Boring (Bay 1)' },
-                  { value: 'grinding', label: '03. Studer Precision Cylindrical Grinding (Bay 2)' },
-                  { value: 'assembly', label: '04. Class 1000 Cleanroom Bearing Assembly (Bay 4)' }
+                  { value: 'machining', label: '02. CNC Lathe Turning & Boring' },
+                  { value: 'grinding', label: '03. Studer Precision Cylindrical Grinding' },
+                  { value: 'assembly', label: '04. Class 1000 Cleanroom Bearing Assembly' }
                 ]}
               />
             </div>
@@ -1579,96 +1492,6 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         </Modal>
       )}
 
-      {/* Bay Sensor Telemetry Modal */}
-      {selectedBayTelemetry && (
-        <Modal
-          isOpen={true}
-          onClose={() => setSelectedBayTelemetry(null)}
-          title={`Shop Cell Sensor Telemetry: ${selectedBayTelemetry.name || selectedBayTelemetry.bayName || 'Bay Inspection'}`}
-          maxWidth="640px"
-          footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Live IoT Telemetry • Sensor update every 1,000ms
-              </div>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => setSelectedBayTelemetry(null)}
-              >
-                Close Telemetry
-              </button>
-            </div>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Header info */}
-            <div style={{ padding: '12px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong style={{ fontSize: '14px' }}>{selectedBayTelemetry.machine || 'Okuma LB3000 Lathe'}</strong>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Operator: <strong>{selectedBayTelemetry.operator || 'Master Machinist'}</strong> • Status: <span style={{ color: '#059669', fontWeight: 600 }}>{selectedBayTelemetry.status}</span>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span className="mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>
-                  {selectedBayTelemetry.utilization || selectedBayTelemetry.load || '88%'}
-                </span>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Workcell Load</div>
-              </div>
-            </div>
-
-            {/* Live Sensor Metrics Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Gauge size={18} color="#7A1F3D" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Spindle Speed</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>24,000 RPM</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>Synchronized</span>
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Thermometer size={18} color="#dc2626" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Front Bearing</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>31.4 °C</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>Delta &lt;15°C</span>
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Thermometer size={18} color="#ea580c" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rear Bearing</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>29.8 °C</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>Optimal</span>
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Activity size={18} color="#059669" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vibration RMS</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>0.28 mm/s</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>ISO G0.4</span>
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Sliders size={18} color="#2563eb" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Air-Oil Mist</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>4.8 Bar</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>Regulated</span>
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                <Radio size={18} color="#9333ea" style={{ margin: '0 auto 4px' }} />
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Motor Current</div>
-                <div className="mono" style={{ fontSize: '16px', fontWeight: 700 }}>8.4 A</div>
-                <span style={{ fontSize: '10px', color: '#059669' }}>Nominal</span>
-              </div>
-            </div>
-
-            <div style={{ padding: '10px 14px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0', fontSize: '12px', color: '#166534' }}>
-              ✓ Cell is calibrated and operating within micron tolerances. No thermal runout spikes detected during current shift rotation.
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

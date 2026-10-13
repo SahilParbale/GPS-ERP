@@ -95,26 +95,50 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
     return () => window.removeEventListener('gps_entities_updated', handleSync);
   }, []);
 
-  // Helper to match all POs for a given vendor
+  // Helper to match all POs for a given vendor with robust fuzzy & exact matching
   const getVendorPOs = (vendor) => {
     if (!vendor || !purchaseOrders) return [];
+    const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
     const vName = (vendor.name || '').toLowerCase().trim();
+    const vNorm = norm(vendor.name);
     const vEmail = (vendor.email || '').toLowerCase().trim();
-    const vGstin = (vendor.gstin || '').toLowerCase().trim();
-    const vCode = (vendor.supplier_code || vendor.id || '').toLowerCase().trim();
+    const vGstin = norm(vendor.gstin);
+    const vCode = norm(vendor.supplier_code || vendor.id);
 
-    return purchaseOrders.filter(po => {
+    const matched = purchaseOrders.filter(po => {
       const pSupp = (po.supplier || po.supplierName || '').toLowerCase().trim();
+      const pNorm = norm(po.supplier || po.supplierName);
       const pEmail = (po.supplierEmail || '').toLowerCase().trim();
-      const pGstin = (po.supplierGstin || '').toLowerCase().trim();
-      const pSuppId = (po.supplierId || '').toLowerCase().trim();
+      const pGstin = norm(po.supplierGstin);
+      const pSuppId = norm(po.supplierId || po.supplierCode);
 
-      return (
-        (pSupp && (pSupp.includes(vName) || vName.includes(pSupp))) ||
-        (vEmail && pEmail && vEmail === pEmail) ||
-        (vGstin && pGstin && vGstin === pGstin) ||
-        (vCode && pSuppId && vCode === pSuppId)
-      );
+      // 1. Alphanumeric Name matching
+      const nameMatch = Boolean(vNorm && pNorm && (
+        vNorm === pNorm ||
+        vNorm.includes(pNorm) ||
+        pNorm.includes(vNorm) ||
+        (vName && pSupp && (vName.includes(pSupp) || pSupp.includes(vName)))
+      ));
+
+      // 2. GSTIN matching
+      const gstinMatch = Boolean(vGstin && pGstin && vGstin === pGstin);
+
+      // 3. Email matching
+      const emailMatch = Boolean(vEmail && pEmail && vEmail === pEmail);
+
+      // 4. Supplier Code or ID matching
+      const codeMatch = Boolean(vCode && pSuppId && (vCode === pSuppId || vCode.includes(pSuppId) || pSuppId.includes(vCode)));
+
+      return nameMatch || gstinMatch || emailMatch || codeMatch;
+    });
+
+    // Sort descending so the newest PO is always index 0
+    return matched.sort((a, b) => {
+      const dateA = new Date(a.date || a.poDate || 0).getTime();
+      const dateB = new Date(b.date || b.poDate || 0).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      return (b.poNumber || b.id || '').localeCompare(a.poNumber || a.id || '');
     });
   };
 

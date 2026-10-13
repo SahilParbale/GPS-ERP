@@ -27,8 +27,7 @@ export const NAV_SECTIONS = [
       { id: 'invoices', label: 'Invoices & Tax', icon: FileText },
       { id: 'payments', label: 'Client Payments', icon: CreditCard },
       { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
-      { id: 'customers', label: 'Customers', icon: Building2 },
-      { id: 'contacts', label: 'Contacts & Directory', icon: Mail },
+      { id: 'customers', label: 'Client Directory', icon: Building2 },
       { id: 'email-activity', label: 'Email Activity', icon: Mail },
     ]
   },
@@ -41,14 +40,15 @@ export const NAV_SECTIONS = [
       { id: 'spindles', label: 'Spindle Fleet & Registry', icon: Disc },
       { id: 'quality', label: 'Quality Control', icon: ShieldCheck },
       { id: 'service', label: 'Service & Repair', icon: Wrench },
+      { id: 'dispatch', label: 'Dispatch & Logistics', icon: Truck },
     ]
   },
   {
     id: 'supply-chain',
     category: 'Supply Chain & Stores',
     items: [
-      { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
       { id: 'inventory', label: 'Inventory & Stock', icon: Boxes },
+      { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
       { id: 'suppliers', label: 'Suppliers', icon: Truck },
     ]
   },

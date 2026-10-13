@@ -4,6 +4,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { salesService } from '../services/database/salesService';
+import { customerService } from '../services/database/customerService';
 import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportQuotationPdf, exportElementAsPdf, numberToIndianWords } from '../utils/pdfGenerator';
@@ -58,7 +59,9 @@ const CLEAN_TEMPLATE = {
   placeOfSupply: '',
   customer: '',
   customerAddress: '',
+  contactPerson: '',
   contactNo: '',
+  customerEmail: '',
   gstin: '',
   state: '',
   spindleSerial: '',
@@ -86,7 +89,9 @@ const DEFAULT_LINAMAR_TEMPLATE = {
   placeOfSupply: '23-Madhya Pradesh',
   customer: 'LINAMAR INDIA PRIVATE LIMITED',
   customerAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas, Dewas, Madhya Pradesh-455001, India',
+  contactPerson: 'Materials & Plant Maintenance',
   contactNo: '7773877714',
+  customerEmail: 'purchase@linamar.com',
   gstin: '23AACCL5351J1ZM',
   state: '23-Madhya Pradesh',
   spindleSerial: 'HMMXXVI',
@@ -126,6 +131,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   const [quoteToDelete, setQuoteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConvertingToPI, setIsConvertingToPI] = useState(false);
+  const [clientsList, setClientsList] = useState([]);
 
   const [updatingQuoteId, setUpdatingQuoteId] = useState(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -133,6 +139,45 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
   const previewContainerRef = useRef(null);
   const [zoomScale, setZoomScale] = useState(1);
+
+  // Load active clients from Client Directory
+  useEffect(() => {
+    customerService.getAll().then(res => {
+      const list = res?.data || res || [];
+      if (Array.isArray(list)) setClientsList(list);
+    }).catch(() => {});
+  }, []);
+
+  // Listen for pre-fill requests from Client Directory navigation
+  useEffect(() => {
+    try {
+      const prefillRaw = localStorage.getItem('gps_sales_prefill_customer');
+      if (prefillRaw) {
+        const prefill = JSON.parse(prefillRaw);
+        localStorage.removeItem('gps_sales_prefill_customer');
+        setEditingQuoteId(null);
+        setFormState(prev => ({
+          ...prev,
+          customer: prefill.customer || '',
+          customerAddress: prefill.customerAddress || '',
+          contactPerson: prefill.contactPerson || '',
+          contactNo: prefill.contactNo || '',
+          customerEmail: prefill.customerEmail || '',
+          gstin: prefill.gstin || '',
+          state: prefill.state || '',
+          placeOfSupply: prefill.placeOfSupply || prefill.state || '27-Maharashtra',
+          date: new Date().toISOString().split('T')[0]
+        }));
+        setIsNewQuoteOpen(true);
+        if (onNotify) onNotify(`Auto-populated client details from Client Directory for ${prefill.customer}`);
+      }
+      const filterRaw = localStorage.getItem('gps_sales_filter_customer');
+      if (filterRaw) {
+        localStorage.removeItem('gps_sales_filter_customer');
+        setSearchQuery(filterRaw);
+      }
+    } catch (_e) {}
+  }, [onNotify]);
 
   const handleFitWidth = useCallback(() => {
     if (previewContainerRef.current) {
@@ -339,6 +384,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     if (onNotify) {
       onNotify(`Quotation / Invoice ${quoteNo} deleted successfully`, 'success');
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gps_quotations_updated'));
+    }
     setIsDeleting(false);
     setQuoteToDelete(null);
   };
@@ -433,6 +481,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         customerName: formState.customer,
         customerAddress: formState.customerAddress,
         customerGstin: formState.gstin,
+        contactPerson: formState.contactPerson,
+        contactNo: formState.contactNo,
+        customerEmail: formState.customerEmail,
         placeOfSupply: formState.placeOfSupply,
         spindleSerial: formState.spindleSerial,
         scopeOfWork: formState.scopeOfWork,
@@ -448,6 +499,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         customerName: formState.customer,
         customerAddress: formState.customerAddress,
         customerGstin: formState.gstin,
+        contactPerson: formState.contactPerson,
+        contactNo: formState.contactNo,
+        customerEmail: formState.customerEmail,
         placeOfSupply: formState.placeOfSupply,
         spindleSerial: formState.spindleSerial,
         scopeOfWork: formState.scopeOfWork,
@@ -469,6 +523,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
     setIsNewQuoteOpen(false);
     setEditingQuoteId(null);
     onNotify(editingQuoteId ? `Estimate ${qNo} updated successfully` : `Estimate ${qNo} created successfully for ${formState.customer}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gps_quotations_updated'));
+    }
     await loadQuotations(qNo);
   };
 
@@ -1301,7 +1358,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
                           SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
                           DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                          ☎+919764252188 /9764032929<br />
+                          <Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929<br />
                           Email: process@gpsspindles.net<br />
                           GSTIN: 27AATFG1527D1ZF<br />
                           State: 27-Maharashtra
@@ -1812,20 +1869,89 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
           {/* SECTION 2: Estimate For (Customer / Buyer Details) */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Building2 size={12} color="#7A1F3D" />
-              <span>Estimate For (Customer / Buyer Details)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Building2 size={12} color="#7A1F3D" />
+                <span>Estimate For (Customer / Buyer Details)</span>
+              </div>
+              {clientsList.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Client Directory:</span>
+                  <select
+                    style={{
+                      fontSize: '10.5px',
+                      height: '22px',
+                      padding: '0 6px',
+                      borderRadius: '4px',
+                      border: '1px solid #bfdbfe',
+                      background: '#eff6ff',
+                      color: '#1e40af',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                    onChange={(e) => {
+                      const selected = clientsList.find(c => (c.company_name || c.name || '').trim().toLowerCase() === e.target.value.trim().toLowerCase());
+                      if (selected) {
+                        setFormState(prev => ({
+                          ...prev,
+                          customer: selected.company_name || selected.name || '',
+                          customerAddress: selected.billing_address || selected.address || prev.customerAddress,
+                          contactPerson: selected.contact_person || prev.contactPerson,
+                          contactNo: selected.primary_phone || selected.phone || prev.contactNo,
+                          customerEmail: selected.email || prev.customerEmail,
+                          gstin: selected.gstin || prev.gstin,
+                          state: selected.state || prev.state,
+                          placeOfSupply: selected.state ? (selected.state.includes('-') ? selected.state : `27-${selected.state}`) : prev.placeOfSupply
+                        }));
+                        if (onNotify) onNotify(`Auto-filled details from Client Directory for ${selected.company_name || selected.name}`);
+                      }
+                    }}
+                    value=""
+                  >
+                    <option value="">-- Auto-Fill from Client Directory --</option>
+                    {clientsList.map(c => (
+                      <option key={c.id || c.company_name} value={c.company_name || c.name}>
+                        {c.company_name || c.name} {c.city ? `(${c.city})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             
+            <datalist id="client-directory-options">
+              {clientsList.map(c => (
+                <option key={c.id || c.company_name} value={c.company_name || c.name} />
+              ))}
+            </datalist>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label className="form-label" style={{ fontSize: '10px' }}>Customer Legal Entity Name</label>
+                <label className="form-label" style={{ fontSize: '10px' }}>Customer Legal Entity Name *</label>
                 <input 
                   type="text" 
                   className="form-control" 
+                  list="client-directory-options"
                   value={formState.customer}
-                  onChange={(e) => setFormState({ ...formState, customer: e.target.value })}
-                  placeholder="e.g. LINAMAR INDIA PRIVATE LIMITED"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormState(prev => ({ ...prev, customer: val }));
+                    const matched = clientsList.find(c => (c.company_name || c.name || '').trim().toLowerCase() === val.trim().toLowerCase());
+                    if (matched) {
+                      setFormState(prev => ({
+                        ...prev,
+                        customer: matched.company_name || matched.name,
+                        customerAddress: matched.billing_address || matched.address || prev.customerAddress,
+                        contactPerson: matched.contact_person || prev.contactPerson,
+                        contactNo: matched.primary_phone || matched.phone || prev.contactNo,
+                        customerEmail: matched.email || prev.customerEmail,
+                        gstin: matched.gstin || prev.gstin,
+                        state: matched.state || prev.state,
+                        placeOfSupply: matched.state ? (matched.state.includes('-') ? matched.state : `27-${matched.state}`) : prev.placeOfSupply
+                      }));
+                    }
+                  }}
+                  placeholder="e.g. LINAMAR INDIA PRIVATE LIMITED (or select from Client Directory)"
                   style={{ height: '28px', fontSize: '11px' }}
                   required
                 />
@@ -1844,13 +1970,37 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontSize: '10px' }}>Contact No.</label>
+                <label className="form-label" style={{ fontSize: '10px' }}>Contact Person Name</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={formState.contactPerson || ''}
+                  onChange={(e) => setFormState({ ...formState, contactPerson: e.target.value })}
+                  placeholder="e.g. Materials & Maintenance Head"
+                  style={{ height: '28px', fontSize: '11px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '10px' }}>Contact Phone / Mobile</label>
                 <input 
                   type="text" 
                   className="form-control mono" 
                   value={formState.contactNo}
                   onChange={(e) => setFormState({ ...formState, contactNo: e.target.value })}
                   placeholder="e.g. 7773877714"
+                  style={{ height: '28px', fontSize: '11px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '10px' }}>Direct Email Address</label>
+                <input 
+                  type="email" 
+                  className="form-control mono" 
+                  value={formState.customerEmail || ''}
+                  onChange={(e) => setFormState({ ...formState, customerEmail: e.target.value })}
+                  placeholder="e.g. purchase@company.com"
                   style={{ height: '28px', fontSize: '11px' }}
                 />
               </div>
@@ -1868,12 +2018,12 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontSize: '10px' }}>Customer State</label>
+                <label className="form-label" style={{ fontSize: '10px' }}>Customer State / Place of Supply</label>
                 <input 
                   type="text" 
                   className="form-control" 
                   value={formState.state}
-                  onChange={(e) => setFormState({ ...formState, state: e.target.value })}
+                  onChange={(e) => setFormState({ ...formState, state: e.target.value, placeOfSupply: e.target.value })}
                   placeholder="e.g. 23-Madhya Pradesh"
                   style={{ height: '28px', fontSize: '11px' }}
                 />

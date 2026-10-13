@@ -99,7 +99,7 @@ export const supplierService = {
         category: r.categories_supplied || r.category || existing.category,
         location: `${r.city || ''}, ${r.country || 'India'}`.replace(/^,\s*|,\s*$/g, '') || r.address || existing.location,
         leadTime: r.lead_time_days ? `${r.lead_time_days} days` : (existing.leadTime || '14 Days'),
-        rating: r.rating ? (typeof r.rating === 'number' ? `★ ${r.rating.toFixed(2)} Quality` : r.rating) : existing.rating,
+        rating: r.rating ? (typeof r.rating === 'number' ? `${r.rating.toFixed(2)} / 5.00 Quality` : r.rating) : existing.rating,
         contact_person: r.contact_person || existing.contact_person,
         email: r.email || existing.email,
         phone: r.phone || existing.phone,
@@ -192,6 +192,140 @@ export const supplierService = {
     }
 
     return { data: [newSupplier], error: null };
+  },
+
+  /**
+   * Automatically ensure vendor from a Purchase Order exists in Precision Vendors & Component Suppliers.
+   * If existing: enriches any missing or updated contact/GSTIN/address.
+   * If new: creates approved supplier record with SUPP-XX code, persists to localStorage & emits sync event.
+   */
+  async ensureSupplierFromPO(poData) {
+    if (!poData) return null;
+    const vendorName = (poData.supplier || poData.supplierName || '').trim();
+    if (!vendorName) return null;
+
+    const listRes = await this.getSuppliers();
+    const allSuppliers = listRes.data || [];
+
+    const norm = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanVendorName = norm(vendorName);
+    const cleanGstin = norm(poData.supplierGstin);
+
+    // Find if vendor already exists (by normalized GSTIN or normalized Name)
+    const existing = allSuppliers.find(s => {
+      const sGstin = norm(s.gstin);
+      const sName = norm(s.name);
+      if (cleanGstin && sGstin && cleanGstin === sGstin) return true;
+      if (cleanVendorName && sName && (cleanVendorName === sName || cleanVendorName.includes(sName) || sName.includes(cleanVendorName))) return true;
+      return false;
+    });
+
+    const contactNo = poData.supplierContact || poData.supplierPhone || '';
+    const email = poData.supplierEmail || existing?.email || 'purchase@vendor.com';
+    const address = poData.supplierAddress || existing?.address || 'Pune, Maharashtra, India';
+    const gstin = (poData.supplierGstin || existing?.gstin || '').toUpperCase();
+    const placeOfSupply = poData.placeOfSupply || existing?.placeOfSupply || existing?.state || '27-Maharashtra';
+
+    // Infer category from items if available
+    let inferredCategory = 'Precision Spindle Bearings & Components';
+    if (poData.items && poData.items.length > 0) {
+      const allItemText = poData.items.map(it => `${it.item || ''} ${it.desc || ''} ${it.name || ''}`).join(' ').toLowerCase();
+      if (allItemText.includes('bearing') || allItemText.includes('ball') || allItemText.includes('roller')) {
+        inferredCategory = 'Precision Spindle Bearings (P4S / Ceramic)';
+      } else if (allItemText.includes('encoder') || allItemText.includes('sensor') || allItemText.includes('optical')) {
+        inferredCategory = 'High-Resolution Encoders & Sensors';
+      } else if (allItemText.includes('steel') || allItemText.includes('alloy') || allItemText.includes('bar') || allItemText.includes('plate')) {
+        inferredCategory = 'Precision Alloy Steels & Raw Materials';
+      } else if (allItemText.includes('drawbar') || allItemText.includes('collet') || allItemText.includes('clamping') || allItemText.includes('gripper')) {
+        inferredCategory = 'Automatic Tool Clamping & Drawbars';
+      } else if (allItemText.includes('tool') || allItemText.includes('carbide') || allItemText.includes('insert') || allItemText.includes('mill')) {
+        inferredCategory = 'Precision Cutting Tools & Carbide Inserts';
+      } else if (poData.items[0]?.desc || poData.items[0]?.item) {
+        const desc = (poData.items[0].desc || poData.items[0].item).trim();
+        inferredCategory = desc.length > 40 ? desc.substring(0, 40) + '...' : desc;
+      }
+    }
+
+    if (existing) {
+      const updated = {
+        ...existing,
+        contact_person: existing.contact_person || poData.supplierContact || existing.name,
+        contact: contactNo || existing.contact,
+        phone: contactNo || existing.phone,
+        email: email || existing.email,
+        gstin: gstin || existing.gstin,
+        address: address || existing.address,
+        placeOfSupply: placeOfSupply,
+        state: placeOfSupply,
+        activePo: poData.poNumber || existing.activePo || 'Active'
+      };
+      saveCustomSupplier(updated);
+      return updated;
+    } else {
+      const existingCodes = allSuppliers
+        .map(s => s.supplier_code || s.id || '')
+        .filter(c => /^SUPP-\d+$/i.test(c))
+        .map(c => parseInt(c.replace(/[^0-9]/g, ''), 10));
+      const maxCode = existingCodes.length > 0 ? Math.max(...existingCodes) : allSuppliers.length;
+      const generatedCode = `SUPP-${String(maxCode + 1).padStart(2, '0')}`;
+
+      // Extract city from address
+      let city = 'Pune';
+      if (address) {
+        const parts = address.split(',').map(p => p.trim());
+        if (parts.length > 1) {
+          const possibleCity = parts[parts.length - 2].replace(/\d+/g, '').trim();
+          if (possibleCity) city = possibleCity;
+        }
+      }
+
+      const newSupplier = {
+        id: generatedCode,
+        supplier_code: generatedCode,
+        name: vendorName,
+        category: inferredCategory,
+        location: `${city}, ${placeOfSupply.replace(/^\d+-/, '') || 'Maharashtra'}`,
+        city: city,
+        state: placeOfSupply,
+        placeOfSupply: placeOfSupply,
+        address: address,
+        leadTime: '1-2 Weeks',
+        lead_time_days: 14,
+        rating: 'Grade A (99% Quality)',
+        activePo: poData.poNumber || 'Active',
+        contact_person: poData.supplierContact || vendorName,
+        contact: contactNo || `${vendorName} Sales`,
+        email: email,
+        phone: contactNo,
+        gstin: gstin,
+        paymentTerms: poData.paymentTerms || 'Due on Receipt',
+        status: 'Approved',
+        createdAt: new Date().toISOString()
+      };
+
+      saveCustomSupplier(newSupplier);
+
+      try {
+        await baseService.insert('suppliers', {
+          supplier_code: newSupplier.supplier_code,
+          name: newSupplier.name,
+          contact_person: newSupplier.contact_person,
+          email: newSupplier.email,
+          phone: newSupplier.phone,
+          gstin: newSupplier.gstin,
+          address: newSupplier.address,
+          city: newSupplier.city,
+          state: newSupplier.state,
+          lead_time_days: newSupplier.lead_time_days,
+          categories_supplied: [newSupplier.category],
+          status: newSupplier.status
+        });
+      } catch (e) {
+        console.warn('[supplierService] Remote DB insert fallback:', e);
+      }
+
+      return newSupplier;
+    }
   },
 
   /**

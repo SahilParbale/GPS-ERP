@@ -19,6 +19,10 @@ export const customerService = {
     });
   },
 
+  async getAll(options = {}) {
+    return this.getCustomers(options);
+  },
+
   /**
    * Fetch single customer by UUID
    */
@@ -38,11 +42,23 @@ export const customerService = {
     return await baseService.insert('customers', data);
   },
 
+  async create(data) {
+    return this.createCustomer(data);
+  },
+
   /**
    * Update existing customer record
    */
   async updateCustomer(id, data) {
     return await baseService.update('customers', id, data);
+  },
+
+  async update(id, data) {
+    return this.updateCustomer(id, data);
+  },
+
+  async delete(id) {
+    return await baseService.delete('customers', id);
   },
 
   /**

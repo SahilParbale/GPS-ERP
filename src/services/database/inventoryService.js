@@ -5,6 +5,24 @@ import { INVENTORY_ITEMS } from '../../data/mockData';
 const CUSTOM_INVENTORY_KEY = 'gps_erp_custom_inventory';
 const CUSTOM_MOVEMENTS_KEY = 'gps_erp_custom_movements';
 const DELETED_INVENTORY_KEY = 'gps_erp_deleted_inventory_ids';
+const RECEIVED_POS_LEDGER_KEY = 'gps_erp_received_pos_ledger';
+
+function getReceivedPOsLedger() {
+  try {
+    const raw = localStorage.getItem(RECEIVED_POS_LEDGER_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveReceivedPOsLedger(idSet) {
+  try {
+    localStorage.setItem(RECEIVED_POS_LEDGER_KEY, JSON.stringify(Array.from(idSet)));
+  } catch (e) {
+    console.error('Failed saving received POs ledger:', e);
+  }
+}
 
 function getStoredDeletedIds() {
   try {
@@ -281,8 +299,8 @@ export const inventoryService = {
             timeFormatted = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
           }
 
-          const bayMatch = (mov.notes || '').match(/Bay \d[^,\.]*/i);
-          const bay = bayMatch ? bayMatch[0] : (isIssue ? 'Bay 3 (Assembly)' : 'Central Stores Yard');
+          const stationMatch = (mov.notes || '').match(/Station \d[^,\.]*/i);
+          const bay = stationMatch ? stationMatch[0] : (isIssue ? 'Assembly Station' : 'Central Stores Yard');
 
           return {
             id: mov.id,
@@ -308,10 +326,10 @@ export const inventoryService = {
     // Default movements if none from database
     if (movements.length === 0) {
       movements = [
-        { id: 'mov-1', movementNumber: 'MOV-2026-9021', time: '04 Sep, 16:30', type: 'Inward GRN', rawType: 'RECEIPT_GRN', sku: '120TAC20FME2DBCP5P01-NSK', name: 'NSK 120TAC20 Super Precision Bearings', qty: '4 Nos', quantity: 4, bay: 'Bay 3 (Clean Room Stores)', user: 'Stores Officer', ref: 'PO/2025-26/00106', notes: 'Received against Premier Industrial PO' },
-        { id: 'mov-2', movementNumber: 'MOV-2026-9018', time: '03 Sep, 11:15', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'MAT-18CR-80', name: '18CrNiMo7-6 Forged Round Bar Ø80mm', qty: '6 Meters', quantity: 6, bay: 'Bay 1 (CNC Lathe)', user: 'Suresh Sawant', ref: 'WO-2026-104', notes: 'Issued for Tata Advanced Spindle Shaft' },
+        { id: 'mov-1', movementNumber: 'MOV-2026-9021', time: '04 Sep, 16:30', type: 'Inward GRN', rawType: 'RECEIPT_GRN', sku: '120TAC20FME2DBCP5P01-NSK', name: 'NSK 120TAC20 Super Precision Bearings', qty: '4 Nos', quantity: 4, bay: 'Clean Room Stores', user: 'Stores Officer', ref: 'PO/2025-26/00106', notes: 'Received against Premier Industrial PO' },
+        { id: 'mov-2', movementNumber: 'MOV-2026-9018', time: '03 Sep, 11:15', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'MAT-18CR-80', name: '18CrNiMo7-6 Forged Round Bar Ø80mm', qty: '6 Meters', quantity: 6, bay: 'Machining Station (CNC Lathe)', user: 'Suresh Sawant', ref: 'WO-2026-104', notes: 'Issued for Tata Advanced Spindle Shaft' },
         { id: 'mov-3', movementNumber: 'MOV-2026-9015', time: '02 Sep, 14:00', type: 'Inward GRN', rawType: 'RECEIPT_GRN', sku: 'LUB-KLUB-NBU15', name: 'Klüber ISOFLEX NBU 15 High-Speed Grease', qty: '5 Tins', quantity: 5, bay: 'Lubricant Room L-02', user: 'Milind Joshi', ref: 'GRN-2026-088', notes: 'Inspection Certificate 3.1 Attached' },
-        { id: 'mov-4', movementNumber: 'MOV-2026-9012', time: '01 Sep, 09:45', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'BRG-HC7008', name: 'FAG HC7008 Ceramic Hybrid Bearings', qty: '2 Pairs', quantity: 2, bay: 'Bay 4 (Assembly)', user: 'V. Shinde', ref: 'WO-2026-103', notes: 'Bearing Preload Match Verified' }
+        { id: 'mov-4', movementNumber: 'MOV-2026-9012', time: '01 Sep, 09:45', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'BRG-HC7008', name: 'FAG HC7008 Ceramic Hybrid Bearings', qty: '2 Pairs', quantity: 2, bay: 'Assembly Station', user: 'V. Shinde', ref: 'WO-2026-103', notes: 'Bearing Preload Match Verified' }
       ];
     }
 
@@ -992,6 +1010,284 @@ export const inventoryService = {
     saveCustomItems(filtered);
 
     window.dispatchEvent(new CustomEvent('gps_entities_updated', { detail: { entity: 'inventory' } }));
+    return { data: { success: true }, error: null };
+  },
+
+  /**
+   * Automatically inward stock from a Purchase Order into Materials, Spares & Tooling Inventory
+   */
+  async receivePurchaseOrderStock(po) {
+    if (!po) return { data: null, error: { message: 'PO is required' } };
+
+    const poKey = po.poNumber || po.id;
+    const receivedLedger = getReceivedPOsLedger();
+    if (poKey && receivedLedger.has(poKey)) {
+      return {
+        data: { updatedItems: [], summary: 'Items already received into Stores earlier' },
+        error: null
+      };
+    }
+
+    // Standardize PO items list
+    const poItems = (po.items && Array.isArray(po.items) && po.items.length > 0) ? po.items : [
+      {
+        id: 1,
+        item: po.itemDescription || po.notes || 'Purchased Component',
+        name: po.itemDescription || po.notes || 'Purchased Component',
+        hsn: po.hsn || '',
+        qty: Number(po.qty != null ? po.qty : 1) || 1,
+        unit: po.unit || 'Nos',
+        rate: Number(po.unitPrice || po.rate || 0)
+      }
+    ];
+
+    const { data: currentInventory } = await this.getInventoryItems();
+    const stored = getStoredCustomItems();
+    const map = new Map();
+
+    // Fill map from base inventory items
+    (currentInventory || []).forEach(it => map.set(it.id, { ...it }));
+    // Merge any existing custom-stored items
+    (stored || []).forEach(it => map.set(it.id, { ...it }));
+
+    const updatedItems = [];
+    const receivedSummary = [];
+
+    // Helper function to detect inventory category
+    const detectCategory = (nameStr = '') => {
+      const n = nameStr.toLowerCase();
+      if (n.includes('bearing') || n.includes('tac') || n.includes('hc7') || n.includes('700') || n.includes('701')) return 'Precision Bearings';
+      if (n.includes('steel') || n.includes('bar') || n.includes('round') || n.includes('crmo') || n.includes('billet')) return 'Raw Alloy Steel';
+      if (n.includes('drawbar') || n.includes('collet') || n.includes('clamp') || n.includes('hsk') || n.includes('gripper')) return 'Tool Clamping';
+      if (n.includes('stator') || n.includes('motor') || n.includes('rotor') || n.includes('coil')) return 'Motor Components';
+      if (n.includes('encoder') || n.includes('sensor') || n.includes('scale') || n.includes('heidenhain')) return 'Electronics & Sensors';
+      if (n.includes('grease') || n.includes('lubricant') || n.includes('oil') || n.includes('seal') || n.includes('kluber') || n.includes('klüber')) return 'Seals & Lubricants';
+      if (n.includes('tool') || n.includes('insert') || n.includes('holder') || n.includes('cutter') || n.includes('capto')) return 'Tooling & Consumables';
+      return 'General Inventory';
+    };
+
+    for (const poItem of poItems) {
+      const qtyToAdd = Number(poItem.qty != null ? poItem.qty : 1) || 1;
+      const itemName = (poItem.item || poItem.name || poItem.desc || '').trim();
+      const itemUnit = poItem.unit || 'Nos';
+      const itemCost = Number(poItem.rate || poItem.unitPrice || 0);
+
+      // Match against existing inventory
+      let matchedItem = null;
+      const targetQuery = itemName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      for (const inv of map.values()) {
+        const skuNorm = (inv.sku || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const partNorm = (inv.partNumber || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const modelNorm = (inv.model || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nameNorm = (inv.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (skuNorm && (skuNorm === targetQuery || targetQuery.includes(skuNorm) || skuNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (partNorm && (partNorm === targetQuery || targetQuery.includes(partNorm) || partNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (modelNorm && (modelNorm === targetQuery || targetQuery.includes(modelNorm) || modelNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (nameNorm && (nameNorm.includes(targetQuery) || targetQuery.includes(nameNorm))) {
+          matchedItem = inv;
+          break;
+        }
+      }
+
+      if (matchedItem) {
+        // Update stock
+        const prevQty = Number(matchedItem.availableQty) || 0;
+        const newQty = prevQty + qtyToAdd;
+        const minStock = Number(matchedItem.minStock) || 10;
+
+        let status = 'In Stock';
+        if (newQty <= 0) status = 'Out of Stock';
+        else if (newQty <= minStock * 0.5) status = 'Critical Low';
+        else if (newQty <= minStock) status = 'Low Stock';
+
+        const updated = {
+          ...matchedItem,
+          availableQty: newQty,
+          status
+        };
+        map.set(matchedItem.id, updated);
+        updatedItems.push(updated);
+        receivedSummary.push(`${matchedItem.name}: +${qtyToAdd} ${matchedItem.unit || itemUnit} (Total: ${newQty})`);
+
+        // Record stock movement
+        recordCustomMovement({
+          id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          movementNumber: `MOV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          time: 'Just now',
+          type: 'Inward GRN',
+          rawType: 'RECEIPT_GRN',
+          sku: matchedItem.sku,
+          name: matchedItem.name,
+          qty: `+${qtyToAdd} ${matchedItem.unit || itemUnit}`,
+          quantity: qtyToAdd,
+          bay: matchedItem.location || 'Central Stores',
+          user: 'Stores Officer',
+          ref: po.poNumber || po.id || 'PO-GRN',
+          notes: `Goods received against PO ${po.poNumber || po.id} from ${po.supplier || 'Vendor'} (Prev: ${prevQty}, New: ${newQty})`
+        });
+      } else {
+        // Create new inventory item in catalog
+        const cleanSku = itemName.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 24) || `SKU-${Date.now().toString().slice(-6)}`;
+        const newId = `INV-PO-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 100)}`;
+        const newItem = {
+          id: newId,
+          sku: cleanSku,
+          partNumber: itemName,
+          name: itemName,
+          make: po.supplier || 'Vendor Supplied',
+          model: itemName,
+          category: detectCategory(itemName),
+          availableQty: qtyToAdd,
+          reservedQty: 0,
+          minStock: 5,
+          unit: itemUnit,
+          location: 'Section 3 (Inward Stores)',
+          status: 'In Stock',
+          supplier: po.supplier || 'Approved Vendor',
+          unitCost: itemCost > 0 ? `₹${itemCost.toLocaleString('en-IN')}` : '₹0',
+          unitCostNum: itemCost
+        };
+        map.set(newId, newItem);
+        updatedItems.push(newItem);
+        receivedSummary.push(`${newItem.name}: +${qtyToAdd} ${itemUnit} (New Catalog Item)`);
+
+        recordCustomMovement({
+          id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          movementNumber: `MOV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          time: 'Just now',
+          type: 'Inward GRN',
+          rawType: 'RECEIPT_GRN',
+          sku: newItem.sku,
+          name: newItem.name,
+          qty: `+${qtyToAdd} ${itemUnit}`,
+          quantity: qtyToAdd,
+          bay: 'Section 3 (Inward Stores)',
+          user: 'Stores Officer',
+          ref: po.poNumber || po.id || 'PO-GRN',
+          notes: `New item received against PO ${po.poNumber || po.id} from ${po.supplier || 'Vendor'}`
+        });
+      }
+    }
+
+    // Persist to custom inventory storage and dispatch sync event
+    saveCustomItems(Array.from(map.values()));
+
+    if (poKey) {
+      receivedLedger.add(poKey);
+      saveReceivedPOsLedger(receivedLedger);
+    }
+
+    return {
+      data: { updatedItems, summary: receivedSummary.join(', ') },
+      error: null
+    };
+  },
+
+  /**
+   * Reverse stock received from a Purchase Order (if PO is cancelled or reverted from Received)
+   */
+  async reversePurchaseOrderStock(po) {
+    if (!po) return { data: null, error: { message: 'PO is required' } };
+
+    const poItems = (po.items && Array.isArray(po.items) && po.items.length > 0) ? po.items : [
+      {
+        id: 1,
+        item: po.itemDescription || po.notes || 'Purchased Component',
+        qty: Number(po.qty != null ? po.qty : 1) || 1,
+        unit: po.unit || 'Nos'
+      }
+    ];
+
+    const { data: currentInventory } = await this.getInventoryItems();
+    const stored = getStoredCustomItems();
+    const map = new Map();
+    (currentInventory || []).forEach(it => map.set(it.id, { ...it }));
+    (stored || []).forEach(it => map.set(it.id, { ...it }));
+
+    for (const poItem of poItems) {
+      const qtyToSub = Number(poItem.qty != null ? poItem.qty : 1) || 1;
+      const itemName = (poItem.item || poItem.name || poItem.desc || '').trim();
+      const targetQuery = itemName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      let matchedItem = null;
+      for (const inv of map.values()) {
+        const skuNorm = (inv.sku || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const partNorm = (inv.partNumber || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const modelNorm = (inv.model || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nameNorm = (inv.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (skuNorm && (skuNorm === targetQuery || targetQuery.includes(skuNorm) || skuNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (partNorm && (partNorm === targetQuery || targetQuery.includes(partNorm) || partNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (modelNorm && (modelNorm === targetQuery || targetQuery.includes(modelNorm) || modelNorm.includes(targetQuery))) {
+          matchedItem = inv;
+          break;
+        }
+        if (nameNorm && (nameNorm.includes(targetQuery) || targetQuery.includes(nameNorm))) {
+          matchedItem = inv;
+          break;
+        }
+      }
+
+      if (matchedItem) {
+        const prevQty = Number(matchedItem.availableQty) || 0;
+        const newQty = Math.max(0, prevQty - qtyToSub);
+        const minStock = Number(matchedItem.minStock) || 10;
+
+        let status = 'In Stock';
+        if (newQty <= 0) status = 'Out of Stock';
+        else if (newQty <= minStock * 0.5) status = 'Critical Low';
+        else if (newQty <= minStock) status = 'Low Stock';
+
+        map.set(matchedItem.id, {
+          ...matchedItem,
+          availableQty: newQty,
+          status
+        });
+
+        recordCustomMovement({
+          id: `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          movementNumber: `MOV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          time: 'Just now',
+          type: 'Return / Reversal',
+          rawType: 'PHYSICAL_AUDIT_ADJUSTMENT',
+          sku: matchedItem.sku,
+          name: matchedItem.name,
+          qty: `-${qtyToSub} ${matchedItem.unit || 'Nos'}`,
+          quantity: qtyToSub,
+          bay: matchedItem.location || 'Central Stores',
+          user: 'Stores Officer',
+          ref: po.poNumber || po.id || 'PO-REV',
+          notes: `Reversal of goods inward due to PO ${po.poNumber || po.id} status change`
+        });
+      }
+    }
+
+    saveCustomItems(Array.from(map.values()));
+
+    const poKey = po.poNumber || po.id;
+    const receivedLedger = getReceivedPOsLedger();
+    if (poKey && receivedLedger.has(poKey)) {
+      receivedLedger.delete(poKey);
+      saveReceivedPOsLedger(receivedLedger);
+    }
+
     return { data: { success: true }, error: null };
   },
 

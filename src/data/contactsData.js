@@ -310,7 +310,7 @@ const SEED_MASTER_CONTACTS = [
       { id: 'c81', label: 'Engine Plant Finance', email: 'finance.engine@hyundai.co.in', dept: 'Accounts', mandatoryFor: ['invoice'] },
       { id: 'c82', label: 'Chennai Sourcing Team', email: 'procurement.chennai@hyundai.co.in', dept: 'Procurement', mandatoryFor: ['quotation'] },
       { id: 'c83', label: 'Engine Block Line Maintenance', email: 'maintenance.line1@hyundai.co.in', dept: 'Plant', mandatoryFor: ['service'] },
-      { id: 'c84', label: 'Gate 4 Receiving Bay', email: 'stores.engine@hyundai.co.in', dept: 'Stores', mandatoryFor: ['dispatch'] }
+      { id: 'c84', label: 'Gate 4 Receiving Dock', email: 'stores.engine@hyundai.co.in', dept: 'Stores', mandatoryFor: ['dispatch'] }
     ],
     notes: 'Require emergency spindle repair turnaround time SLA <= 5 working days.'
   },

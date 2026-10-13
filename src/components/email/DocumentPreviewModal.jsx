@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from '../common/Modal';
-import { Download, Printer, FileText, CheckCircle, Truck, AlertTriangle, ShieldCheck, ArrowRight, Wrench, UserCheck, Activity, Award } from 'lucide-react';
+import { Download, Printer, FileText, CheckCircle, Truck, AlertTriangle, ShieldCheck, ArrowRight, Wrench, UserCheck, Activity, Award, Phone } from 'lucide-react';
 import { 
   exportElementAsPdf,
   exportProformaInvoicePdf, 
@@ -105,12 +105,12 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
 
   // Job Traveler operations
   const operations = doc.operations || [
-    { step: 'Op 10', name: 'Shaft Precision CNC Turning & Roughing', station: 'Bay 1 - CNC Turning Cell 3', setup: 45, cycle: 120, specialist: 'Suresh Patil', status: 'Completed' },
-    { step: 'Op 20', name: 'Vacuum Hardening & Cryogenic Stabilization', station: 'Bay 4 - Heat Treatment Furnace', setup: 60, cycle: 240, specialist: 'External / Met-Lab', status: 'Completed' },
-    { step: 'Op 30', name: 'CNC Cylindrical & Internal Grinding (Sub-Micron)', station: 'Bay 2 - Studer S33 CNC Grinder', setup: 60, cycle: 90, specialist: 'Ramesh Kulkarni', status: 'Completed' },
-    { step: 'Op 40', name: 'Class 10,000 Cleanroom Hybrid Bearing Assembly', station: 'Bay 3 - Cleanroom Cell A', setup: 30, cycle: 180, specialist: 'Vikram Shinde', status: 'In Progress' },
-    { step: 'Op 50', name: 'Dual-Plane Dynamic Balancing at 24,000 RPM', station: 'Bay 3 - Schenck Balancing Rig', setup: 20, cycle: 60, specialist: 'Vikram Shinde', status: 'Pending' },
-    { step: 'Op 60', name: 'Full-Speed Thermal Run-in & Motor Telemetry Test', station: 'Bay 5 - Final Test Stand #2', setup: 30, cycle: 120, specialist: 'QA Metrology Lead', status: 'Pending' }
+    { step: 'Op 10', name: 'Shaft Precision CNC Turning & Roughing', station: 'CNC Turning Center 3', setup: 45, cycle: 120, specialist: 'Suresh Patil', status: 'Completed' },
+    { step: 'Op 20', name: 'Vacuum Hardening & Cryogenic Stabilization', station: 'Heat Treatment Vacuum Furnace', setup: 60, cycle: 240, specialist: 'External / Met-Lab', status: 'Completed' },
+    { step: 'Op 30', name: 'CNC Cylindrical & Internal Grinding (Sub-Micron)', station: 'Studer S33 CNC Grinder', setup: 60, cycle: 90, specialist: 'Ramesh Kulkarni', status: 'Completed' },
+    { step: 'Op 40', name: 'Class 10,000 Cleanroom Hybrid Bearing Assembly', station: 'Class 10,000 Cleanroom Cell', setup: 30, cycle: 180, specialist: 'Vikram Shinde', status: 'In Progress' },
+    { step: 'Op 50', name: 'Dual-Plane Dynamic Balancing at 24,000 RPM', station: 'Schenck Balancing Rig', setup: 20, cycle: 60, specialist: 'Vikram Shinde', status: 'Pending' },
+    { step: 'Op 60', name: 'Full-Speed Thermal Run-in & Motor Telemetry Test', station: 'Final Run-in Test Stand #2', setup: 30, cycle: 120, specialist: 'QA Metrology Lead', status: 'Pending' }
   ];
 
   const handleDownload = async () => {
@@ -418,7 +418,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                         <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
                           SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
                           DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                          ☎+919764252188 /9764032929<br />
+                          <Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929<br />
                           Email: process@gpsspindles.net<br />
                           GSTIN: 27AATFG1527D1ZF<br />
                           State: 27-Maharashtra
@@ -882,7 +882,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                         <div style={{ fontSize: '7.8px', color: '#000000', marginTop: '3px' }}>
                           SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI<br />
                           DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,<br />
-                          ☎+919764252188 /9764032929<br />
+                          <Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929<br />
                           Email: process@gpsspindles.net<br />
                           GSTIN: 27AATFG1527D1ZF<br />
                           State: 27-Maharashtra
@@ -1292,7 +1292,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                   Target Completion: <strong>{doc.targetDate || doc.dueDate || '18 Oct 2026'}</strong>
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Priority: <strong style={{ color: '#dc2626' }}>{doc.priority || 'High'}</strong> • Bay: {doc.bay || 'Bay 3 - Assembly'}
+                  Priority: <strong style={{ color: '#dc2626' }}>{doc.priority || 'High'}</strong> • Stage: {doc.stage || doc.currentStage || 'Assembly Stage'}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   Drawing Ref: <strong className="mono">GPS-DWG-8812-REV4</strong>
@@ -1305,7 +1305,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                 <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #cbd5e1' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '50px', fontSize: '11px', fontWeight: 700 }}>Step</th>
                   <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', fontWeight: 700 }}>Operation & Process Details</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', fontWeight: 700 }}>Workstation / Bay</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', fontWeight: 700 }}>Workstation / Machine</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '70px', fontSize: '11px', fontWeight: 700 }}>Cycle (m)</th>
                   <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', fontWeight: 700 }}>Specialist</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '80px', fontSize: '11px', fontWeight: 700 }}>Status</th>
@@ -1511,8 +1511,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc, onNotify })
                         <span style={{ fontWeight: 600 }}>{doc.paymentTerms || 'Net 30 Days'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Delivery Bay:</span>
-                        <span style={{ fontWeight: 600 }}>Bay 1 - Raw Stores</span>
+                        <span style={{ color: 'var(--text-muted)' }}>Delivery Location:</span>
+                        <span style={{ fontWeight: 600 }}>Raw Stores Inward</span>
                       </div>
                     </>
                   )}

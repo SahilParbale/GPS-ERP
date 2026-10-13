@@ -16,7 +16,7 @@ import {
   Search, Users, Mail, Phone, Building2, Copy, Check,
   Plus, Edit3, Trash2, Send, Download, Tag, CheckCircle2,
   FileText, ShieldCheck, Truck, Wrench, X, Filter, ExternalLink,
-  ChevronDown, Info, AtSign, Briefcase, RefreshCw, AlertCircle
+  ChevronDown, Info, AtSign, Briefcase, RefreshCw, AlertCircle, MapPin
 } from 'lucide-react';
 
 export default function ContactsScreen({ onNavigate, onNotify }) {
@@ -572,8 +572,8 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                           {contact.tier}
                         </span>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        📍 {contact.location} • <span className="mono">GSTIN: {contact.gstin}</span>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={11} /> {contact.location} • <span className="mono">GSTIN: {contact.gstin}</span>
                       </div>
                     </div>
                   </div>
@@ -713,8 +713,8 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
                     </div>
 
                     {contact.notes && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '6px', marginTop: '4px' }}>
-                        💡 <em>{contact.notes}</em>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '6px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Info size={11} color="var(--primary)" /> <em>{contact.notes}</em>
                       </div>
                     )}
                   </div>

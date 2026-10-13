@@ -3,7 +3,8 @@ import {
   Menu, Search, Bell, Plus, ChevronRight, User, 
   Layers, CheckSquare, Factory, PanelLeftClose, PanelLeftOpen,
   ArrowRight, FileText, ShoppingCart, Receipt, Truck,
-  LogOut, KeyRound, Shield, Check, X, Sparkles, CornerDownLeft, Filter
+  LogOut, KeyRound, Shield, Check, X, Sparkles, CornerDownLeft, Filter,
+  Zap, AlertTriangle, Info
 } from 'lucide-react';
 import { universalSearchService, SEARCH_CATEGORIES } from '../../services/universalSearchService';
 import { useAuth } from '../../context/AuthContext';
@@ -92,7 +93,8 @@ export default function Header({
     'inventory': 'Materials & Stock Control',
     'quality': 'Quality Control & Metrology',
     'service': 'Service, Overhaul & Warranty',
-    'customers': 'Customer Accounts',
+    'customers': 'Client Directory',
+    'contacts': 'Client Directory',
     'suppliers': 'Precision Vendors',
     'invoices': 'Invoices & GST Billing',
     'documents': 'Engineering Documents & Vault',
@@ -358,10 +360,15 @@ export default function Header({
                 letterSpacing: '0.03em',
                 textTransform: 'uppercase'
               }}>
-                <span>
-                  {isSuggestion 
-                    ? '⚡ Quick Shortcuts & Priority Software Records' 
-                    : `Matching ${searchResults.length} ${searchResults.length === 1 ? 'record' : 'records'} across software`}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  {isSuggestion ? (
+                    <>
+                      <Zap size={11} color="#f59e0b" />
+                      <span>Quick Shortcuts & Priority Software Records</span>
+                    </>
+                  ) : (
+                    <span>{`Matching ${searchResults.length} ${searchResults.length === 1 ? 'record' : 'records'} across software`}</span>
+                  )}
                 </span>
                 {searchQuery && (
                   <button
@@ -659,9 +666,13 @@ export default function Header({
                       }
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: notif.priority === 'Critical' || notif.priority === 'Urgent' ? '#b91c1c' : 'var(--text-main)' }}>
-                      {notif.priority === 'Critical' || notif.priority === 'Urgent' ? '⚠️ ' : 'ℹ️ '}
-                      {notif.title}
+                    <div style={{ fontWeight: 600, color: notif.priority === 'Critical' || notif.priority === 'Urgent' ? '#b91c1c' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      {notif.priority === 'Critical' || notif.priority === 'Urgent' ? (
+                        <AlertTriangle size={13} color="#b91c1c" />
+                      ) : (
+                        <Info size={13} color="var(--primary)" />
+                      )}
+                      <span>{notif.title}</span>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: '1.3' }}>
                       {notif.message}

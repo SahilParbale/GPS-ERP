@@ -17,7 +17,7 @@ import {
   Search, FileText, Download, Printer, 
   CheckCircle2, Plus, AlertCircle, Mail, Eye, RefreshCw,
   Edit3, Trash2, Maximize2, Minimize2, Sparkles, FileCheck, 
-  CreditCard, DollarSign, ZoomIn, ZoomOut, Building2, ShieldCheck
+  CreditCard, DollarSign, ZoomIn, ZoomOut, Building2, ShieldCheck, Phone
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 
@@ -854,6 +854,22 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                             >
                               <Mail size={10} />
                             </button>
+                            {onNavigate && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ height: '22px', fontSize: '10px', padding: '0 6px', color: '#0284c7' }}
+                                onClick={() => {
+                                  if (typeof window !== 'undefined') {
+                                    window.__TARGET_PAYMENT_INVOICE_ID__ = inv.dbId || inv.id || inv.invoiceNumber;
+                                  }
+                                  onNavigate('payments');
+                                }}
+                                title="Record payment or view receivables"
+                              >
+                                <CreditCard size={10} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm"
@@ -934,6 +950,25 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                       <Printer size={12} />
                       <span>Print</span>
                     </button>
+
+                    {/* Record Payment Direct Link */}
+                    {onNavigate && (
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            window.__TARGET_PAYMENT_INVOICE_ID__ = selectedInvoice.dbId || selectedInvoice.id || selectedInvoice.invoiceNumber;
+                          }
+                          onNavigate('payments');
+                        }}
+                        title="Record Payment or view ledger for this Tax Invoice"
+                        style={{ height: '28px', fontSize: '11px', padding: '0 9px', gap: '4px', color: '#0284c7', borderColor: '#bae6fd', background: '#f0f9ff' }}
+                      >
+                        <CreditCard size={12} />
+                        <span>Record Payment</span>
+                      </button>
+                    )}
 
                     {/* Zoom & Fit Controls */}
                     <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
@@ -1104,7 +1139,7 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                             </div>
                             <div>SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI</div>
                             <div>DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,</div>
-                            <div>☎+919764252188 /9764032929</div>
+                            <div><Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929</div>
                             <div>Email: process@gpsspindles.net</div>
                             <div>GSTIN: 27AATFG1527D1ZF</div>
                             <div>State: 27-Maharashtra</div>

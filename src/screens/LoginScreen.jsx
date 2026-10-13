@@ -4,7 +4,7 @@ import {
   CheckCircle2, AlertCircle, RefreshCw, KeyRound,
   Settings, BarChart2, Users, Crown, TrendingUp,
   ShieldCheck, ShoppingCart, Package, Wrench, HardHat,
-  Code, Building2
+  Code, Building2, Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import InstallAppPrompt from '../components/pwa/InstallAppPrompt';
@@ -972,8 +972,8 @@ export default function LoginScreen() {
           >
             {/* Box Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10.5px', fontWeight: '700', color: '#881337' }}>
-                <span style={{ color: '#E11D48' }}>⚡</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: '700', color: '#881337' }}>
+                <Zap size={12} color="#E11D48" />
                 <span>Quick Role Login (Dev / Testing)</span>
               </div>
               <div style={{ fontSize: '9.5px', fontWeight: '700', color: '#881337', opacity: 0.8, fontFamily: 'monospace' }}>

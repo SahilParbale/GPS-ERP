@@ -21,6 +21,7 @@ import ServiceScreen from './screens/ServiceScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import QualityScreen from './screens/QualityScreen';
 import WorkforceScreen from './screens/WorkforceScreen';
+import DispatchScreen from './screens/DispatchScreen';
 import SalesScreen from './screens/SalesScreen';
 import CustomersScreen from './screens/CustomersScreen';
 import ContactsScreen from './screens/ContactsScreen';
@@ -46,7 +47,7 @@ const getInitialScreen = () => {
     const params = new URLSearchParams(window.location.search);
     const screenParam = params.get('screen');
     const validScreens = [
-      'dashboard', 'production', 'workforce', 'work-order-detail',
+      'dashboard', 'production', 'workforce', 'dispatch', 'work-order-detail',
       'spindles', 'spindle-detail', 'service', 'inventory', 'quality',
       'sales', 'customers', 'contacts', 'suppliers', 'invoices', 'payments',
       'purchase-orders', 'proforma-invoices', 'e-way-bills', 'sales-activity',
@@ -178,6 +179,15 @@ function AppContent() {
             onNotify={addToast}
           />
         );
+      case 'dispatch':
+        return (
+          <DispatchScreen 
+            onNavigate={setCurrentScreen}
+            onSelectWorkOrder={setSelectedWorkOrder}
+            onSelectSpindle={setSelectedSpindle}
+            onNotify={addToast}
+          />
+        );
       case 'work-order-detail':
         return (
           <WorkOrderDetailScreen 
@@ -231,15 +241,10 @@ function AppContent() {
           />
         );
       case 'customers':
-        return (
-          <CustomersScreen 
-            onNavigate={setCurrentScreen}
-            onNotify={addToast}
-          />
-        );
       case 'contacts':
         return (
-          <ContactsScreen 
+          <CustomersScreen 
+            initialTab={currentScreen === 'contacts' ? 'contacts' : 'ledger'}
             onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
@@ -310,6 +315,7 @@ function AppContent() {
       case 'email-activity':
         return (
           <EmailActivityScreen 
+            onNavigate={setCurrentScreen}
             onNotify={addToast}
           />
         );

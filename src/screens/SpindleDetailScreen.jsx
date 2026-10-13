@@ -322,7 +322,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">Final Quality Metrology Sign-Off Sheet</div>
-            <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Station: Metrology QC Bay 6</span>
+            <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Station: Metrology QC Lab</span>
           </div>
           <div style={{ padding: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '20px' }}>
@@ -363,7 +363,7 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-title">4-Hour Dynamic Run-in Test Protocol Results</div>
-            <span className="mono" style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Station: Test Bench Bay 5</span>
+            <span className="mono" style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>Station: Dynamic Test Bench</span>
           </div>
           <div className="table-responsive">
             <table className="data-table">
