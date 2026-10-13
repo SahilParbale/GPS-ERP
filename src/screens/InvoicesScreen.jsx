@@ -741,12 +741,15 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
         </div>
 
         {/* Master-Detail Split Layout */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr', 
-          gap: '16px', 
-          alignItems: 'start'
-        }}>
+        <div 
+          className="doc-split-layout"
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr', 
+            gap: '16px', 
+            alignItems: 'start'
+          }}
+        >
           {/* Left Column: Compact Invoice Cards List */}
           {!isDocExpanded && (
             <div className="section-card" style={{ padding: '0', overflow: 'hidden' }}>

@@ -255,7 +255,8 @@ export default function Header({
                 position: 'absolute',
                 top: '38px',
                 right: '0',
-                width: 'clamp(360px, 92vw, 680px)',
+                width: 'min(680px, calc(100vw - 16px))',
+                maxWidth: 'calc(100vw - 16px)',
                 maxHeight: 'min(580px, 80vh)',
                 background: '#ffffff',
                 border: '1px solid var(--border-color)',
@@ -549,6 +550,7 @@ export default function Header({
         {/* Data Mode Indicator & Toggle (Clean Slate vs Demo Seed) */}
         <button
           type="button"
+          className="header-clean-slate-btn"
           onClick={() => toggleCleanSlateMode(true)}
           title={cleanSlate ? "Currently viewing empty Clean Slate. Click to restore seed demo data." : "Currently showing demo seed data. Click to hide seed data."}
           style={{
@@ -575,8 +577,8 @@ export default function Header({
             display: 'inline-block',
             boxShadow: cleanSlate ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : '0 0 0 2px rgba(245, 158, 11, 0.2)'
           }} />
-          <span>{cleanSlate ? 'Clean Slate' : 'Demo Data'}</span>
-          <span style={{ 
+          <span className="header-clean-slate-label">{cleanSlate ? 'Clean Slate' : 'Demo Data'}</span>
+          <span className="header-clean-slate-action" style={{ 
             fontSize: '10px', 
             fontWeight: 700, 
             padding: '1px 6px', 

@@ -140,18 +140,54 @@ export default function LoginScreen() {
             flex-direction: column !important;
             height: auto !important;
             min-height: 100vh !important;
+            min-height: 100dvh !important;
           }
           .gps-login-left {
-            min-height: 460px !important;
+            min-height: 260px !important;
             flex: 0 0 auto !important;
             padding: 24px 20px !important;
           }
           .gps-login-right {
             flex: 1 1 auto !important;
             padding: 24px 16px !important;
+            min-height: auto !important;
           }
           .gps-cad-blueprint, .gps-vertical-brand {
             display: none !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .gps-login-left {
+            min-height: auto !important;
+            padding: 16px 14px 12px 14px !important;
+          }
+          .gps-login-pillars {
+            display: none !important;
+          }
+          .gps-login-trust-banner {
+            display: none !important;
+          }
+          .gps-login-right {
+            padding: 12px 12px 28px 12px !important;
+          }
+          .gps-login-card {
+            max-width: 100% !important;
+            width: 100% !important;
+            padding: 16px 14px 14px 14px !important;
+            border-radius: 12px !important;
+            margin: 0 !important;
+          }
+          .gps-quick-roles-grid {
+            gap: 4px !important;
+          }
+          .gps-quick-roles-grid button {
+            height: 28px !important;
+            font-size: 9.5px !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .gps-quick-roles-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
           }
         }
         .gps-login-right::-webkit-scrollbar {
@@ -264,9 +300,10 @@ export default function LoginScreen() {
           </div>
 
           {/* Middle Value Proposition & Pillars */}
-          <div style={{ margin: 'auto 0', padding: '8px 0' }}>
+          <div className="gps-login-pillars" style={{ margin: 'auto 0', padding: '8px 0' }}>
             {/* Big Bold Headline */}
             <h1 
+              className="gps-login-headline"
               style={{
                 fontSize: 'clamp(24px, 2.7vw, 32px)',
                 fontWeight: '800',
@@ -385,6 +422,7 @@ export default function LoginScreen() {
 
           {/* Bottom Industrial Banner (Trust Slogan) */}
           <div 
+            className="gps-login-trust-banner"
             style={{
               backgroundColor: 'rgba(40, 7, 18, 0.72)',
               backdropFilter: 'blur(12px)',
@@ -514,6 +552,7 @@ export default function LoginScreen() {
         {/* FLOATING WHITE LOGIN CARD                                          */}
         {/* ------------------------------------------------------------------ */}
         <div 
+          className="gps-login-card"
           style={{
             position: 'relative',
             zIndex: 2,
@@ -983,6 +1022,7 @@ export default function LoginScreen() {
 
             {/* 3x3 Grid of Role Badges */}
             <div 
+              className="gps-quick-roles-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
