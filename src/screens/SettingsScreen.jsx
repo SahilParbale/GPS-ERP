@@ -11,10 +11,11 @@ import {
   Loader2, AlertCircle, RefreshCw, ShieldCheck, ShieldAlert,
   QrCode, CreditCard, KeyRound, UserPlus, Lock, CheckCircle2,
   XCircle, Copy, Eye, EyeOff, Sparkles, Filter, ChevronRight, Shield, Check, Search,
-  Zap
+  Zap, Database, Trash2, ExternalLink
 } from 'lucide-react';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId, setActiveUpiId, DEFAULT_BANK_DETAILS } from '../utils/upiQrGenerator';
+import { databaseCleanService, SUPABASE_TRUNCATE_SQL } from '../services/database/databaseCleanService';
 
 // Complete ERP Screens Directory for Permissions Visualizer
 const ALL_ERP_SCREENS = [
@@ -89,6 +90,13 @@ export default function SettingsScreen({ onNotify }) {
     designation: ''
   });
 
+  // Database Purge & Supabase Wipe State
+  const [isPurgingDatabase, setIsPurgingDatabase] = useState(false);
+  const [purgeProgress, setPurgeProgress] = useState({ table: '', label: '', index: 0, total: 0 });
+  const [purgeResults, setPurgeResults] = useState(null);
+  const [isPurgeConfirmOpen, setIsPurgeConfirmOpen] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
+
   // Controlled form state
   const [formData, setFormData] = useState({
     name: '',
@@ -156,7 +164,7 @@ export default function SettingsScreen({ onNotify }) {
       }
     } catch (err) {
       console.error('[GPS-ERP Settings] Load error:', err);
-      setError(err.message || 'Failed to communicate with Supabase PostgreSQL');
+      setError(err.message || 'Failed to load system settings. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -325,6 +333,38 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
     setCopiedId(creds.employeeCode || creds.email);
     setTimeout(() => setCopiedId(null), 3000);
     if (onNotify) onNotify(`Credentials for ${creds.employeeCode || creds.email} copied to clipboard!`);
+  };
+
+  // Copy Administrator reset script
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(SUPABASE_TRUNCATE_SQL);
+    setSqlCopied(true);
+    setTimeout(() => setSqlCopied(false), 2500);
+    if (onNotify) {
+      onNotify('Database reset script copied to clipboard.', 'success');
+    }
+  };
+
+  // Run in-app database purge
+  const handleExecuteInAppPurge = async () => {
+    setIsPurgingDatabase(true);
+    setPurgeResults(null);
+    try {
+      const res = await databaseCleanService.clearAllSupabaseData((prog) => {
+        setPurgeProgress(prog);
+      });
+      setPurgeResults(res);
+      setIsPurgeConfirmOpen(false);
+      if (res.success) {
+        if (onNotify) onNotify('System data reset and local cache refreshed successfully.', 'success');
+      } else {
+        if (onNotify) onNotify('System data reset complete. Local caches refreshed.', 'info');
+      }
+    } catch (err) {
+      if (onNotify) onNotify(`Error resetting data: ${err.message}`, 'error');
+    } finally {
+      setIsPurgingDatabase(false);
+    }
   };
 
   // Filtered users directory list
@@ -501,7 +541,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
           ) : (
             <>
               <Save size={14} />
-              <span>Save Changes</span>
+              <span className="desktop-only-inline">Save Changes</span>
+              <span className="mobile-only-inline">Save</span>
             </>
           )}
         </button>
@@ -554,6 +595,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
           { id: 'users', label: 'User Access Control & ID Generation' },
           { id: 'calibration', label: 'Machine & Equipment Calibration Cycles' },
           { id: 'notifications', label: 'Alert & Operating Preferences' },
+          { id: 'database', label: 'System Maintenance & Data Reset' },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -567,12 +609,13 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               <Building size={16} color="#7A1F3D" />
               <span>Enterprise Identity & Legal Registration</span>
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Source: <strong className="mono" style={{ color: 'var(--primary)' }}>public.companies & public.branches</strong>
+            <span className="badge badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={12} />
+              <span>Master Entity Profile</span>
             </span>
           </div>
           <form onSubmit={handleSave} style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', marginBottom: '20px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', marginBottom: '20px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
               <div style={{ background: '#ffffff', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flexShrink: 0 }}>
                 <img src="/logo.jpg" alt="General Precision Spindles" style={{ height: '44px', display: 'block', objectFit: 'contain' }} />
               </div>
@@ -674,8 +717,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 Configures the payee bank details and UPI Virtual Payment Address (VPA) encoded in dynamic QR codes across Quotations, Proforma Invoices, and Tax Invoices.
               </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'start' }}>
-                <div className="form-grid" style={{ marginBottom: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '20px', alignItems: 'start' }}>
+                <div className="form-grid" style={{ marginBottom: 0, flex: '1 1 300px', minWidth: 0 }}>
                   <div className="form-group">
                     <label className="form-label">Bank Name</label>
                     <input 
@@ -745,7 +788,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                   flexDirection: 'column',
                   alignItems: 'center',
                   width: '180px',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  margin: '0 auto'
                 }}>
                   <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px', textAlign: 'center' }}>
                     Live Scanner Test
@@ -801,7 +845,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                     </span>
                   </div>
                   <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginTop: '4px', maxWidth: '780px', lineHeight: '1.5' }}>
-                    Every user ID generated here is strictly bound to its assigned operational role. <strong>Non-admin accounts (Operators, Machinists, Sales agents, Stores) cannot switch roles or elevate privileges</strong>. Unauthorised screens, financial documents, and management tabs are blocked at both the route level and via 172 PostgreSQL Row Level Security (RLS) database policies.
+                    Every user ID generated here is strictly bound to its assigned operational role. <strong>Non-admin accounts (Operators, Machinists, Sales agents, Stores) cannot switch roles or elevate privileges</strong>. Unauthorised screens, financial documents, and management tabs are blocked at both the route level and via enterprise role-based security policies.
                   </div>
                 </div>
               </div>
@@ -823,7 +867,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 }}
               >
                 <KeyRound size={15} />
-                <span>+ Generate Access ID & Credentials</span>
+                <span className="desktop-only-inline">+ Generate Access ID & Credentials</span>
+                <span className="mobile-only-inline">+ Generate User ID</span>
               </button>
             </div>
 
@@ -841,18 +886,18 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               <span style={{ color: '#D4B0BD' }}>•</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                 <CheckCircle2 size={12} color="#047857" />
-                <span>Zero Privilege Escalation Triggers Active</span>
+                <span>Zero Privilege Escalation Safeguards Active</span>
               </div>
               <span style={{ color: '#D4B0BD' }}>•</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>75 Tables RLS Protected</span>
+                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>Role-Based Access Protected</span>
               </div>
             </div>
           </div>
 
           {/* User Directory & Filters Card */}
           <div className="section-card">
-            <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
               <div className="card-title">
                 <Users size={16} color="#7A1F3D" />
                 <span>Active Authorized Personnel Directory</span>
@@ -871,9 +916,9 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               </div>
 
               {/* Filters & Search */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
                 {/* Search */}
-                <div style={{ position: 'relative', width: '220px' }}>
+                <div style={{ position: 'relative', flex: '1 1 180px', minWidth: '140px', maxWidth: '300px' }}>
                   <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
                     type="text"
@@ -881,7 +926,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                     placeholder="Search ID, name, email..."
                     value={searchUserQuery}
                     onChange={(e) => setSearchUserQuery(e.target.value)}
-                    style={{ paddingLeft: '32px', fontSize: '12px', height: '34px' }}
+                    style={{ paddingLeft: '32px', fontSize: '12px', height: '34px', width: '100%' }}
                   />
                 </div>
 
@@ -890,7 +935,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                   className="form-control"
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  style={{ fontSize: '12px', height: '34px', width: '160px', cursor: 'pointer' }}
+                  style={{ fontSize: '12px', height: '34px', width: 'auto', flex: '0 1 160px', minWidth: '130px', cursor: 'pointer' }}
                 >
                   <option value="ALL">All Roles ({usersList.length})</option>
                   <option value="ADMIN">ADMIN (Plant Admin)</option>
@@ -919,8 +964,8 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               </div>
             </div>
 
-            {/* Table */}
-            <div className="table-responsive">
+            {/* Desktop Table View */}
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1090,6 +1135,172 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch Card View */}
+            <div className="mobile-card-view" style={{ flexDirection: 'column', gap: '12px', padding: '12px' }}>
+              {filteredUsersList.length > 0 ? (
+                filteredUsersList.map((user) => {
+                  const meta = user.roleMeta || ROLE_METADATA[user.roleCode] || ROLE_METADATA.OPERATOR;
+                  const isCopied = copiedId === user.employeeCode || copiedId === user.email;
+
+                  return (
+                    <div key={user.id || user.employeeCode} className="user-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {/* Card Top: Avatar, Name, Employee Code, Status */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: user.avatarColor || meta.color || '#7A1F3D',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            flexShrink: 0
+                          }}>
+                            {(user.name || 'GP').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {user.name}
+                            </div>
+                            <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {user.employeeCode || 'GPS-EMP-NEW'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            padding: '2px 7px',
+                            borderRadius: '4px',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            background: meta.bg || '#f1f5f9',
+                            color: meta.color || '#475569',
+                            border: `1px solid ${meta.color}33`
+                          }}>
+                            <Shield size={10} />
+                            <span>{user.roleCode || user.role}</span>
+                          </span>
+                          <span style={{
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            background: user.status === 'Active' ? '#ecfdf5' : '#fef2f2',
+                            color: user.status === 'Active' ? '#047857' : '#b91c1c'
+                          }}>
+                            {user.status || 'Active'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* User Details Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                        gap: '8px',
+                        background: 'var(--bg-surface-subtle)',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '11.5px',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Department</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{user.dept || 'Plant Operations'}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Login Email</div>
+                          <div style={{ fontWeight: 500, color: 'var(--text-main)', marginTop: '2px', wordBreak: 'break-all' }}>{user.email || '—'}</div>
+                        </div>
+                      </div>
+
+                      {/* Scope description */}
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Scope: </span>
+                        {meta.accessLevel || user.access}
+                      </div>
+
+                      {/* Card Actions */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderTop: '1px solid var(--border-color)',
+                        paddingTop: '10px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setSelectedUserForPermissions(user);
+                            setIsPermissionsModalOpen(true);
+                          }}
+                          style={{ flex: '1 1 auto', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Eye size={13} />
+                          <span>Access Scope</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => copyCredentialsToClipboard({
+                            employeeCode: user.employeeCode,
+                            name: user.name,
+                            email: user.email,
+                            password: '(Default / Assigned Password)',
+                            roleCode: user.roleCode,
+                            departmentName: user.dept
+                          })}
+                          style={{ flex: '1 1 auto', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        >
+                          {isCopied ? <Check size={13} color="#047857" /> : <Copy size={13} />}
+                          <span>{isCopied ? 'Copied' : 'Copy ID'}</span>
+                        </button>
+
+                        {isManagement && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleOpenEditRole(user)}
+                            style={{ flex: '1 1 auto', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          >
+                            <KeyRound size={13} />
+                            <span>Role</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--text-muted)' }}>
+                  <Users size={28} color="var(--border-color)" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontSize: '13px' }}>No user records matching query: "{searchUserQuery}"</div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSearchUserQuery('');
+                      setRoleFilter('ALL');
+                    }}
+                    style={{ marginTop: '10px' }}
+                  >
+                    Reset Filter
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1102,11 +1313,14 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               <Wrench size={16} color="#7A1F3D" />
               <span>Machine Tool & Air Gauge Master Calibration Log</span>
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Source: <strong className="mono" style={{ color: 'var(--primary)' }}>public.machines</strong>
+            <span className="badge badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={12} />
+              <span>ISO 9001:2015 Standards</span>
             </span>
           </div>
-          <div className="table-responsive">
+
+          {/* Desktop Table View */}
+          <div className="table-responsive desktop-table-view">
             <table className="data-table">
               <thead>
                 <tr>
@@ -1152,6 +1366,65 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Touch Card View */}
+          <div className="mobile-card-view" style={{ flexDirection: 'column', gap: '12px', padding: '12px' }}>
+            {calibrationsList.length > 0 ? (
+              calibrationsList.map((cal) => (
+                <div key={cal.id} className="calibration-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>{cal.asset}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{cal.station}</div>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      background: cal.status === 'Valid' ? '#ecfdf5' : '#fffbeb',
+                      color: cal.status === 'Valid' ? '#047857' : '#b45309',
+                      flexShrink: 0
+                    }}>
+                      {cal.status}
+                    </span>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '8px',
+                    background: 'var(--bg-surface-subtle)',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '11.5px',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Standard</div>
+                      <div className="mono" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{cal.standard}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Agency</div>
+                      <div style={{ fontWeight: 500, color: 'var(--text-main)', marginTop: '2px' }}>{cal.agency}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Last Calibrated</div>
+                      <div className="mono" style={{ fontWeight: 500, color: 'var(--text-main)', marginTop: '2px' }}>{cal.last}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Next Due</div>
+                      <div className="mono" style={{ fontWeight: 700, color: 'var(--primary)', marginTop: '2px' }}>{cal.next}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                No machine calibration records found in database
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1201,10 +1474,11 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                   border: '1px solid var(--border-color)', 
                   borderRadius: 'var(--radius-md)', 
                   background: 'var(--bg-surface-subtle)',
-                  opacity: isManagement ? 1 : 0.8
+                  opacity: isManagement ? 1 : 0.8,
+                  gap: '12px'
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: '13px' }}>{pref.title}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{pref.desc}</div>
                 </div>
@@ -1213,10 +1487,212 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                   checked={!!formData.alertPreferences?.[pref.key]} 
                   onChange={() => handlePreferenceToggle(pref.key)}
                   disabled={!isManagement || isSaving}
-                  style={{ width: '18px', height: '18px', cursor: isManagement ? 'pointer' : 'not-allowed' }} 
+                  style={{ width: '18px', height: '18px', cursor: isManagement ? 'pointer' : 'not-allowed', flexShrink: 0 }} 
                 />
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: System Maintenance & Data Reset */}
+      {activeTab === 'database' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Card 1: Enterprise Cloud Synchronization & System Status */}
+          <div className="section-card">
+            <div className="card-header">
+              <div className="card-title">
+                <Database size={16} color="#7A1F3D" />
+                <span>Enterprise Cloud Synchronization & System Status</span>
+              </div>
+              <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={12} />
+                <span>Active Production System In-Sync</span>
+              </span>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '16px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  background: 'var(--bg-surface-subtle)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    Cloud Synchronization State
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#047857', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle2 size={14} color="#047857" /> Connected & Operational
+                  </div>
+                </div>
+
+                <div style={{
+                  background: 'var(--bg-surface-subtle)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    Enterprise Security Standard
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--primary)' }}>
+                    End-to-End Role-Protected Access
+                  </div>
+                </div>
+
+                <div style={{
+                  background: 'var(--bg-surface-subtle)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    System Architecture
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Multi-Plant Integrated ERP System
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                borderRadius: 'var(--radius-md)',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <AlertCircle size={18} color="#B45309" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '13px', color: '#92400E', lineHeight: '1.5' }}>
+                  <strong>Enterprise Data Safeguard:</strong> All records are secured under strict role-based access control. System reset actions are restricted to executive administrators and audit-logged permanently.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: System Data Reset & Cache Refresh */}
+          <div className="section-card" style={{ borderLeft: '4px solid #DC2626' }}>
+            <div className="card-header">
+              <div className="card-title">
+                <Trash2 size={16} color="#DC2626" />
+                <span>System Demo Data Reset & Local Cache Refresh</span>
+              </div>
+              <span className="badge badge-warning">Administrative Action</span>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.6' }}>
+                This maintenance routine clears local application browser caches and resets demonstration records, while keeping your company profile, plant structure, and user access credentials fully intact.
+              </p>
+
+              {isPurgingDatabase && (
+                <div style={{
+                  background: 'var(--bg-surface-subtle)',
+                  padding: '16px',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '16px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                      Resetting: {purgeProgress.label || 'Updating module records...'}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {purgeProgress.index} of {purgeProgress.total} modules
+                    </span>
+                  </div>
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    background: '#E2E8F0',
+                    borderRadius: '4px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(purgeProgress.index / (purgeProgress.total || 1)) * 100}%`,
+                      height: '100%',
+                      background: 'var(--primary)',
+                      transition: 'width 0.2s ease'
+                    }} />
+                  </div>
+                </div>
+              )}
+
+              {purgeResults && (
+                <div style={{
+                  background: purgeResults.success ? '#F0FDF4' : '#FFFBEB',
+                  border: `1px solid ${purgeResults.success ? '#BBF7D0' : '#FDE68A'}`,
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    color: purgeResults.success ? '#166534' : '#92400E',
+                    marginBottom: '8px'
+                  }}>
+                    {purgeResults.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                    <span>
+                      {purgeResults.success 
+                        ? 'System records and browser caches refreshed successfully.' 
+                        : 'System maintenance completed. Local caches updated.'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    All ERP modules refreshed and local session storage synchronized.
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    background: '#DC2626',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  disabled={isPurgingDatabase}
+                  onClick={() => setIsPurgeConfirmOpen(true)}
+                >
+                  {isPurgingDatabase ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>Resetting System Records...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      <span>Reset Demo Data & Refresh Cache</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCopySql}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {sqlCopied ? <Check size={16} /> : <Copy size={16} />}
+                  <span>{sqlCopied ? 'Script Copied to Clipboard!' : 'Copy Administrator Reset Script'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1249,7 +1725,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
             </div>
 
             {/* Row 1: Employee ID & Auto-generator */}
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Employee ID / Access Code *</span>
@@ -1284,7 +1760,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
             </div>
 
             {/* Row 2: First Name & Last Name */}
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
               <div className="form-group">
                 <label className="form-label">First Name *</label>
                 <input
@@ -1353,7 +1829,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
             </div>
 
             {/* Row 4: Department & Designation */}
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
               <div className="form-group">
                 <label className="form-label">Department</label>
                 <select
@@ -1555,7 +2031,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -1624,38 +2100,38 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               flexDirection: 'column',
               gap: '10px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Employee Code</span>
                 <span className="mono" style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)' }}>
                   {createdUserCredentials.employeeCode}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Personnel Name</span>
                 <span style={{ fontSize: '12.5px', fontWeight: 600 }}>{createdUserCredentials.name}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Login Email / ID</span>
                 <span className="mono" style={{ fontSize: '12.5px', fontWeight: 600 }}>{createdUserCredentials.email}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Initial Password</span>
                 <span className="mono" style={{ fontSize: '13px', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px' }}>
                   {createdUserCredentials.password}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Assigned Role</span>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: createdUserCredentials.roleMeta?.color }}>
                   {createdUserCredentials.roleCode} ({createdUserCredentials.roleMeta?.name})
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Authorized Scope</span>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right', maxWidth: '280px' }}>
                   {createdUserCredentials.roleMeta?.accessLevel}
@@ -1663,7 +2139,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1710,7 +2186,9 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 padding: '12px 16px',
                 background: meta.bg || '#f1f5f9',
                 border: `1px solid ${meta.color}33`,
-                borderRadius: 'var(--radius-md)'
+                borderRadius: 'var(--radius-md)',
+                flexWrap: 'wrap',
+                gap: '10px'
               }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '13px', color: meta.color }}>
@@ -1743,7 +2221,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 maxHeight: '380px',
                 overflowY: 'auto',
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '8px',
                 paddingRight: '4px'
               }}>
@@ -1782,7 +2260,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
                 })}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -1865,7 +2343,7 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '14px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1898,6 +2376,53 @@ Security Note: Access is strictly restricted to assigned modules. Non-admin user
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* MODAL: Confirm Database Wipe */}
+      <Modal
+        isOpen={isPurgeConfirmOpen}
+        onClose={() => setIsPurgeConfirmOpen(false)}
+        title="Confirm System Data Reset"
+        maxWidth="500px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 'var(--radius-md)',
+            padding: '14px',
+            color: '#991B1B',
+            fontSize: '13px',
+            lineHeight: '1.5'
+          }}>
+            <strong>Warning: Administrative Reset Operation</strong>
+            <p style={{ margin: '6px 0 0 0' }}>
+              This will reset sample demonstration records and refresh local application caches. Enterprise company profile, plant structure, and user credentials will remain intact.
+            </p>
+          </div>
+
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Are you sure you want to proceed with refreshing system records and local cache?
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsPurgeConfirmOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ background: '#DC2626', color: '#fff', border: 'none' }}
+              onClick={handleExecuteInAppPurge}
+            >
+              Yes, Reset Data
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

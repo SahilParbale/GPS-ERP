@@ -21,6 +21,7 @@ import {
   CheckCircle2, AlertCircle, Calendar, DollarSign,
   ChevronRight, ArrowRight, ShieldCheck, Link2, RefreshCw,
   Maximize2, Minimize2, CheckCircle, XCircle, FileCheck, Loader2, Sparkles, ZoomIn, ZoomOut, ChevronDown,
+  ChevronLeft, ChevronUp,
   Info, AlertTriangle
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
@@ -32,48 +33,7 @@ const PI_STATUS_OPTIONS = [
   { value: 'Cancelled', label: 'Cancelled', color: '#991b1b', bg: '#fef2f2', icon: XCircle, description: 'Invoice Cancelled' }
 ];
 
-const PRESET_CUSTOMERS = [
-  {
-    name: 'T T B TOOLING',
-    fullName: 'T T B TOOLING',
-    contact: '9975108709',
-    email: 'purchase@ttbtooling.com',
-    billingAddress: 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan\nPune, Maharashtra-410501\nIndia',
-    gstin: '27AAKFT2876K1ZI',
-    state: '27-Maharashtra',
-    defaultSO: 'SO-2026-027'
-  },
-  {
-    name: 'LINAMAR INDIA PRIVATE LIMITED',
-    fullName: 'LINAMAR INDIA PRIVATE LIMITED',
-    contact: '7773877714',
-    email: 'purchase@linamar.com',
-    billingAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas\nDewas, Madhya Pradesh-455001\nIndia',
-    gstin: '23AACCL5351J1ZM',
-    state: '23-Madhya Pradesh',
-    defaultSO: 'SO-2026-294'
-  },
-  {
-    name: 'Tata Advanced Systems',
-    fullName: 'Tata Advanced Systems Ltd',
-    contact: 'Mr. Tanmay Sharma (DGM - Procurement)',
-    email: 'tanmay@tataadvanced.com',
-    billingAddress: 'Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510',
-    gstin: '36AAACT2718E1ZQ',
-    state: '36-Telangana',
-    defaultSO: 'SO-2026-041'
-  },
-  {
-    name: 'Bharat Forge',
-    fullName: 'Bharat Forge Ltd',
-    contact: 'Mr. Sunil Kadam (DGM - Maintenance & Tooling)',
-    email: 'procurement@bharatforge.com',
-    billingAddress: 'Mundhwa, Pune Cantonment, Pune - 411036, Maharashtra, India',
-    gstin: '27AAACB1829D1Z2',
-    state: '27-Maharashtra',
-    defaultSO: 'SO-2026-045'
-  }
-];
+const PRESET_CUSTOMERS = [];
 
 export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   const [proformaInvoices, setProformaInvoices] = useState([]);
@@ -83,6 +43,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isDocExpanded, setIsDocExpanded] = useState(false);
+  const [mobileTab, setMobileTab] = useState('list'); // 'list' | 'preview' for mobile
+  const [isMobilePreviewActionsOpen, setIsMobilePreviewActionsOpen] = useState(false);
 
   // Approved Quotations for conversion selector
   const [approvedQuotations, setApprovedQuotations] = useState([]);
@@ -723,16 +685,16 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         <PageHeader
           title="Proforma Invoices"
           subtitle="Commercial proforma invoices, advance payment milestones, and approved quotation conversion"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="content-body">
           <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
             <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+              {error.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {error.message || 'Unable to retrieve proforma invoices from PostgreSQL database.'}
+              {error.message || 'Unable to retrieve proforma invoices. Please check your connection.'}
             </p>
             <button type="button" className="btn btn-secondary" onClick={() => loadPIs()}>
               <RefreshCw size={14} />
@@ -774,7 +736,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           onClick={handleOpenCreateModal}
         >
           <Plus size={14} />
-          <span>Create Proforma Invoice</span>
+          <span className="desktop-only-inline">Create Proforma Invoice</span>
+          <span className="mobile-only-inline">New PI</span>
         </button>
       </PageHeader>
 
@@ -808,14 +771,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
             <div className="metric-footer" style={{ color: '#0284c7' }}>Transmitted via email</div>
           </div>
 
-          <div className="metric-card">
-            <div className="metric-top">
-              <span className="metric-label">Paid / Partial</span>
-              <div className="metric-icon-wrap"><CheckCircle2 size={16} /></div>
-            </div>
-            <div className="metric-value">{metrics.paidPI}</div>
-            <div className="metric-footer" style={{ color: '#16a34a' }}>Payment received</div>
-          </div>
+
 
           <div className="metric-card">
             <div className="metric-top">
@@ -827,19 +783,42 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
           </div>
         </div>
 
+        {/* Mobile View Switcher (Proforma Invoices List vs Document Preview) */}
+        <div className="mobile-only-flex sales-mobile-tabs">
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
+            onClick={() => setMobileTab('list')}
+          >
+            <FileText size={14} />
+            <span>Proforma Invoices ({filteredPIs.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+            onClick={() => {
+              if (!selectedPI && filteredPIs.length > 0) {
+                setSelectedPI(filteredPIs[0]);
+              }
+              setMobileTab('preview');
+            }}
+          >
+            <Eye size={14} />
+            <span>Document Preview</span>
+          </button>
+        </div>
+
         {/* Master-Detail Split Layout */}
-        <div 
-          className="doc-split-layout"
+        <div
+          className="doc-split-layout grid-2col-sales"
           style={{
-            display: 'grid',
-            gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr',
-            gap: '16px',
-            alignItems: 'start'
+            gridTemplateColumns: isDocExpanded ? '1fr' : undefined,
+            gap: '12px'
           }}
         >
           {/* Left Column: Compact Proforma Invoice List */}
           {!isDocExpanded && (
-            <div className="section-card" style={{ padding: '0', overflow: 'hidden' }}>
+            <div className={`section-card sales-col-list ${mobileTab !== 'list' ? 'mobile-hidden' : ''}`} style={{ padding: '0', overflow: 'hidden' }}>
               {/* Search & Filter Bar: All, Ready, Sent */}
               <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div className="search-input-wrap">
@@ -851,6 +830,16 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -881,7 +870,11 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     return (
                       <div
                         key={pi.id || pi.dbId}
-                        onClick={() => setSelectedPI(pi)}
+                        onClick={() => {
+                          setSelectedPI(pi);
+                          setMobileTab('preview');
+                          setIsMobilePreviewActionsOpen(false);
+                        }}
                         style={{
                           padding: '12px 14px',
                           borderBottom: '1px solid var(--border-color)',
@@ -1026,7 +1019,11 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                               type="button"
                               className="btn btn-secondary btn-sm"
                               style={{ height: '22px', fontSize: '10px', padding: '0 6px' }}
-                              onClick={() => setSelectedPI(pi)}
+                              onClick={() => {
+                                setSelectedPI(pi);
+                                setMobileTab('preview');
+                                setIsMobilePreviewActionsOpen(false);
+                              }}
                               title="View Document"
                             >
                               <Eye size={10} />
@@ -1121,180 +1118,206 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               : computeHsnBreakdown(selectedPI.items);
 
             return (
-              <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <div className={`section-card sales-col-preview ${mobileTab !== 'preview' ? 'mobile-hidden' : ''}`} style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 {/* Top Action Header with State Transitions, Edit, Send Email, Print, Download, Full Screen & Delete */}
-                <div style={{
-                  padding: '10px 14px',
-                  background: 'var(--bg-surface-subtle)',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>
-                      {selectedPI.piNumber ? `PI No. ${selectedPI.piNumber}` : selectedPI.id}
-                    </span>
-
-                    {getLinkedTaxInvoice(selectedPI) && (
-                      <span
-                        onClick={() => {
-                          const linked = getLinkedTaxInvoice(selectedPI);
-                          if (typeof window !== 'undefined') {
-                            window.__TARGET_TAX_INVOICE_ID__ = linked.id || linked.invoiceNumber;
-                          }
-                          if (onNavigate) onNavigate('invoices');
-                        }}
-                        title={`Linked to official Tax Invoice ${getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}. Click to view.`}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: '#0284c7',
-                          background: '#e0f2fe',
-                          border: '1px solid #bae6fd',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <Link2 size={11} />
-                        <span>Tax Inv: {getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}</span>
-                      </span>
-                    )}
-
-                    {/* Interactive Status Changer Dropdown */}
-                    <div style={{ position: 'relative' }} className="status-dropdown-container">
+                <div className="sales-preview-toolbar">
+                  {/* Top Row: Navigation, ID, Status, Customer and Mobile Actions Toggle */}
+                  <div className="sales-preview-top-row">
+                    <div className="sales-preview-id-group">
                       <button
                         type="button"
-                        onClick={() => setStatusDropdownOpen(prev => !prev)}
-                        title={`Status is "${selectedPI.status}". Click to switch to Ready to Send, Sent, Paid, or Cancelled.`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '3px 8px',
-                          borderRadius: '20px',
-                          border: '1px solid var(--border-color)',
-                          background: 'var(--bg-surface)',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                        className="btn btn-secondary btn-sm mobile-only-inline sales-mobile-back-btn"
+                        onClick={() => setMobileTab('list')}
+                        style={{ height: '26px', fontSize: '11px', padding: '0 7px', gap: '4px', flexShrink: 0 }}
+                        title="Back to Proforma Invoices List"
                       >
-                        {updatingPIId === (selectedPI.id || selectedPI.dbId) ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '11px' }}>
-                            <Loader2 size={12} className="animate-spin" />
-                            <span>Updating...</span>
-                          </span>
-                        ) : (
-                          <StatusBadge status={selectedPI.status} size="sm" />
-                        )}
-                        <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                        <ChevronLeft size={13} />
+                        <span>List</span>
                       </button>
 
-                      {statusDropdownOpen && (
-                        <div
+                      <span className="mono sales-preview-quote-id" style={{ fontWeight: 700, fontSize: '12.5px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {selectedPI.piNumber ? `PI No. ${selectedPI.piNumber}` : selectedPI.id}
+                      </span>
+
+                      {getLinkedTaxInvoice(selectedPI) && (
+                        <span
+                          onClick={() => {
+                            const linked = getLinkedTaxInvoice(selectedPI);
+                            if (typeof window !== 'undefined') {
+                              window.__TARGET_TAX_INVOICE_ID__ = linked.id || linked.invoiceNumber;
+                            }
+                            if (onNavigate) onNavigate('invoices');
+                          }}
+                          title={`Linked to official Tax Invoice ${getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}. Click to view.`}
                           style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 6px)',
-                            left: 0,
-                            zIndex: 100,
-                            minWidth: '220px',
-                            background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '8px',
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
-                            padding: '6px',
-                            display: 'flex',
-                            flexDirection: 'column',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            color: '#0284c7',
+                            background: '#e0f2fe',
+                            border: '1px solid #bae6fd',
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             gap: '3px',
-                            animation: 'fadeIn 0.15s ease-out'
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Change Invoice Status
-                          </div>
-                          {PI_STATUS_OPTIONS.map(opt => {
-                            const isCurrent = selectedPI.status === opt.value;
-                            const Icon = opt.icon;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => {
-                                  handleUpdateStatus(selectedPI.id || selectedPI.dbId, opt.value);
-                                  setStatusDropdownOpen(false);
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  border: 'none',
-                                  background: isCurrent ? opt.bg : 'transparent',
-                                  color: opt.color,
-                                  fontSize: '11.5px',
-                                  fontWeight: isCurrent ? 700 : 500,
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  transition: 'all 0.12s ease'
-                                }}
-                                onMouseEnter={e => {
-                                  if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
-                                }}
-                                onMouseLeave={e => {
-                                  if (!isCurrent) e.currentTarget.style.background = 'transparent';
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <Icon size={13} color={opt.color} />
-                                  <div>
-                                    <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
-                                    <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
-                                  </div>
-                                </div>
-                                {isCurrent && <Check size={13} color={opt.color} />}
-                              </button>
-                            );
-                          })}
-                        </div>
+                          <Link2 size={10} />
+                          <span>Tax Inv: {getLinkedTaxInvoice(selectedPI).invoiceNumber || getLinkedTaxInvoice(selectedPI).id}</span>
+                        </span>
                       )}
                     </div>
 
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedPI.customer}</span>
-                  </div>
+                    <div className="sales-preview-status-customer-wrap">
+                      {/* Interactive Status Changer Dropdown */}
+                      <div style={{ position: 'relative' }} className="status-dropdown-container">
+                        <button
+                          type="button"
+                          onClick={() => setStatusDropdownOpen(prev => !prev)}
+                          title={`Status is "${selectedPI.status}". Click to switch to Ready to Send, Sent, Paid, or Cancelled.`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '2px 7px',
+                            borderRadius: '16px',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-surface)',
+                            cursor: 'pointer',
+                            fontSize: '10.5px',
+                            fontWeight: 600,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                            transition: 'all 0.15s ease',
+                            height: '24px'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                        >
+                          {updatingPIId === (selectedPI.id || selectedPI.dbId) ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '10.5px' }}>
+                              <Loader2 size={11} className="animate-spin" />
+                              <span>Updating...</span>
+                            </span>
+                          ) : (
+                            <StatusBadge status={selectedPI.status} size="sm" />
+                          )}
+                          <ChevronDown size={10} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                        </button>
 
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {statusDropdownOpen && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              zIndex: 100,
+                              minWidth: '220px',
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '8px',
+                              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                              padding: '6px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '3px',
+                              animation: 'fadeIn 0.15s ease-out'
+                            }}
+                          >
+                            <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Change Invoice Status
+                            </div>
+                            {PI_STATUS_OPTIONS.map(opt => {
+                              const isCurrent = selectedPI.status === opt.value;
+                              const Icon = opt.icon;
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdateStatus(selectedPI.id || selectedPI.dbId, opt.value);
+                                    setStatusDropdownOpen(false);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: isCurrent ? opt.bg : 'transparent',
+                                    color: opt.color,
+                                    fontSize: '11.5px',
+                                    fontWeight: isCurrent ? 700 : 500,
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.12s ease'
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Icon size={13} color={opt.color} />
+                                    <div>
+                                      <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                                      <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
+                                    </div>
+                                  </div>
+                                  {isCurrent && <Check size={13} color={opt.color} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Send Email: Matches SalesScreen secondary style */}
+                      <span className="sales-preview-customer-label">
+                        <span className="desktop-only-inline">• </span>
+                        <span className="mobile-only-inline" style={{ color: 'var(--text-muted)' }}>Customer: </span>
+                        <strong style={{ color: 'var(--text-main)' }}>{selectedPI.customer}</strong>
+                      </span>
+                    </div>
+
+                    {/* Actions button for mobile screens */}
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="sales-preview-actions-toggle-mobile"
+                      onClick={() => setIsMobilePreviewActionsOpen(prev => !prev)}
+                      aria-expanded={isMobilePreviewActionsOpen}
+                      title={isMobilePreviewActionsOpen ? 'Hide action buttons' : 'Show action buttons'}
+                    >
+                      <span>Actions</span>
+                      {isMobilePreviewActionsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                  </div>
+
+                  {/* Action Buttons Group */}
+                  <div className={`sales-preview-actions-group ${isMobilePreviewActionsOpen ? 'is-open' : 'is-collapsed'}`}>
+                    {/* Send Email */}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-email"
                       onClick={() => handleOpenEmail(selectedPI)}
                       title="Send Proforma Invoice via Outlook-style email composer"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
                       <Mail size={12} color="var(--primary)" />
-                      <span>{selectedPI.status === 'Sent' ? 'Resend Email' : 'Send Email'}</span>
+                      <span className="desktop-only-inline">{selectedPI.status === 'Sent' ? 'Resend Email' : 'Send Email'}</span>
+                      <span className="mobile-only-inline">Email</span>
                     </button>
 
-                    {/* Issue / View Tax Invoice: Seamless workflow chain into Invoices screen */}
+                    {/* Issue / View Tax Invoice */}
                     {(() => {
                       const linkedTaxInvoice = getLinkedTaxInvoice(selectedPI);
                       return (
                         <button
                           type="button"
-                          className="btn btn-sm"
+                          className="btn btn-sm sales-btn-pi"
                           onClick={() => {
                             if (linkedTaxInvoice) {
                               if (typeof window !== 'undefined') {
@@ -1337,32 +1360,37 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                           ) : linkedTaxInvoice ? (
                             <>
                               <Eye size={12} color="var(--primary)" />
-                              <span>View Tax Invoice</span>
+                              <span className="desktop-only-inline">View Tax Invoice</span>
+                              <span className="mobile-only-inline">View Tax Inv</span>
                             </>
                           ) : (
                             <>
                               <FileCheck size={12} />
-                              <span>Issue Tax Invoice</span>
+                              <span className="desktop-only-inline">Issue Tax Invoice</span>
+                              <span className="mobile-only-inline">Issue Tax Inv</span>
                             </>
                           )}
                         </button>
                       );
                     })()}
 
+                    <div className="sales-preview-divider" style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary btn-sm sales-btn-download"
                       onClick={handleDownloadPdf}
                       title="Download authentic Proforma Invoice PDF"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
                       <Download size={12} />
-                      <span>Download PDF</span>
+                      <span className="desktop-only-inline">Download PDF</span>
+                      <span className="mobile-only-inline">PDF</span>
                     </button>
 
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary btn-sm sales-btn-print"
                       onClick={handlePrint}
                       title="Print official Proforma Invoice"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1372,56 +1400,128 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     </button>
 
                     {/* Zoom & Fit Controls */}
-                    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
-                        title="Zoom Out"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                      >
-                        <ZoomOut size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(1)}
-                        title="Reset to 100%"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
-                      >
-                        {Math.round(zoomScale * 100)}%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
-                        title="Zoom In"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                      >
-                        <ZoomIn size={12} />
-                      </button>
+                    <div
+                      className="sales-preview-zoom-controls"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        height: '26px',
+                        padding: '1px 4px',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {/* Left Side: Zoom Out / Percentage / Zoom In */}
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                          title="Zoom Out (reduce scale)"
+                          style={{
+                            background: 'var(--bg-surface-subtle)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '4px',
+                            padding: '0 6px',
+                            cursor: 'pointer',
+                            height: '22px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            color: 'var(--text-main)',
+                            fontSize: '10.5px',
+                            fontWeight: 500
+                          }}
+                        >
+                          <ZoomOut size={12} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(1)}
+                          title="Reset to 100% (Actual Desktop Size)"
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '4px',
+                            padding: '0 6px',
+                            cursor: 'pointer',
+                            height: '22px',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            color: 'var(--text-main)',
+                            minWidth: '42px',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {Math.round(zoomScale * 100)}%
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                          title="Zoom In (enlarge scale)"
+                          style={{
+                            background: 'var(--bg-surface-subtle)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '4px',
+                            padding: '0 6px',
+                            cursor: 'pointer',
+                            height: '22px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            color: 'var(--text-main)',
+                            fontSize: '10.5px',
+                            fontWeight: 500
+                          }}
+                        >
+                          <ZoomIn size={12} />
+                        </button>
+                      </div>
+
+                      {/* Right Side: Fit Button */}
                       <button
                         type="button"
                         onClick={handleFitWidth}
-                        title="Auto-fit invoice to screen width"
-                        style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                        title="Fit invoice to screen width"
+                        style={{
+                          background: 'var(--primary-bg, #fdf2f4)',
+                          border: '1px solid rgba(122, 31, 61, 0.25)',
+                          borderRadius: '4px',
+                          padding: '0 8px',
+                          cursor: 'pointer',
+                          height: '22px',
+                          fontSize: '10.5px',
+                          color: 'var(--primary, #7A1F3D)',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
                       >
-                        Fit
+                        <Maximize2 size={11} />
+                        <span>Fit</span>
                       </button>
                     </div>
 
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary btn-sm sales-btn-expand"
                       onClick={() => setIsDocExpanded(!isDocExpanded)}
                       title={isDocExpanded ? "Split view" : "Full screen preview"}
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
                     >
                       {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                      <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                      <span className="desktop-only-inline">{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                      <span className="mobile-only-inline">{isDocExpanded ? "Split" : "Expand"}</span>
                     </button>
 
-                    {/* Edit Proforma */}
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary btn-sm sales-btn-edit"
                       onClick={() => handleOpenEdit(selectedPI)}
                       title="Edit Proforma details, line items, and terms"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1432,7 +1532,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
                     <button
                       type="button"
-                      className="btn btn-sm"
+                      className="btn btn-sm sales-preview-delete-btn"
                       onClick={() => confirmDeletePI(selectedPI)}
                       title="Delete this Proforma Invoice"
                       style={{
@@ -1460,6 +1560,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                     padding: '16px 0',
                     overflowY: 'auto',
                     overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
                     flex: 1,
                     minHeight: '0',
                     width: '100%',
@@ -1515,7 +1616,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                         minHeight: 0
                       }}>
                         {/* 2. Company Header & Metadata Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                        <div className="preview-header-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                           {/* Left: GPS Logo & Details */}
                           <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                             <img
@@ -1542,7 +1643,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                           {/* Right: Metadata Grid (3 rows: Row 1 = Proforma Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
                           <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
                             {/* Row 1: Proforma Invoice No. & Date */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                            <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
                               <div style={{ padding: '3.5px 6px' }}>
                                 <div style={{ fontSize: '7px', color: '#000000' }}>Proforma Invoice No.</div>
                                 <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
@@ -1558,7 +1659,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                             </div>
 
                             {/* Row 2: Place of supply & empty right corner */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                            <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
                               <div style={{ padding: '3.5px 6px' }}>
                                 <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
                                 <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
@@ -1667,7 +1768,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                         </table>
 
                         {/* 5. Middle Section: Words, Description & Amounts */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                        <div className="preview-amounts-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                           {/* Left: Words + Description */}
                           <div>
                             {/* Proforma Invoice Amount in Words */}
@@ -1836,7 +1937,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
                         </table>
 
                         {/* 7. Bottom Section: Bank Details, Terms, and Signatory (3 Columns) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
+                        <div className="preview-footer-grid" style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
                           {/* Col 1: Bank Details */}
                           <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
@@ -1895,8 +1996,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         title={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px' }}>
-            <span>{editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "Create Proforma Invoice"}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px' }}>{editingPIId ? `Edit Proforma Invoice: ${formState.piNumber || editingPIId}` : "Create Proforma Invoice"}</span>
             {!editingPIId && (
               <button
                 onClick={handleResetForm}
@@ -1926,11 +2027,11 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         }
         maxWidth="860px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formCalculations.grandTotal.toLocaleString('en-IN')}</strong> (Incl. 18% GST)
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1999,7 +2100,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               <span>Customer Information & Invoice Details</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer Name (Preset or Custom)</label>
                 <input
@@ -2038,7 +2139,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Customer Address</label>
                 <input
@@ -2077,7 +2178,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1.2fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>PI Number</label>
                 <input
@@ -2127,7 +2228,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               <span>Spindle Specifications, Challan & Scope of Work</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Spindle Serial No.</label>
                 <input
@@ -2174,8 +2275,11 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
           {/* Line Items Table */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items (7-Column Format)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items (7-Column Format)</span>
+                <span className="mobile-only-inline" style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>(Swipe to edit items →)</span>
+              </div>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -2186,8 +2290,8 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
               </button>
             </div>
 
-            <div className="table-responsive">
-              <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
+            <div className="table-responsive sales-items-table-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '580px', fontSize: '11.5px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '6px 8px', textAlign: 'left' }}>Item name</th>
@@ -2277,7 +2381,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
 
             {/* Calculations Summary */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <div style={{ width: '280px', background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
+              <div style={{ width: 'min(100%, 280px)', background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Sub Total:</span>
                   <span className="mono">₹{formCalculations.subtotal.toLocaleString('en-IN')}</span>
@@ -2303,7 +2407,7 @@ export default function ProformaInvoiceScreen({ onNavigate, onNotify }) {
         title="Delete Proforma Invoice"
         maxWidth="450px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn btn-secondary"

@@ -28,7 +28,7 @@ export const NAV_SECTIONS = [
       { id: 'payments', label: 'Client Payments', icon: CreditCard },
       { id: 'e-way-bills', label: 'E-Way Bills', icon: Truck, badge: '5' },
       { id: 'customers', label: 'Client Directory', icon: Building2 },
-      { id: 'email-activity', label: 'Email Activity', icon: Mail },
+      { id: 'email-activity', label: 'Email Register (Outlook)', icon: Mail },
     ]
   },
   {

@@ -154,7 +154,7 @@ export default function CustomSelect({
       style={{
         position: 'relative',
         display: 'inline-block',
-        width: style.width || '100%',
+        width: style.width || (style.minWidth ? 'auto' : '100%'),
         minWidth: style.minWidth || '140px',
         userSelect: 'none',
         ...style

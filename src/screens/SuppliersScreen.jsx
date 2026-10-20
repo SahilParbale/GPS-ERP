@@ -9,11 +9,11 @@ import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportVendorDirectoryPdf, exportPurchaseOrderPdf, numberToIndianWords } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
-import { 
-  Search, Truck, Star, Phone, FileText, Plus, Download, 
-  RefreshCw, AlertCircle, ShoppingCart, Mail, Eye, Edit3, 
-  Trash2, Building2, MapPin, CheckCircle2, DollarSign, 
-  ExternalLink, Calendar, Send, Clock, ShieldCheck, Tag
+import {
+  Search, Truck, Star, Phone, FileText, Plus, Download,
+  RefreshCw, AlertCircle, ShoppingCart, Mail, Eye, Edit3,
+  Trash2, Building2, MapPin, CheckCircle2, DollarSign,
+  ExternalLink, Calendar, Send, Clock, ShieldCheck, Tag, X
 } from 'lucide-react';
 
 export default function SuppliersScreen({ onNavigate, onNotify }) {
@@ -149,8 +149,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
     const totalPoValue = allLinkedPOs.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
     const sentPOs = purchaseOrders.filter(p => p.status === 'Sent' || p.status === 'Approved').length;
 
-    const formattedVal = totalPoValue >= 100000 
-      ? `₹${(totalPoValue / 100000).toFixed(2)}L` 
+    const formattedVal = totalPoValue >= 100000
+      ? `₹${(totalPoValue / 100000).toFixed(2)}L`
       : `₹${totalPoValue.toLocaleString('en-IN')}`;
 
     return {
@@ -167,7 +167,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter((s) => {
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = !q || 
+      const matchesSearch = !q ||
         (s.name && s.name.toLowerCase().includes(q)) ||
         (s.category && s.category.toLowerCase().includes(q)) ||
         (s.location && s.location.toLowerCase().includes(q)) ||
@@ -175,7 +175,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
         (s.contact_person && s.contact_person.toLowerCase().includes(q)) ||
         (s.email && s.email.toLowerCase().includes(q));
 
-      const matchesCat = categoryFilter === 'all' || 
+      const matchesCat = categoryFilter === 'all' ||
         (s.category && s.category.toLowerCase().includes(categoryFilter.toLowerCase()));
 
       return matchesSearch && matchesCat;
@@ -287,8 +287,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
   if (error) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Precision Vendors & Component Suppliers" 
+        <PageHeader
+          title="Precision Vendors & Component Suppliers"
           subtitle="Tier-1 procurement sources for ceramic hybrid bearings, alloy steels, and optical encoders"
           badge="Database Notice"
         />
@@ -313,13 +313,13 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
 
   return (
     <div className="content-area">
-      <PageHeader 
-        title="Precision Vendors & Component Suppliers" 
+      <PageHeader
+        title="Precision Vendors & Component Suppliers"
         subtitle="Tier-1 procurement sources for ceramic hybrid bearings, alloy steels, and optical encoders"
         badge={`${suppliers.length} Approved Vendors`}
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             try {
@@ -351,15 +351,17 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
           }}
         >
           <Download size={14} />
-          <span>Export Vendors (PDF)</span>
+          <span className="desktop-only-inline">Export Vendors (PDF)</span>
+          <span className="mobile-only-inline">Export PDF</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={handleOpenAddVendor}
         >
           <Plus size={14} />
-          <span>+ Add Approved Vendor</span>
+          <span className="desktop-only-inline">Add Approved Vendor</span>
+          <span className="mobile-only-inline">+ Vendor</span>
         </button>
       </PageHeader>
 
@@ -409,19 +411,28 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
             <div className="filter-group">
               <div className="search-input-wrap">
                 <Search size={14} className="search-icon" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control"
-                  placeholder="Search Vendor, Category, GSTIN, Contact..." 
+                  placeholder="Search Vendor, Category, GSTIN, Contact..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
 
-              <CustomSelect 
+              <CustomSelect
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                style={{ minWidth: '180px' }}
                 options={[
                   { value: 'all', label: `All Categories (${suppliers.length})` },
                   { value: 'bearing', label: 'Spindle Bearings' },
@@ -430,11 +441,30 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                   { value: 'encoder', label: 'Optical Encoders' }
                 ]}
               />
+
+              {(searchQuery || categoryFilter !== 'all') && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCategoryFilter('all');
+                  }}
+                  style={{ height: '32px' }}
+                >
+                  <X size={12} />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="filter-summary-count">
+              Showing <strong>{filteredSuppliers.length}</strong> of {suppliers.length} vendors
             </div>
           </div>
 
-          {/* Vendors Main Table */}
-          <div className="table-responsive">
+          {/* Vendors Main Table (Desktop) */}
+          <div className="table-responsive desktop-table-view">
             <table className="data-table">
               <thead>
                 <tr>
@@ -492,10 +522,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                           {supp.leadTime}
                         </td>
                         <td>
-                          <span style={{ 
-                            padding: '3px 8px', 
-                            borderRadius: '4px', 
-                            fontSize: '11px', 
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
                             fontWeight: 600,
                             background: '#ecfdf5',
                             color: '#047857',
@@ -510,10 +540,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                             <button
                               type="button"
                               onClick={() => handleOpenViewPOs(supp)}
-                              style={{ 
-                                background: '#F5E8ED', 
-                                border: '1px solid #e2ccd5', 
-                                borderRadius: '4px', 
+                              style={{
+                                background: '#F5E8ED',
+                                border: '1px solid #e2ccd5',
+                                borderRadius: '4px',
                                 padding: '3px 7px',
                                 textAlign: 'left',
                                 cursor: 'pointer',
@@ -550,8 +580,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
                             {/* View POs Pop-up Trigger Button */}
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '4px 8px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#7A1F3D', color: '#7A1F3D', fontWeight: 600 }}
                               onClick={() => handleOpenViewPOs(supp)}
@@ -560,11 +590,11 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                               <ShoppingCart size={12} />
                               <span>View POs</span>
                               {vendorPOs.length > 0 && (
-                                <span style={{ 
-                                  background: '#7A1F3D', 
-                                  color: '#ffffff', 
-                                  fontSize: '10px', 
-                                  borderRadius: '10px', 
+                                <span style={{
+                                  background: '#7A1F3D',
+                                  color: '#ffffff',
+                                  fontSize: '10px',
+                                  borderRadius: '10px',
                                   padding: '0 5px',
                                   marginLeft: '2px'
                                 }}>
@@ -574,8 +604,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                             </button>
 
                             {/* Edit Vendor */}
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '4px 6px' }}
                               onClick={() => handleOpenEditVendor(supp)}
@@ -585,8 +615,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                             </button>
 
                             {/* Delete Vendor */}
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '4px 6px', color: 'var(--status-danger-text)' }}
                               onClick={() => setDeleteConfirmModal({ isOpen: true, vendor: supp })}
@@ -603,6 +633,162 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </tbody>
             </table>
           </div>
+
+          {/* Vendors Mobile Card Feed (≤ 768px) */}
+          <div className="mobile-card-view">
+            {filteredSuppliers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                No vendor records found matching your search.
+              </div>
+            ) : (
+              filteredSuppliers.map((supp) => {
+                const vendorPOs = getVendorPOs(supp);
+                const totalPOAmount = vendorPOs.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+
+                return (
+                  <div
+                    key={supp.id || supp.supplier_code}
+                    className="supplier-mobile-card"
+                    style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                  >
+                    {/* Header: Name + Rating Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13.5px' }}>
+                          {supp.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontSize: '11px', color: '#7A1F3D', fontWeight: 600 }}>
+                            {supp.supplier_code || supp.id}
+                          </span>
+                          {supp.gstin && (
+                            <span className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                              • GST: {supp.gstin}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <span style={{
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        fontSize: '10.5px',
+                        fontWeight: 600,
+                        background: '#ecfdf5',
+                        color: '#047857',
+                        border: '1px solid #a7f3d0',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}>
+                        {supp.rating}
+                      </span>
+                    </div>
+
+                    {/* Category */}
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', background: 'var(--bg-surface-subtle, #f8fafc)', padding: '6px 8px', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '11px' }}>Supplies: </strong>
+                      {supp.category}
+                    </div>
+
+                    {/* Meta info: Location, Lead Time, POS */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
+                      fontSize: '11.5px',
+                      padding: '8px 10px',
+                      background: 'var(--bg-surface-subtle, #f8fafc)',
+                      borderRadius: '6px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Location & POS</div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-main)' }}>{supp.location || supp.city}</div>
+                        <div style={{ fontSize: '10px', color: '#7A1F3D', fontWeight: 600 }}>{supp.placeOfSupply || supp.state || '27-Maharashtra'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Lead Time</div>
+                        <div className="mono" style={{ fontWeight: 600, color: 'var(--text-main)' }}>{supp.leadTime}</div>
+                      </div>
+                    </div>
+
+                    {/* Contact Person & Email */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{supp.contact_person || supp.name}</span>
+                        {supp.phone && <span className="mono"> • {supp.phone}</span>}
+                      </div>
+                      <span style={{ color: '#7A1F3D', flexShrink: 0, fontWeight: 500 }}>{supp.email}</span>
+                    </div>
+
+                    {/* Footer: Linked POs & Actions */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid var(--border-color)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div>
+                        {vendorPOs.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenViewPOs(supp)}
+                            style={{
+                              background: '#F5E8ED',
+                              border: '1px solid #e2ccd5',
+                              borderRadius: '4px',
+                              padding: '3px 7px',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'inline-block'
+                            }}
+                          >
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#7A1F3D' }}>
+                              {vendorPOs.length} PO{vendorPOs.length > 1 ? 's' : ''} (₹{totalPOAmount.toLocaleString('en-IN')})
+                            </span>
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No POs logged</span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#7A1F3D', color: '#7A1F3D', fontWeight: 600 }}
+                          onClick={() => handleOpenViewPOs(supp)}
+                        >
+                          <ShoppingCart size={11} />
+                          <span>View POs</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 7px' }}
+                          onClick={() => handleOpenEditVendor(supp)}
+                          title="Edit Vendor"
+                        >
+                          <Edit3 size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 7px', color: 'var(--status-danger-text)' }}
+                          onClick={() => setDeleteConfirmModal({ isOpen: true, vendor: supp })}
+                          title="Delete Vendor"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
@@ -616,29 +802,32 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
           title={`Purchase Orders — ${selectedVendorForPOs.name}`}
           maxWidth="920px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 Vendor Code: <strong className="mono" style={{ color: '#7A1F3D' }}>{selectedVendorForPOs.supplier_code || selectedVendorForPOs.id}</strong> • GSTIN: <strong className="mono">{selectedVendorForPOs.gstin || '27ABDFP3172C1ZH'}</strong>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  type="button" 
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => setIsVendorPOsModalOpen(false)}
+                  style={{ flex: '1 1 auto', minWidth: '70px' }}
                 >
                   Close
                 </button>
                 {onNavigate && (
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="btn btn-primary"
                     onClick={() => {
                       setIsVendorPOsModalOpen(false);
                       onNavigate('purchase-orders');
                     }}
                     title="Go to Purchase Order Management to generate official PO"
+                    style={{ flex: '1 1 auto', justifyContent: 'center' }}
                   >
-                    <span>Go to Purchase Orders Screen ↗</span>
+                    <span className="desktop-only-inline">Go to Purchase Orders Screen ↗</span>
+                    <span className="mobile-only-inline">Open PO Screen ↗</span>
                   </button>
                 )}
               </div>
@@ -654,14 +843,16 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* Vendor Summary Banner */}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  padding: '12px 16px', 
-                  background: '#F5E8ED', 
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  background: '#F5E8ED',
                   borderRadius: '6px',
-                  border: '1px solid #e2ccd5' 
+                  border: '1px solid #e2ccd5',
+                  flexWrap: 'wrap',
+                  gap: '12px'
                 }}>
                   <div>
                     <div style={{ fontSize: '16px', fontWeight: 800, color: '#7A1F3D' }}>
@@ -680,7 +871,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                 </div>
 
                 {/* 4 Mini Metrics for this Vendor */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                   <div style={{ padding: '8px 12px', background: '#F8FAF9', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                     <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Total Orders</div>
                     <div className="mono" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>{vPOs.length}</div>
@@ -701,12 +892,13 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
 
                 {/* Orders List Table */}
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-                  <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                     <span>Generated & Sent Purchase Orders</span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{vPOs.length} Record(s)</span>
                   </div>
 
-                  <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
+                  <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    <table style={{ width: '100%', minWidth: '600px', fontSize: '11.5px', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: '#ffffff', borderBottom: '1px solid var(--border-color)' }}>
                         <th style={{ padding: '8px 10px', textAlign: 'left' }}>Order No.</th>
@@ -742,14 +934,14 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                         </tr>
                       ) : (
                         vPOs.map((po) => {
-                          const itemsSummary = po.items && po.items.length > 0 
+                          const itemsSummary = po.items && po.items.length > 0
                             ? `${po.items[0]?.item || po.items[0]?.name || 'Item'} (${po.items[0]?.qty || 1} ${po.items[0]?.unit || 'Nos'})` + (po.items.length > 1 ? ` +${po.items.length - 1} more` : '')
                             : '120TAC20FME2DBCP5P01-NSK (1 Nos)';
 
                           return (
                             <tr key={po.id || po.poNumber} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                              <td 
-                                className="mono" 
+                              <td
+                                className="mono"
                                 style={{ fontWeight: 700, color: 'var(--primary)', cursor: 'pointer', padding: '8px 10px' }}
                                 onClick={() => {
                                   setPreviewDoc(po);
@@ -777,8 +969,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                               <td style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                 <div style={{ display: 'inline-flex', gap: '4px' }}>
                                   {/* Send PO to Supplier */}
-                                  <button 
-                                    type="button" 
+                                  <button
+                                    type="button"
                                     className="btn btn-primary btn-sm"
                                     style={{ padding: '3px 7px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                                     onClick={() => {
@@ -792,8 +984,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                                   </button>
 
                                   {/* PDF Preview */}
-                                  <button 
-                                    type="button" 
+                                  <button
+                                    type="button"
                                     className="btn btn-secondary btn-sm"
                                     style={{ padding: '3px 6px', fontSize: '11px' }}
                                     onClick={() => {
@@ -807,8 +999,8 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                                   </button>
 
                                   {/* Download Vector PDF */}
-                                  <button 
-                                    type="button" 
+                                  <button
+                                    type="button"
                                     className="btn btn-secondary btn-sm"
                                     style={{ padding: '3px 5px' }}
                                     onClick={() => {
@@ -831,6 +1023,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             );
@@ -847,22 +1040,24 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
         title={editingVendorId ? `Edit Vendor: ${vendorFormData.name}` : '+ Add Approved Vendor & Component Supplier'}
         maxWidth="750px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
               Vendors added here are linked directly to the Purchase Order system.
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                type="button" 
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
                 className="btn btn-secondary"
                 onClick={() => setIsVendorModalOpen(false)}
+                style={{ flex: '1 1 auto', minWidth: '70px' }}
               >
                 Discard
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-primary"
                 onClick={handleSaveVendor}
+                style={{ flex: '1 1 auto', justifyContent: 'center' }}
               >
                 <CheckCircle2 size={13} />
                 <span>{editingVendorId ? 'Save Changes' : 'Approve & Save Vendor'}</span>
@@ -879,10 +1074,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               <span>Vendor Master Information</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Vendor Company Name *</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.name}
@@ -893,7 +1088,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Vendor Code / ID</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={vendorFormData.supplier_code}
@@ -905,7 +1100,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
 
             <div style={{ marginBottom: '10px' }}>
               <label className="form-label" style={{ fontSize: '11px' }}>Component Categories Supplied *</label>
-              <input 
+              <input
                 type="text"
                 className="form-control"
                 value={vendorFormData.category}
@@ -915,10 +1110,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Standard Lead Time</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.leadTime}
@@ -928,7 +1123,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Quality Rating</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.rating}
@@ -938,7 +1133,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Status</label>
-                <select 
+                <select
                   className="form-control"
                   value={vendorFormData.status}
                   onChange={(e) => setVendorFormData(prev => ({ ...prev, status: e.target.value }))}
@@ -959,10 +1154,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               <span>Purchase Order & Communication Settings</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Vendor Email (Used for Sending POs) *</label>
-                <input 
+                <input
                   type="email"
                   className="form-control"
                   value={vendorFormData.email}
@@ -973,7 +1168,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Contact Person Name</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.contact_person}
@@ -983,10 +1178,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Phone / Contact No.</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={vendorFormData.phone}
@@ -996,7 +1191,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>GSTIN</label>
-                <input 
+                <input
                   type="text"
                   className="form-control mono"
                   value={vendorFormData.gstin}
@@ -1006,7 +1201,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Place of Supply / State</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.placeOfSupply}
@@ -1026,7 +1221,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
 
             <div style={{ marginBottom: '10px' }}>
               <label className="form-label" style={{ fontSize: '11px' }}>Full Street / Industrial Address</label>
-              <input 
+              <input
                 type="text"
                 className="form-control"
                 value={vendorFormData.address}
@@ -1035,10 +1230,10 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>City / Hub</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.city}
@@ -1048,7 +1243,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>Default Payment Terms</label>
-                <input 
+                <input
                   type="text"
                   className="form-control"
                   value={vendorFormData.paymentTerms}
@@ -1071,16 +1266,16 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
           title="Delete Vendor from Approved Registry"
           maxWidth="440px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-              <button 
-                type="button" 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+              <button
+                type="button"
                 className="btn btn-secondary"
                 onClick={() => setDeleteConfirmModal({ isOpen: false, vendor: null })}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-primary"
                 style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
                 onClick={handleExecuteDeleteVendor}
@@ -1105,7 +1300,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
       {/* 5. OUTLOOK EMAIL COMPOSER (TRANSMITTING PO TO SUPPLIER)                   */}
       {/* ========================================================================= */}
       {emailPO && (
-        <OutlookEmailComposer 
+        <OutlookEmailComposer
           isOpen={isEmailComposerOpen}
           onClose={() => setIsEmailComposerOpen(false)}
           documentData={emailPO}
@@ -1126,7 +1321,7 @@ export default function SuppliersScreen({ onNavigate, onNotify }) {
       {/* ========================================================================= */}
       {/* 6. DOCUMENT PREVIEW MODAL (OFFICIAL 1:1 REPLICA OF PO / DIRECTORY)         */}
       {/* ========================================================================= */}
-      <DocumentPreviewModal 
+      <DocumentPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         doc={previewDoc}

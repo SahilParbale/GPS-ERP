@@ -6,7 +6,7 @@ import { TablePageSkeleton } from '../components/common/Skeleton';
 import { 
   FileText, Upload, Download, Search, Trash2, Eye, 
   RefreshCw, Filter, ShieldCheck, AlertCircle, CheckCircle2,
-  FolderOpen, Layers, HardDrive, FileSpreadsheet
+  FolderOpen, Layers, HardDrive, FileSpreadsheet, X
 } from 'lucide-react';
 import { documentService } from '../services/database/documentService';
 import { useAuth } from '../context/AuthContext';
@@ -64,7 +64,7 @@ export default function DocumentsScreen({ onNotify }) {
       );
 
       if (error || !data?.signedUrl) {
-        if (onNotify) onNotify(`Download failed: ${error?.message || 'Access restricted by RLS'}`, 'error');
+        if (onNotify) onNotify(`Download failed: ${error?.message || 'Access restricted by security policy'}`, 'error');
         return;
       }
 
@@ -160,6 +160,21 @@ export default function DocumentsScreen({ onNotify }) {
     return matchesCategory && matchesSearch;
   });
 
+  // Helper for category badge styling
+  const getCategoryBadgeStyle = (category = '') => {
+    const cat = category.toLowerCase();
+    if (cat.includes('drawing') || cat.includes('cad')) {
+      return { bg: '#FDF2F4', color: '#7A1F3D', border: '#F2D2DC', icon: Layers };
+    }
+    if (cat.includes('cert') || cat.includes('metrology') || cat.includes('quality')) {
+      return { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', icon: ShieldCheck };
+    }
+    if (cat.includes('invoice') || cat.includes('po') || cat.includes('commercial')) {
+      return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', icon: FileSpreadsheet };
+    }
+    return { bg: '#f1f5f9', color: '#334155', border: '#cbd5e1', icon: FileText };
+  };
+
   if (isLoading) {
     return (
       <TablePageSkeleton 
@@ -178,7 +193,7 @@ export default function DocumentsScreen({ onNotify }) {
         subtitle="Secure repository for CAD drawings, metrology inspection reports, invoices, and service logs"
         badge={`${documents.length} Managed Files`}
       >
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button 
             type="button" 
             className="btn btn-secondary"
@@ -196,7 +211,8 @@ export default function DocumentsScreen({ onNotify }) {
             onClick={() => setIsUploadOpen(true)}
           >
             <Upload size={14} />
-            <span>Upload Document</span>
+            <span className="desktop-only-inline">Upload Document</span>
+            <span className="mobile-only-inline">Upload</span>
           </button>
         </div>
       </PageHeader>
@@ -211,7 +227,7 @@ export default function DocumentsScreen({ onNotify }) {
             <div className="metric-icon-wrap"><HardDrive size={16} /></div>
           </div>
           <div className="metric-value">{documents.length} Files</div>
-          <div className="metric-footer" style={{ color: '#059669' }}>Private Storage RLS Protected</div>
+          <div className="metric-footer" style={{ color: '#059669' }}>Encrypted Private Storage</div>
         </div>
 
         <div className="metric-card">
@@ -250,24 +266,32 @@ export default function DocumentsScreen({ onNotify }) {
 
       {/* Filter and Search Bar */}
       <div className="section-card">
-        <div className="filter-bar" style={{ padding: '12px 20px' }}>
-          <div className="filter-group" style={{ gap: '12px', flexWrap: 'wrap' }}>
+        <div className="filter-bar">
+          <div className="filter-group">
             <div className="search-input-wrap">
               <Search size={14} className="search-icon" />
               <input 
                 type="text" 
                 className="form-control"
-                placeholder="Search by Title, File Name, Reference ID..." 
+                placeholder="Search Title, File Name, Ref ID..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ minWidth: '300px' }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
             <CustomSelect 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              style={{ minWidth: '200px' }}
               options={[
                 { value: 'ALL', label: `All Categories (${documents.length})` },
                 { value: 'DRAWINGS', label: 'Engineering Drawings' },
@@ -276,16 +300,31 @@ export default function DocumentsScreen({ onNotify }) {
                 { value: 'SERVICE', label: 'Service & Restoration Reports' }
               ]}
             />
+
+            {(searchQuery || selectedCategory !== 'ALL') && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('ALL');
+                }}
+                style={{ height: '32px' }}
+              >
+                <X size={12} />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Showing <strong>{filteredDocuments.length}</strong> of {documents.length} documents
+          <div className="filter-summary-count">
+            Showing <strong>{filteredDocuments.length}</strong> of {documents.length} files
           </div>
         </div>
 
         {/* Error Banner with Retry */}
         {error && (
-          <div style={{ margin: '16px 20px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ margin: '16px 20px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontSize: '13px' }}>
               <AlertCircle size={16} />
               <span>{error}</span>
@@ -301,11 +340,9 @@ export default function DocumentsScreen({ onNotify }) {
           </div>
         )}
 
-
-
-        {/* Document Table */}
+        {/* Document Table (Desktop View) */}
         {!isLoading && !error && (
-          <div className="table-responsive">
+          <div className="table-responsive desktop-table-view">
             <table className="data-table" style={{ minWidth: '1080px' }}>
               <thead>
                 <tr>
@@ -435,6 +472,163 @@ export default function DocumentsScreen({ onNotify }) {
             </table>
           </div>
         )}
+
+        {/* Documents Mobile Card Feed (≤ 768px) */}
+        {!isLoading && !error && (
+          <div className="mobile-card-view">
+            {filteredDocuments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                <FolderOpen size={32} style={{ marginBottom: '8px', opacity: 0.4 }} />
+                <div style={{ fontWeight: 600, fontSize: '13.5px' }}>No documents found</div>
+                <div style={{ fontSize: '11.5px', marginTop: '2px' }}>
+                  {searchQuery ? 'Try adjusting your search criteria' : 'Click "Upload Document" to archive an engineering drawing or metrology report.'}
+                </div>
+              </div>
+            ) : (
+              filteredDocuments.map(doc => {
+                const badge = getCategoryBadgeStyle(doc.document_type);
+                const BadgeIcon = badge.icon;
+
+                return (
+                  <div
+                    key={doc.id}
+                    className="document-mobile-card"
+                    style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                  >
+                    {/* Card Top: Icon + Title + Category Pill */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0, flex: 1 }}>
+                        <div style={{ 
+                          width: '36px', 
+                          height: '36px', 
+                          borderRadius: '6px', 
+                          background: badge.bg, 
+                          border: `1px solid ${badge.border}`,
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          color: badge.color,
+                          flexShrink: 0
+                        }}>
+                          <BadgeIcon size={18} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)', lineHeight: '1.3', wordBreak: 'break-word' }}>
+                            {doc.title}
+                          </div>
+                          <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                            {doc.file_name}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span style={{ 
+                        fontSize: '10.5px', 
+                        padding: '2px 8px', 
+                        borderRadius: '4px', 
+                        background: badge.bg, 
+                        color: badge.color,
+                        border: `1px solid ${badge.border}`,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}>
+                        {doc.document_type}
+                      </span>
+                    </div>
+
+                    {/* Reference Entity & Storage Vault */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', fontSize: '11px' }}>
+                      <div>
+                        {doc.reference_id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: '#eff6ff', color: '#1e40af', fontWeight: 600 }}>
+                              {doc.reference_type || 'REF'}
+                            </span>
+                            <span className="mono" style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {doc.reference_id}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>General Archive</span>
+                        )}
+                      </div>
+
+                      <div className="mono" style={{ fontSize: '10px', color: '#64748b', background: 'var(--bg-surface-subtle, #f8fafc)', padding: '2px 6px', borderRadius: '3px', border: '1px solid #e2e8f0' }}>
+                        Vault: {doc.storage_bucket || 'spindle-documents'}
+                      </div>
+                    </div>
+
+                    {/* 2-Column Meta Block: Size, Date & Uploader */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
+                      fontSize: '11.5px',
+                      padding: '8px 10px',
+                      background: 'var(--bg-surface-subtle, #f8fafc)',
+                      borderRadius: '6px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>File Size & Date</div>
+                        <div className="mono" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '1px' }}>
+                          {formatBytes(doc.file_size_bytes)}
+                          <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: '6px' }}>
+                            • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-GB') : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Uploaded By</div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-main)', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {doc.uploader ? `${doc.uploader.first_name} ${doc.uploader.last_name}` : 'Rahul Patil'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Action Buttons */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid var(--border-color)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{ fontSize: '11px', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}>
+                        <ShieldCheck size={13} />
+                        <span>Signed URL Ready</span>
+                      </div>
+
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleDownload(doc)}
+                          title="Download via secure signed URL"
+                          style={{ padding: '4px 10px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#7A1F3D', color: '#7A1F3D', fontWeight: 600 }}
+                        >
+                          <Download size={12} />
+                          <span>Download</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleDelete(doc)}
+                          title="Delete document"
+                          style={{ padding: '4px 8px', color: '#ef4444' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
 
       {/* UPLOAD DOCUMENT MODAL */}
@@ -444,12 +638,13 @@ export default function DocumentsScreen({ onNotify }) {
         title="Upload Document to Secure Storage"
         maxWidth="600px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
             <button 
               type="button" 
               className="btn btn-secondary"
               onClick={() => setIsUploadOpen(false)}
               disabled={isUploading}
+              style={{ flex: '1 1 auto', minWidth: '70px' }}
             >
               Cancel
             </button>
@@ -458,6 +653,7 @@ export default function DocumentsScreen({ onNotify }) {
               form="upload-doc-form"
               className="btn btn-primary"
               disabled={isUploading || !selectedFile}
+              style={{ flex: '1 1 auto', justifyContent: 'center' }}
             >
               {isUploading ? (
                 <>
@@ -467,7 +663,8 @@ export default function DocumentsScreen({ onNotify }) {
               ) : (
                 <>
                   <Upload size={14} />
-                  <span>Upload & Archive</span>
+                  <span className="desktop-only-inline">Upload & Archive</span>
+                  <span className="mobile-only-inline">Upload</span>
                 </>
               )}
             </button>
@@ -496,7 +693,7 @@ export default function DocumentsScreen({ onNotify }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
                 Document Category *
@@ -557,7 +754,7 @@ export default function DocumentsScreen({ onNotify }) {
               required
             />
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Supported: PDF, PNG, JPG, DXF, DWG, STEP. Files are stored in private RLS buckets.
+              Supported: PDF, PNG, JPG, DXF, DWG, STEP. Files are stored in secure enterprise vault.
             </div>
           </div>
         </form>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import PageHeader from '../components/common/PageHeader';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { exportContactsDirectoryPdf } from '../utils/pdfGenerator';
@@ -19,7 +20,7 @@ import {
 } from '../data/contactsData';
 import { SEED_QUOTATIONS, SEED_CUSTOMERS } from '../data/mockData';
 import {
-  Search, Plus, Download, RefreshCw, AlertCircle, Save, X,
+  Search, Plus, Download, RefreshCw, AlertCircle, AlertTriangle, Save, X,
   Trash2, CheckCircle2, Edit3, ChevronDown, Filter,
   Users, Building2, Phone, Mail, MapPin, CreditCard, Hash,
   ArrowUpDown, Eye, FileText, Sparkles, Send, Copy, Check,
@@ -28,23 +29,23 @@ import {
 
 // ─── Column Definitions for Unified Excel Grid ──────────────────────────────
 const COLUMNS = [
-  { key: 'idx',            label: '#',                     width: 44,   fixed: true,  readOnly: true, align: 'center' },
-  { key: 'name',           label: 'Company / Account Name', width: 220,  fixed: true,  icon: Building2, required: true },
-  { key: 'category',       label: 'Category',              width: 110,  icon: Tag,       align: 'center' },
-  { key: 'contactName',    label: 'Contact Person',        width: 160,  icon: Users },
-  { key: 'designation',    label: 'Role / Designation',    width: 170,  icon: Briefcase },
-  { key: 'phone',          label: 'Phone / Mobile',        width: 140,  icon: Phone,     type: 'tel' },
-  { key: 'email',          label: 'Direct Email (TO)',     width: 210,  icon: Mail,      type: 'email' },
-  { key: 'ccEmails',       label: 'Pre-Stored CCs',        width: 200,  icon: AtSign,    readOnly: true },
-  { key: 'quotesCount',    label: 'Sales & Quotes',        width: 125,  icon: FileText,  readOnly: true, align: 'center' },
+  { key: 'idx', label: '#', width: 44, fixed: true, readOnly: true, align: 'center' },
+  { key: 'name', label: 'Company / Account Name', width: 220, fixed: true, icon: Building2, required: true },
+  { key: 'category', label: 'Category', width: 110, icon: Tag, align: 'center' },
+  { key: 'contactName', label: 'Contact Person', width: 160, icon: Users },
+  { key: 'designation', label: 'Role / Designation', width: 170, icon: Briefcase },
+  { key: 'phone', label: 'Phone / Mobile', width: 140, icon: Phone, type: 'tel' },
+  { key: 'email', label: 'Direct Email (TO)', width: 210, icon: Mail, type: 'email' },
+  { key: 'ccEmails', label: 'Pre-Stored CCs', width: 200, icon: AtSign, readOnly: true },
+  { key: 'quotesCount', label: 'Sales & Quotes', width: 125, icon: FileText, readOnly: true, align: 'center' },
   { key: 'billingAddress', label: 'Plant Address / Location', width: 250, icon: MapPin, multiline: true },
-  { key: 'city',           label: 'City',                  width: 110 },
-  { key: 'state',          label: 'State',                 width: 110 },
-  { key: 'gstin',          label: 'GSTIN',                 width: 160,  icon: Hash,      mono: true },
-  { key: 'creditTerms',    label: 'Payment Terms',         width: 140,  icon: CreditCard },
-  { key: 'industry',       label: 'Industry / Tier',       width: 170 },
-  { key: 'totalBusiness',  label: 'Total Business',        width: 125,  readOnly: true,  align: 'right', mono: true },
-  { key: 'outstanding',    label: 'Outstanding',           width: 115,  readOnly: true,  align: 'right', mono: true },
+  { key: 'city', label: 'City', width: 110 },
+  { key: 'state', label: 'State', width: 110 },
+  { key: 'gstin', label: 'GSTIN', width: 160, icon: Hash, mono: true },
+  { key: 'creditTerms', label: 'Payment Terms', width: 140, icon: CreditCard },
+  { key: 'industry', label: 'Industry / Tier', width: 170 },
+  { key: 'totalBusiness', label: 'Total Business', width: 125, readOnly: true, align: 'right', mono: true },
+  { key: 'outstanding', label: 'Outstanding', width: 115, readOnly: true, align: 'right', mono: true },
 ];
 
 const EMPTY_ROW = {
@@ -247,6 +248,10 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
   const [savingRowId, setSavingRowId] = useState(null);
   const [deletingRowId, setDeletingRowId] = useState(null);
 
+  // Delete Client Confirmation Modal State
+  const [clientToDelete, setClientToDelete] = useState(null);
+  const [isDeletingClient, setIsDeletingClient] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({ total: 0, withEmail: 0, withGstin: 0, totalBiz: 0 });
 
@@ -383,7 +388,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             });
           }
         }
-      } catch (_e) {}
+      } catch (_e) { }
 
       // Fall back to SEED_QUOTATIONS so client information from Sales Enquiries, Quotations & Commercial Orders is automatically available
       if (quotes.length === 0) {
@@ -464,7 +469,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         if (account.tier && (!m.tier || account.tier.length > m.tier.length)) m.tier = account.tier;
 
         // Contact person: prefer actual name over generic sourcing placeholder
-        const contactName = account.contact_person || account.contactPerson || account.contactName || account.primaryContact?.name || '';
+        const contactName = account.primary_contact_name || account.contact_person || account.contactPerson || account.contactName || account.primaryContact?.name || '';
         if (contactName) {
           if (!m.contactName || m.contactName.startsWith('Commercial Sourcing')) {
             m.contactName = contactName;
@@ -482,7 +487,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         const phone = account.primary_phone || account.phone || account.contactPhone || account.contactNo || account.primaryContact?.phone || '';
         if (phone && !m.phone) m.phone = phone;
 
-        const email = account.email || account.contactEmail || account.customerEmail || account.primaryContact?.email || '';
+        const email = account.primary_email || account.email || account.contactEmail || account.customerEmail || account.primaryContact?.email || '';
         if (email && !m.email) m.email = email;
 
         const addr = account.billing_address || account.billingAddress || account.address || account.location || '';
@@ -497,10 +502,10 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         const gstin = account.gstin || account.customer_gstin || '';
         if (gstin && !m.gstin) m.gstin = gstin;
 
-        const creditTerms = account.credit_terms || account.creditTerms || '';
+        const creditTerms = account.payment_terms || account.credit_terms || account.creditTerms || '';
         if (creditTerms && !m.creditTerms) m.creditTerms = creditTerms;
 
-        const industry = account.industry || account.tier || '';
+        const industry = account.industry_segment || account.industry || account.tier || '';
         if (industry && !m.industry) m.industry = industry;
 
         // Merge CC lists without duplicates
@@ -709,16 +714,15 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
     try {
       const payload = {
         company_name: row.name,
-        contact_person: row.contactName,
-        primary_phone: row.phone,
-        phone: row.phone,
-        email: row.email,
-        billing_address: row.billingAddress,
-        city: row.city,
-        state: row.state,
-        gstin: row.gstin,
-        credit_terms: row.creditTerms,
-        industry: row.industry || row.tier,
+        primary_contact_name: row.contactName || null,
+        primary_phone: row.phone || null,
+        primary_email: row.email || null,
+        billing_address: row.billingAddress || 'Address not provided',
+        city: row.city || null,
+        state: row.state || 'Maharashtra',
+        gstin: row.gstin || null,
+        payment_terms: row.creditTerms || '30 Days Net',
+        industry_segment: row.industry || row.tier || 'Precision Machining',
       };
 
       if (row.dbId) {
@@ -741,19 +745,26 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
   };
 
   // ── Row Delete ──
-  const handleDeleteRow = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete "${row.name || 'this client'}"?`)) return;
-    setDeletingRowId(row.id);
+  const handleDeleteRow = (row) => {
+    setClientToDelete(row);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!clientToDelete) return;
+    setIsDeletingClient(true);
+    setDeletingRowId(clientToDelete.id);
     try {
-      if (row.dbId) {
-        await customerService.delete(row.dbId);
+      if (clientToDelete.dbId) {
+        await customerService.delete(clientToDelete.dbId);
       }
-      setRows(prev => prev.filter(r => r.id !== row.id));
-      if (onNotify) onNotify(`Deleted client "${row.name}"`);
+      setRows(prev => prev.filter(r => r.id !== clientToDelete.id));
+      if (onNotify) onNotify(`Deleted client "${clientToDelete.name}"`);
+      setClientToDelete(null);
     } catch (err) {
       console.error('Error deleting client:', err);
-      if (onNotify) onNotify(`Failed to delete: ${err.message || 'Database error'}`);
+      if (onNotify) onNotify(`Failed to delete: ${err.message || 'Database error'}`, 'danger');
     } finally {
+      setIsDeletingClient(false);
       setDeletingRowId(null);
     }
   };
@@ -863,21 +874,33 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
     }
   };
 
+  if (isLedgerLoading) {
+    return (
+      <TablePageSkeleton 
+        hasMetrics={true} 
+        metricCount={4} 
+        columns={['44px', '220px', '110px', '160px', '170px', '140px', '210px', '125px']} 
+        rows={8} 
+      />
+    );
+  }
+
   return (
     <div className="content-area">
       {/* ── Top Header Bar ── */}
-      <PageHeader 
-        title="Client Directory" 
+      <PageHeader
+        title="Client Directory"
         subtitle="Unified Master Client Accounts Ledger, Engineering Contacts & Systematic Email CC Registry"
         badge={`${rows.length} Registered Accounts`}
       >
         <button type="button" className="btn btn-secondary" onClick={handleRefreshAll} title="Reload live data">
           <RefreshCw size={13} className={isLedgerLoading ? 'spin-icon' : ''} />
-          <span>Refresh</span>
+          <span className="desktop-only-inline">Refresh</span>
         </button>
         <button type="button" className="btn btn-secondary" onClick={handleExportCsv} title="Download CSV ledger">
           <Download size={14} />
-          <span>Export CSV</span>
+          <span className="desktop-only-inline">Export CSV</span>
+          <span className="mobile-only-inline">CSV</span>
         </button>
         <button
           type="button"
@@ -886,12 +909,14 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           title="Download formal contacts directory PDF"
         >
           <Download size={14} />
-          <span>Export PDF</span>
+          <span className="desktop-only-inline">Export PDF</span>
+          <span className="mobile-only-inline">PDF</span>
         </button>
         {canAddAny && (
           <button type="button" className="btn btn-primary" onClick={handleAddRow} title="Add new client row to Excel grid">
             <Plus size={14} />
-            <span>+ Add Client</span>
+            <span className="desktop-only-inline">Add Client</span>
+            <span className="mobile-only-inline">Add</span>
           </button>
         )}
       </PageHeader>
@@ -957,29 +982,31 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             UNIFIED EXCEL SPREADSHEET VIEW
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="section-card" style={{ padding: '0', overflow: 'hidden' }}>
-          
-          {/* Excel Toolbar */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderBottom: '2px solid var(--border-color)',
-            background: 'var(--bg-surface-subtle)',
-            flexWrap: 'wrap'
-          }}>
-            <div className="search-input-wrap" style={{ minWidth: '240px', flex: '1 1 280px' }}>
-              <Search size={13} className="search-icon" />
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search company, contact person, email, GSTIN, phone, city..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-            </div>
 
-            <div style={{ minWidth: '160px' }}>
+          {/* Excel Toolbar */}
+          <div className="filter-bar" style={{ borderBottom: '2px solid var(--border-color)' }}>
+            <div className="filter-group">
+              <div className="search-input-wrap">
+                <Search size={13} className="search-icon" />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search company, contact person, email, GSTIN, phone, city..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
               <CustomSelect
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
@@ -989,41 +1016,38 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                   { value: 'Supplier', label: 'Precision Vendors / Suppliers' }
                 ]}
               />
+
+              {(searchQuery || categoryFilter !== 'All') && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCategoryFilter('All');
+                  }}
+                  style={{ height: '34px', whiteSpace: 'nowrap' }}
+                >
+                  <X size={12} />
+                  <span>Reset Filter</span>
+                </button>
+              )}
             </div>
 
-            {(searchQuery || categoryFilter !== 'All') && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setSearchQuery('');
-                  setCategoryFilter('All');
-                }}
-                style={{ height: '34px' }}
-              >
-                <X size={12} />
-                <span>Reset Filter</span>
-              </button>
-            )}
-
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-              Showing <strong>{filteredRows.length}</strong> of {rows.length} accounts • Click any cell to edit inline
+            <div className="filter-summary-count">
+              Showing <strong>{filteredRows.length}</strong> of {rows.length} accounts • Click cell to edit
             </div>
           </div>
 
           {/* Editable Spreadsheet Table Container */}
-          <div style={{
+          <div className="table-responsive" style={{
             overflowX: 'auto',
             overflowY: 'auto',
-            maxHeight: 'calc(100vh - 330px)',
-            position: 'relative'
+            WebkitOverflowScrolling: 'touch',
+            maxHeight: 'calc(100vh - 310px)',
+            position: 'relative',
+            width: '100%'
           }}>
-            {isLedgerLoading ? (
-              <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <RefreshCw size={24} className="spin-icon" style={{ margin: '0 auto 10px' }} />
-                <p style={{ margin: 0, fontSize: '13px' }}>Loading unified client directory and engineering contacts...</p>
-              </div>
-            ) : filteredRows.length === 0 ? (
+            {filteredRows.length === 0 ? (
               <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Users size={32} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>No clients found</p>
@@ -1054,10 +1078,12 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                       const isName = col.key === 'name';
                       const isFixed = isIdx || isName;
                       const leftPos = isIdx ? 0 : isName ? 44 : undefined;
+                      const stickyClass = isIdx ? 'excel-sticky-idx' : isName ? 'excel-sticky-name' : undefined;
 
                       return (
                         <th
                           key={col.key}
+                          className={stickyClass}
                           style={{
                             width: col.width,
                             minWidth: col.width,
@@ -1147,10 +1173,12 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                           const isName = col.key === 'name';
                           const isFixed = isIdx || isName;
                           const leftPos = isIdx ? 0 : isName ? 44 : undefined;
+                          const stickyClass = isIdx ? 'excel-sticky-idx' : isName ? 'excel-sticky-name' : undefined;
 
                           return (
                             <td
                               key={col.key}
+                              className={stickyClass}
                               style={{
                                 width: col.width,
                                 minWidth: col.width,
@@ -1213,7 +1241,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                                 </span>
                               ) : col.key === 'ccEmails' ? (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                                  <span 
+                                  <span
                                     title={row.ccEmails || (row.ccList || []).map(c => c.email).join(', ') || 'No CC configured'}
                                     style={{
                                       fontSize: '11px',
@@ -1224,8 +1252,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                                       maxWidth: '150px'
                                     }}
                                   >
-                                    {row.ccList?.length > 0 
-                                      ? `${row.ccList.length} CCs (${row.ccList.map(c => c.dept || c.label || 'CC').slice(0, 2).join(', ')}${row.ccList.length > 2 ? '...' : ''})` 
+                                    {row.ccList?.length > 0
+                                      ? `${row.ccList.length} CCs (${row.ccList.map(c => c.dept || c.label || 'CC').slice(0, 2).join(', ')}${row.ccList.length > 2 ? '...' : ''})`
                                       : (row.ccEmails || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>)}
                                   </span>
                                   {(row.ccList?.length > 0 || row.ccEmails) && (
@@ -1233,8 +1261,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const textToCopy = row.ccList?.length > 0 
-                                          ? row.ccList.map(c => c.email).join(', ') 
+                                        const textToCopy = row.ccList?.length > 0
+                                          ? row.ccList.map(c => c.email).join(', ')
                                           : row.ccEmails;
                                         navigator.clipboard.writeText(textToCopy);
                                         if (onNotify) onNotify(`Copied CC email addresses for ${row.name}`);
@@ -1381,12 +1409,14 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             borderTop: '1px solid var(--border-color)',
             background: 'var(--bg-surface-subtle)',
             fontSize: '11px',
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+            gap: '8px'
           }}>
             <span><strong style={{ color: 'var(--text-main)' }}>{filteredRows.length}</strong> of {rows.length} clients shown</span>
-            <span>•</span>
-            <span>Click any cell to edit • Tab to move • Enter to confirm • Esc to cancel</span>
-            <span>•</span>
+            <span className="desktop-only-inline">•</span>
+            <span className="desktop-only-inline">Click any cell to edit • Tab to move • Enter to confirm • Esc to cancel</span>
+            <span className="desktop-only-inline">•</span>
             <span style={{ color: '#16a34a' }}>
               <Save size={10} style={{ display: 'inline', marginRight: '3px' }} />
               Unsaved rows show in yellow/green — click Save to persist
@@ -1402,8 +1432,9 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         onClose={() => setIsContactModalOpen(false)}
         title={editingContact ? `Edit Account: ${editingContact.companyName}` : 'Add Client Account & Contact'}
         subtitle="Configure company details, primary contact person and systematic department CC emails"
+        maxWidth="650px"
         footer={
-          <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -1421,7 +1452,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               {isSavingContact ? <RefreshCw size={13} className="spin-icon" /> : <Check size={13} />}
               <span>{isSavingContact ? 'Saving...' : (editingContact ? 'Save Changes' : 'Add to Directory')}</span>
             </button>
-          </>
+          </div>
         }
       >
         <form onSubmit={handleSaveContact}>
@@ -1591,7 +1622,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
       )}
 
       {/* ── MODAL 3: DOCUMENT PREVIEW MODAL ── */}
-      <DocumentPreviewModal 
+      <DocumentPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         doc={previewDoc}
@@ -1606,7 +1637,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
         subtitle="Connected sales quotations, commercial estimates and overhaul proposals"
         maxWidth="900px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -1614,7 +1645,7 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
             >
               Close
             </button>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1626,7 +1657,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
                 <ExternalLink size={13} />
-                <span>Open in Sales Desk</span>
+                <span className="desktop-only-inline">Open in Sales Desk</span>
+                <span className="mobile-only-inline">Sales</span>
               </button>
               <button
                 type="button"
@@ -1659,26 +1691,26 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
               flexWrap: 'wrap',
               gap: '12px'
             }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Building2 size={16} color="var(--primary)" />
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', wordBreak: 'break-word' }}>
+                  <Building2 size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
                   <span>{selectedClientForQuotes.name || selectedClientForQuotes.companyName}</span>
                 </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '3px', wordBreak: 'break-word' }}>
                   {selectedClientForQuotes.billingAddress || selectedClientForQuotes.location || 'Location not specified'}
                   {selectedClientForQuotes.gstin && ` • GSTIN: ${selectedClientForQuotes.gstin}`}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <div style={{ textAlign: 'right' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Quotations</div>
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#1e40af' }}>
                     {(selectedClientForQuotes.quotes || []).length}
                   </div>
                 </div>
                 <div style={{ height: '28px', width: '1px', background: 'var(--border-color)' }} />
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quoted Volume</div>
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#7A1F3D' }}>
                     {formatCurrency(
@@ -1717,8 +1749,8 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
                 </button>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-                <table className="table" style={{ margin: 0, width: '100%', fontSize: '12px' }}>
+              <div className="table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--border-color)', borderRadius: '6px', width: '100%' }}>
+                <table className="table" style={{ margin: 0, width: '100%', minWidth: '640px', fontSize: '12px' }}>
                   <thead style={{ background: 'var(--bg-surface-subtle)' }}>
                     <tr>
                       <th style={{ padding: '8px 10px', textAlign: 'left' }}>Estimate #</th>
@@ -1789,6 +1821,164 @@ export default function CustomersScreen({ onNavigate, onNotify }) {
           </div>
         )}
       </Modal>
+
+      {/* ── MODAL 4: CONFIRM CLIENT DELETION ── */}
+      {clientToDelete && (
+        <Modal
+          isOpen={Boolean(clientToDelete)}
+          onClose={() => !isDeletingClient && setClientToDelete(null)}
+          title="Delete Client Account"
+          maxWidth="480px"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setClientToDelete(null)}
+                disabled={isDeletingClient}
+                style={{ minWidth: '85px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleConfirmDelete}
+                disabled={isDeletingClient}
+                style={{
+                  background: '#dc2626',
+                  borderColor: '#dc2626',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 16px',
+                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.25)'
+                }}
+              >
+                <Trash2 size={14} className={isDeletingClient ? 'spin-icon' : ''} />
+                <span>{isDeletingClient ? 'Deleting Client...' : 'Delete Client'}</span>
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '4px 0', flexWrap: 'wrap' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: '#fee2e2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: '#dc2626',
+              boxShadow: '0 2px 8px rgba(220, 38, 38, 0.12)'
+            }}>
+              <AlertCircle size={24} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
+                Are you sure you want to delete this client?
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 14px' }}>
+                This will permanently delete the client account and remove all linked ledger details from the Master Directory.
+              </p>
+
+              {/* Client Info Highlight Card */}
+              <div style={{
+                background: 'var(--bg-subtle, #f8fafc)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <Building2 size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', wordBreak: 'break-word' }}>
+                    {clientToDelete.name || 'Unnamed Client'}
+                  </span>
+                  {clientToDelete.category && (
+                    <span style={{
+                      fontSize: '10.5px',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'rgba(122, 31, 61, 0.08)',
+                      color: 'var(--primary)',
+                      marginLeft: 'auto'
+                    }}>
+                      {clientToDelete.category}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {clientToDelete.contactName && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Contact: </span>
+                      <strong style={{ color: 'var(--text-main)' }}>{clientToDelete.contactName}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.phone && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Phone: </span>
+                      <strong style={{ color: 'var(--text-main)' }}>{clientToDelete.phone}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.email && (
+                    <div style={{ gridColumn: '1 / -1', wordBreak: 'break-all' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Email: </span>
+                      <strong style={{ color: 'var(--text-main)' }}>{clientToDelete.email}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.gstin && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>GSTIN: </span>
+                      <strong className="mono" style={{ color: 'var(--text-main)' }}>{clientToDelete.gstin}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.city && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>City: </span>
+                      <strong style={{ color: 'var(--text-main)' }}>{clientToDelete.city}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.totalBusiness && clientToDelete.totalBusiness !== '₹0' && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Total Biz: </span>
+                      <strong style={{ color: '#7A1F3D' }}>{clientToDelete.totalBusiness}</strong>
+                    </div>
+                  )}
+                  {clientToDelete.outstanding && clientToDelete.outstanding !== '₹0' && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Outstanding: </span>
+                      <strong style={{ color: '#dc2626' }}>{clientToDelete.outstanding}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{
+                marginTop: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11.5px',
+                color: '#dc2626',
+                fontWeight: 500
+              }}>
+                <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                <span>This action cannot be undone.</span>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

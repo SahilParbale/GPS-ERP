@@ -1,0 +1,163 @@
+-- ==============================================================================
+-- GPS SPINDLE ERP — TARGETED SEED DATA REMOVAL SCRIPT
+-- File: supabase/clean_seed_data.sql
+-- Target Project: https://eefqamtethlkqhqgdpah.supabase.co
+-- Execution Location: Supabase Dashboard -> SQL Editor
+-- URL: https://supabase.com/dashboard/project/eefqamtethlkqhqgdpah/sql/new
+-- ==============================================================================
+-- INSTRUCTIONS:
+-- This script selectively deletes ONLY the known seed records created in
+-- migration 014_seed_data.sql while leaving any custom/production data intact.
+-- ==============================================================================
+
+BEGIN;
+
+-- 1. Logistics Dispatches & Fleet
+DELETE FROM public.dispatches WHERE dispatch_number = 'DSP-2026-0091';
+DELETE FROM public.vehicles WHERE vehicle_number = 'MH12AB1234';
+DELETE FROM public.transporters WHERE code = 'TRP-VRL';
+
+-- 2. Quality Inspections
+DELETE FROM public.inspection_results WHERE inspection_id = '40404040-0000-0000-0000-000000000412';
+DELETE FROM public.inspections WHERE id = '40404040-0000-0000-0000-000000000412';
+
+-- 3. Stock, Products, Categories, Warehouses
+DELETE FROM public.stock WHERE product_id IN (
+    '20202020-0000-0000-0000-000000000001',
+    '20202020-0000-0000-0000-000000000002',
+    '20202020-0000-0000-0000-000000000003'
+);
+DELETE FROM public.products WHERE id IN (
+    '20202020-0000-0000-0000-000000000001',
+    '20202020-0000-0000-0000-000000000002',
+    '20202020-0000-0000-0000-000000000003'
+);
+DELETE FROM public.product_categories WHERE id IN (
+    '10101010-0000-0000-0000-000000000001',
+    '10101010-0000-0000-0000-000000000002',
+    '10101010-0000-0000-0000-000000000003'
+);
+DELETE FROM public.warehouses WHERE id IN (
+    '30303030-0000-0000-0000-000000000001',
+    '30303030-0000-0000-0000-000000000002'
+);
+
+-- 4. Procurement & Purchase Orders
+DELETE FROM public.purchase_orders WHERE id IN (
+    'ffffffff-0000-0000-0000-000000000087',
+    'ffffffff-0000-0000-0000-000000000086'
+);
+DELETE FROM public.suppliers WHERE id IN (
+    '77777777-0000-0000-0000-000000000001',
+    '77777777-0000-0000-0000-000000000002',
+    '77777777-0000-0000-0000-000000000003'
+);
+
+-- 5. Commercial Pipeline (E-Way Bills, Invoices, PI, SO, Quotations)
+DELETE FROM public.eway_bills WHERE id = 'eeeeeeee-0000-0000-0000-000000000042';
+DELETE FROM public.invoices WHERE id = 'dddddddd-0000-0000-0000-000000000019';
+DELETE FROM public.proforma_invoices WHERE id IN (
+    'cccccccc-0000-0000-0000-000000000041',
+    'cccccccc-0000-0000-0000-000000000018'
+);
+DELETE FROM public.sales_orders WHERE id = 'bbbbbbbb-0000-0000-0000-000000000041';
+DELETE FROM public.quotations WHERE id = 'aaaaaaaa-0000-0000-0000-000000000294';
+
+-- 6. Customers & Contacts
+DELETE FROM public.customer_contacts WHERE customer_id IN (
+    '66666666-0000-0000-0000-000000000001',
+    '66666666-0000-0000-0000-000000000002'
+);
+DELETE FROM public.customers WHERE id IN (
+    '66666666-0000-0000-0000-000000000001',
+    '66666666-0000-0000-0000-000000000002',
+    '66666666-0000-0000-0000-000000000003',
+    '66666666-0000-0000-0000-000000000004'
+);
+
+-- 7. Work Logs & Work Orders
+DELETE FROM public.work_logs WHERE work_order_id IN (
+    '99999999-0000-0000-0000-000000000148',
+    '99999999-0000-0000-0000-000000000147',
+    '99999999-0000-0000-0000-000000000146'
+);
+DELETE FROM public.work_order_items WHERE work_order_id IN (
+    '99999999-0000-0000-0000-000000000148',
+    '99999999-0000-0000-0000-000000000147',
+    '99999999-0000-0000-0000-000000000146'
+);
+DELETE FROM public.work_orders WHERE id IN (
+    '99999999-0000-0000-0000-000000000148',
+    '99999999-0000-0000-0000-000000000147',
+    '99999999-0000-0000-0000-000000000146'
+);
+
+-- 8. Digital Twins & Physical Spindles
+DELETE FROM public.digital_twins WHERE spindle_id IN (
+    '88888888-0000-0000-0000-000000000842',
+    '88888888-0000-0000-0000-000000000841',
+    '88888888-0000-0000-0000-000000000840'
+);
+DELETE FROM public.spindles WHERE id IN (
+    '88888888-0000-0000-0000-000000000842',
+    '88888888-0000-0000-0000-000000000841',
+    '88888888-0000-0000-0000-000000000840'
+);
+
+-- 9. Spindle Models
+DELETE FROM public.spindle_models WHERE id IN (
+    '55555555-0000-0000-0000-000000000063',
+    '55555555-0000-0000-0000-000000000040',
+    '55555555-0000-0000-0000-000000000060',
+    '55555555-0000-0000-0000-000000000050'
+);
+
+-- 10. Operations, Machines, Bays
+DELETE FROM public.production_operations WHERE code IN (
+    'OP-MATERIAL', 'OP-ROUGH-TURN', 'OP-GRIND-TAPER', 'OP-ASSY-CLEAN',
+    'OP-BAL-G04', 'OP-TEST-RUN', 'OP-QC-AIR', 'OP-DISPATCH-PACK'
+);
+DELETE FROM public.machines WHERE id IN (
+    '44444444-0000-0000-0000-000000000001',
+    '44444444-0000-0000-0000-000000000002',
+    '44444444-0000-0000-0000-000000000003',
+    '44444444-0000-0000-0000-000000000004',
+    '44444444-0000-0000-0000-000000000005'
+);
+DELETE FROM public.production_bays WHERE id IN (
+    '33333333-0000-0000-0000-000000000001',
+    '33333333-0000-0000-0000-000000000002',
+    '33333333-0000-0000-0000-000000000003',
+    '33333333-0000-0000-0000-000000000004',
+    '33333333-0000-0000-0000-000000000005',
+    '33333333-0000-0000-0000-000000000006'
+);
+
+-- 11. Employees, Shifts, Locations, Departments, Branch, Company
+DELETE FROM public.employees WHERE id IN (
+    'e0000000-0000-0000-0000-000000000101',
+    'e0000000-0000-0000-0000-000000000102',
+    'e0000000-0000-0000-0000-000000000103',
+    'e0000000-0000-0000-0000-000000000104',
+    'e0000000-0000-0000-0000-000000000105',
+    'e0000000-0000-0000-0000-000000000106'
+);
+DELETE FROM public.shifts WHERE id IN (
+    '22222222-0000-0000-0000-000000000001',
+    '22222222-0000-0000-0000-000000000002'
+);
+DELETE FROM public.locations WHERE code IN (
+    'LOC-BAY1', 'LOC-BAY2', 'LOC-BAY3', 'LOC-BAY4', 'LOC-BAY5', 'LOC-BAY6'
+);
+DELETE FROM public.departments WHERE id IN (
+    'd0000000-0000-0000-0000-000000000001',
+    'd0000000-0000-0000-0000-000000000002',
+    'd0000000-0000-0000-0000-000000000003',
+    'd0000000-0000-0000-0000-000000000004',
+    'd0000000-0000-0000-0000-000000000005',
+    'd0000000-0000-0000-0000-000000000006'
+);
+DELETE FROM public.branches WHERE id = 'b0000000-0000-0000-0000-000000000001';
+DELETE FROM public.companies WHERE id = 'c0000000-0000-0000-0000-000000000001';
+
+COMMIT;

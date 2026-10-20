@@ -238,10 +238,11 @@ export const workOrderService = {
     }
 
     let customerId = data.customer_id;
-    if (!customerId && data.customer) {
+    const custSearchName = (data.customer || data.customer_name || '').trim();
+    if (!customerId && custSearchName) {
       const cRes = await baseService.select('customers', {
         select: 'id',
-        ilike: { company_name: `%${data.customer}%` }
+        ilike: { company_name: custSearchName }
       });
       customerId = cRes.data?.[0]?.id;
     }

@@ -27,10 +27,10 @@ export const reportService = {
     if (!isConfigured) {
       return {
         data: {
-          spindlesManufactured: 214,
-          firstPassYield: 98.4,
-          avgServiceTatDays: 4.2,
-          annualRevenueCr: 16.8
+          spindlesManufactured: 0,
+          firstPassYield: 0,
+          avgServiceTatDays: 0,
+          annualRevenueCr: 0
         },
         error: null
       };
@@ -122,15 +122,9 @@ export const reportService = {
     }
 
     if (!isConfigured) {
+      const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
       return {
-        data: [
-          { month: 'Sep', units: 16, target: 15 },
-          { month: 'Oct', units: 19, target: 18 },
-          { month: 'Nov', units: 21, target: 20 },
-          { month: 'Dec', units: 24, target: 22 },
-          { month: 'Jan', units: 26, target: 24 },
-          { month: 'Feb', units: 28, target: 25 },
-        ],
+        data: months.map(m => ({ month: m, units: 0, target: 0 })),
         error: null
       };
     }
@@ -189,15 +183,7 @@ export const reportService = {
     }
 
     if (!isConfigured) {
-      return {
-        data: [
-          { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#7A1F3D' },
-          { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#9B3A58' },
-          { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#C06C84' },
-          { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94A3B8' },
-        ],
-        error: null
-      };
+      return { data: [], error: null };
     }
 
     try {
@@ -209,12 +195,7 @@ export const reportService = {
         .from('spindles')
         .select('id, model_id');
 
-      const defaultDist = [
-        { model: 'GPS-HSK-A63 (Motorized 24k)', percent: 42, color: '#7A1F3D' },
-        { model: 'GPS-BT40 (Milling 15k)', percent: 28, color: '#9B3A58' },
-        { model: 'GPS-HF (High Frequency 60k)', percent: 18, color: '#C06C84' },
-        { model: 'GPS-BT50 / Heavy Geared', percent: 12, color: '#94A3B8' },
-      ];
+      const defaultDist = [];
 
       if (!spindles || spindles.length === 0 || !models) {
         return { data: defaultDist, error: null };
@@ -263,15 +244,7 @@ export const reportService = {
       return { data: [], error: null };
     }
 
-    return {
-      data: [
-        { label: "Nose Taper Runout (≤ 1.0 µm)", rate: "99.1%", passed: 212, inspected: 214 },
-        { label: "Dynamic Balance (ISO 1940 G0.4)", rate: "98.6%", passed: 211, inspected: 214 },
-        { label: "Tool Clamping Retention Force", rate: "100.0%", passed: 214, inspected: 214 },
-        { label: "4-Hour Full Load Thermal Rise", rate: "97.6%", passed: 209, inspected: 214 },
-      ],
-      error: null
-    };
+    return { data: [], error: null };
   },
 
   /**
@@ -283,15 +256,7 @@ export const reportService = {
     }
 
     if (!isConfigured) {
-      return {
-        data: [
-          { cause: "Coolant Ingress & Bearing Washout", pct: "44%", count: "16 Cases" },
-          { cause: "Tool Collision & Nose Taper Deformation", pct: "28%", count: "10 Cases" },
-          { cause: "Fatigued Disc Spring Clamping Force Loss", pct: "16%", count: "6 Cases" },
-          { cause: "Stator Winding Heat Breakdown", pct: "12%", count: "4 Cases" },
-        ],
-        error: null
-      };
+      return { data: [], error: null };
     }
 
     try {
@@ -299,12 +264,7 @@ export const reportService = {
         .from('service_requests')
         .select('id, failure_description, reported_symptoms');
 
-      const defaultCauses = [
-        { cause: "Coolant Ingress & Bearing Washout", pct: "44%", count: "16 Cases" },
-        { cause: "Tool Collision & Nose Taper Deformation", pct: "28%", count: "10 Cases" },
-        { cause: "Fatigued Disc Spring Clamping Force Loss", pct: "16%", count: "6 Cases" },
-        { cause: "Stator Winding Heat Breakdown", pct: "12%", count: "4 Cases" },
-      ];
+      const defaultCauses = [];
 
       return { data: defaultCauses, error: null };
     } catch (err) {

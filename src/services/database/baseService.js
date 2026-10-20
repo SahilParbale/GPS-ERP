@@ -94,11 +94,6 @@ export const baseService = {
   async select(table, options = {}) {
     const start = performance.now();
     if (!isConfigured) {
-      return { data: [], error: null, count: 0, isMock: true, latencyMs: 0 };
-    }
-
-    // In Clean Slate (Empty Data) mode, return zero rows for operational tables without touching DB
-    if (isCleanSlateMode() && OPERATIONAL_TABLES.has(table)) {
       return { data: [], error: null, count: 0, isMock: false, latencyMs: 0 };
     }
 
@@ -108,8 +103,9 @@ export const baseService = {
       });
 
       // Apply equality filters
-      if (options.eq) {
-        Object.entries(options.eq).forEach(([col, val]) => {
+      const eqFilters = { ...(options.eq || {}), ...(options.filter || {}) };
+      if (Object.keys(eqFilters).length > 0) {
+        Object.entries(eqFilters).forEach(([col, val]) => {
           if (val !== undefined && val !== null) {
             query = query.eq(col, val);
           }
@@ -120,7 +116,9 @@ export const baseService = {
       if (options.ilike) {
         Object.entries(options.ilike).forEach(([col, pattern]) => {
           if (pattern) {
-            query = query.ilike(col, `%${pattern}%`);
+            // Strip any existing leading/trailing % so wildcard is not multiplied
+            const cleanPattern = String(pattern).replace(/^%+/, '').replace(/%+$/, '');
+            query = query.ilike(col, `%${cleanPattern}%`);
           }
         });
       }
@@ -142,6 +140,12 @@ export const baseService = {
 
       if (error) {
         const normalized = normalizeDatabaseError(error);
+        console.warn(`[GPS-ERP Auth/DB Notice] select on "${table}" [raw]:`, {
+          code: error.code,
+          msg: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         console.warn(`[GPS-ERP Auth/DB Notice] select on "${table}":`, normalized.message);
         return { data: [], error: normalized, count: 0, isMock: false, latencyMs };
       }
@@ -150,6 +154,7 @@ export const baseService = {
     } catch (err) {
       const latencyMs = Math.round(performance.now() - start);
       const normalized = normalizeDatabaseError(err);
+      console.warn(`[GPS-ERP Auth/DB Notice] select on "${table}" [raw]:`, err);
       console.warn(`[GPS-ERP Auth/DB Notice] select on "${table}":`, normalized.message);
       return { data: [], error: normalized, count: 0, isMock: false, latencyMs };
     }
@@ -176,6 +181,9 @@ export const baseService = {
         // Log raw error for debugging (code, message, details, hint)
         console.warn(`[GPS-ERP Auth/DB Notice] insert on "${table}" [raw]:`, { code: error.code, msg: error.message, details: error.details, hint: error.hint });
         console.warn(`[GPS-ERP Auth/DB Notice] insert on "${table}":`, normalized.message);
+        if (error.code === '42501') {
+          console.info(`[GPS-ERP Setup Hint] Table "${table}" blocked insert due to PostgreSQL Row-Level Security (RLS 42501). Execute supabase/fix_rls_policies.sql in your Supabase SQL Editor (https://supabase.com/dashboard/project/eefqamtethlkqhqgdpah/sql/new) to grant access.`);
+        }
         return { data: null, error: normalized, isMock: false };
       }
 
@@ -218,13 +226,23 @@ export const baseService = {
 
       if (error) {
         const normalized = normalizeDatabaseError(error);
+        console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}" (${resolvedId}) [raw]:`, {
+          code: error.code,
+          msg: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}" (${resolvedId}):`, normalized.message);
+        if (error.code === '42501') {
+          console.info(`[GPS-ERP Setup Hint] Table "${table}" blocked update due to PostgreSQL Row-Level Security (RLS 42501). Execute supabase/fix_rls_policies.sql in your Supabase SQL Editor (https://supabase.com/dashboard/project/eefqamtethlkqhqgdpah/sql/new) to grant access.`);
+        }
         return { data: null, error: normalized, isMock: false };
       }
 
       return { data: updated, error: null, isMock: false };
     } catch (err) {
       const normalized = normalizeDatabaseError(err);
+      console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}" (${resolvedId}) [raw]:`, err);
       console.warn(`[GPS-ERP Auth/DB Notice] update on "${table}":`, normalized.message);
       return { data: null, error: normalized, isMock: false };
     }
@@ -260,6 +278,12 @@ export const baseService = {
       const { error } = await supabase.from(table).delete().eq(resolvedCol, resolvedId);
       if (error) {
         const normalized = normalizeDatabaseError(error);
+        console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}" (${resolvedId}) [raw]:`, {
+          code: error.code,
+          msg: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}" (${resolvedId}):`, normalized.message);
         return { error: normalized, isMock: false };
       }
@@ -267,6 +291,7 @@ export const baseService = {
       return { error: null, isMock: false };
     } catch (err) {
       const normalized = normalizeDatabaseError(err);
+      console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}" (${resolvedId}) [raw]:`, err);
       console.warn(`[GPS-ERP Auth/DB Notice] delete on "${table}":`, normalized.message);
       return { error: normalized, isMock: false };
     }

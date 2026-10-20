@@ -182,11 +182,19 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
       const liveData = staffRes?.data || [];
       const sourceData = liveData.length > 0 ? liveData : INITIAL_WORKFORCE_STAFF;
+
+      let localStaff = [];
+      try {
+        localStaff = JSON.parse(localStorage.getItem('gps_local_workforce_staff') || '[]');
+      } catch (e) { localStaff = []; }
+
       const mergedStaff = sourceData.map((emp, idx) => {
         const mock = INITIAL_WORKFORCE_STAFF.find(s => s.id === emp.id) || INITIAL_WORKFORCE_STAFF[idx % INITIAL_WORKFORCE_STAFF.length] || {};
+        const local = localStaff.find(l => l.id === emp.id) || {};
         return {
           ...mock,
           ...emp,
+          ...local,
           id: emp.id || mock.id,
           name: emp.name || mock.name || 'Technician',
           initials: emp.initials || mock.initials || 'GP',
@@ -194,7 +202,15 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           designation: emp.designation || mock.designation || 'Specialist',
           role: emp.role || mock.role || 'CNC Operator',
           workingHours: '08:30 - 17:30',
-          status: emp.status || mock.status || 'Working',
+          status: local.status || emp.status || mock.status || 'Working',
+          workOrder: local.workOrder !== undefined ? local.workOrder : (emp.workOrder || mock.workOrder),
+          currentTask: local.currentTask || emp.currentTask || mock.currentTask,
+          bay: local.bay || emp.bay || mock.bay,
+          machine: local.machine || emp.machine || mock.machine,
+          started: local.started || emp.started || mock.started,
+          duration: local.duration || emp.duration || mock.duration,
+          durationMinutes: local.durationMinutes !== undefined ? local.durationMinutes : (emp.durationMinutes || mock.durationMinutes),
+          progress: local.progress !== undefined ? local.progress : (emp.progress || mock.progress),
           avatarColor: emp.avatarColor || mock.avatarColor || '#7A1F3D',
           skills: emp.skills || mock.skills || ['Machining'],
           qualifications: emp.qualifications || mock.qualifications || []
@@ -202,7 +218,15 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       });
 
       setStaffList(mergedStaff);
-      if (logsRes?.data) setWorkLogs(logsRes.data);
+
+      let localLogs = [];
+      try {
+        localLogs = JSON.parse(localStorage.getItem('gps_local_work_logs') || '[]');
+      } catch (e) { localLogs = []; }
+      const dbLogs = logsRes?.data || [];
+      const combinedLogs = [...localLogs, ...dbLogs.filter(dl => !localLogs.some(ll => ll.id === dl.id))];
+      setWorkLogs(combinedLogs);
+
       if (baysRes?.data) setStationAllocations(baysRes.data);
 
       // Merge local storage work orders (created from ProductionScreen) with DB
@@ -482,6 +506,59 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     setSelectedStatus('All');
   };
 
+  // Persistent helpers to guarantee seamless cross-screen sync with Production & Service
+  const persistStaffList = (newStaffList) => {
+    setStaffList(newStaffList);
+    try {
+      localStorage.setItem('gps_local_workforce_staff', JSON.stringify(newStaffList));
+    } catch (e) {
+      console.error('Failed to persist workforce staff:', e);
+    }
+  };
+
+  const persistWorkLogs = (newLogs) => {
+    setWorkLogs(newLogs);
+    try {
+      localStorage.setItem('gps_local_work_logs', JSON.stringify(newLogs));
+    } catch (e) {
+      console.error('Failed to persist work logs:', e);
+    }
+  };
+
+  const upsertLocalWorkOrder = (jobId, patch) => {
+    try {
+      let localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
+      const idx = localWos.findIndex(w => w.id === jobId || w.workOrderNo === jobId);
+      if (idx >= 0) {
+        localWos[idx] = { ...localWos[idx], ...patch };
+      } else {
+        const base = availableWorkOrders.find(w => w.id === jobId || w.workOrderNo === jobId) ||
+          availableJobs.find(j => j.id === jobId) || { id: jobId, workOrderNo: jobId };
+        localWos.push({ ...base, ...patch });
+      }
+      localStorage.setItem('gps_local_work_orders', JSON.stringify(localWos));
+    } catch (e) {
+      console.error('Failed to upsert local work order:', e);
+    }
+  };
+
+  const upsertLocalServiceJob = (jobId, patch) => {
+    try {
+      let localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
+      const idx = localSrv.findIndex(s => s.id === jobId);
+      if (idx >= 0) {
+        localSrv[idx] = { ...localSrv[idx], ...patch };
+      } else {
+        const base = availableJobs.find(j => j.id === jobId) ||
+          SERVICE_JOBS.find(s => s.id === jobId) || { id: jobId };
+        localSrv.push({ ...base, ...patch });
+      }
+      localStorage.setItem('gps_local_service_jobs', JSON.stringify(localSrv));
+    } catch (e) {
+      console.error('Failed to upsert local service job:', e);
+    }
+  };
+
   // Helper: Open Job Traveler / Case File (Production or Service)
   const handleViewJobCaseFile = (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : (jobOrId?.id || jobOrId?.workOrderNo);
@@ -508,6 +585,48 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
   // Backwards compatibility alias
   const handleViewWorkOrder = handleViewJobCaseFile;
+
+  // Open Assign Staff Modal for a Job
+  const handleOpenAssignJob = (job) => {
+    if (!job) return;
+    const stageInfo = getJobStageInfo(job);
+    const assignedStaff = staffList.find(s => s.workOrder === job.id || s.name === job.assignedTo);
+    setAssignJobTarget(job);
+    setAssignJobForm({
+      employeeId: assignedStaff?.id || '',
+      stageKey: stageInfo.stageKey,
+      machine: stageInfo.defaultMachine,
+      bay: stageInfo.defaultBay,
+      task: `${stageInfo.shortName} Operation`,
+      expectedDuration: '2h 00m',
+      remarks: `Assigned to ${job.id} (${job.customer}) on Stage ${stageInfo.currentStep}: ${stageInfo.shortName}.`
+    });
+    setIsAssignJobModalOpen(true);
+  };
+
+  // Cross-page deep linking from Production & Service Case Files
+  useEffect(() => {
+    if (typeof window !== 'undefined' && availableJobs.length > 0) {
+      const targetJobId = localStorage.getItem('gps_active_workforce_job_id');
+      const targetAction = localStorage.getItem('gps_workforce_action');
+      if (targetJobId) {
+        const foundJob = availableJobs.find(j => j.id === targetJobId);
+        if (foundJob) {
+          setActiveTab('jobs');
+          setSearchQuery(targetJobId);
+          if (targetAction === 'assign') {
+            handleOpenAssignJob(foundJob);
+          } else if (targetAction === 'stage') {
+            handleOpenStageWork(foundJob);
+          } else if (targetAction === 'note') {
+            handleOpenJobNote(foundJob);
+          }
+        }
+        localStorage.removeItem('gps_active_workforce_job_id');
+        localStorage.removeItem('gps_workforce_action');
+      }
+    }
+  }, [availableJobs]);
 
   // Open Stage Work Update Modal for a Job
   const handleOpenStageWork = (job, staff = null) => {
@@ -627,23 +746,13 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
     // 2. Persist in localStorage & availableWorkOrders
     if (isService) {
-      try {
-        const localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
-        const updatedLocal = localSrv.map(s => {
-          if (s.id === job.id) {
-            return {
-              ...s,
-              notes: noteText,
-              technicianNotes: noteText,
-              lastNoteBy: authorName,
-              lastNoteAt: timestampStr,
-              notesHistory: [newNoteEntry, ...(s.notesHistory || [])]
-            };
-          }
-          return s;
-        });
-        localStorage.setItem('gps_local_service_jobs', JSON.stringify(updatedLocal));
-      } catch (err) { console.error(err); }
+      upsertLocalServiceJob(job.id, {
+        notes: noteText,
+        technicianNotes: noteText,
+        lastNoteBy: authorName,
+        lastNoteAt: timestampStr,
+        notesHistory: [newNoteEntry, ...(job.notesHistory || [])]
+      });
     } else {
       setAvailableWorkOrders(prev => prev.map(w => {
         if (w.id === job.id || w.workOrderNo === job.id) {
@@ -659,28 +768,18 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         return w;
       }));
 
-      try {
-        const localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
-        const updatedLocal = localWos.map(w => {
-          if (w.id === job.id || w.workOrderNo === job.id) {
-            return {
-              ...w,
-              notes: noteText,
-              technicianNotes: noteText,
-              lastNoteBy: authorName,
-              lastNoteAt: timestampStr,
-              notesHistory: [newNoteEntry, ...(w.notesHistory || [])]
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('gps_local_work_orders', JSON.stringify(updatedLocal));
-      } catch (err) { console.error(err); }
+      upsertLocalWorkOrder(job.id, {
+        notes: noteText,
+        technicianNotes: noteText,
+        lastNoteBy: authorName,
+        lastNoteAt: timestampStr,
+        notesHistory: [newNoteEntry, ...(job.notesHistory || [])]
+      });
     }
 
     // 3. Update staff record notes if staff exists
     if (staff) {
-      setStaffList(prev => prev.map(s => {
+      const updatedStaff = staffList.map(s => {
         if (s.id === staff.id) {
           return {
             ...s,
@@ -689,7 +788,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           };
         }
         return s;
-      }));
+      });
+      persistStaffList(updatedStaff);
     }
 
     // 4. Log to activity feed
@@ -781,7 +881,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     }
 
     if (staffId) {
-      setStaffList(prev => prev.map(s => {
+      const updatedStaff = staffList.map(s => {
         if (s.id === staffId) {
           return {
             ...s,
@@ -795,13 +895,14 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           };
         }
         return s;
-      }));
+      });
+      persistStaffList(updatedStaff);
     }
 
     if (jobId && jobId !== '—') {
       setAvailableWorkOrders(prev => prev.map(wo => {
         if (wo.id === jobId || wo.workOrderNo === jobId) {
-          return { ...wo, assignedTo: null, leadOperator: null };
+          return { ...wo, assignedTo: null, leadOperator: null, assignedOperator: null };
         }
         return wo;
       }));
@@ -813,27 +914,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         return j;
       }));
 
-      try {
-        const localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
-        const updatedWos = localWos.map(wo => {
-          if (wo.id === jobId || wo.workOrderNo === jobId) {
-            return { ...wo, assignedTo: null, leadOperator: null };
-          }
-          return wo;
-        });
-        localStorage.setItem('gps_local_work_orders', JSON.stringify(updatedWos));
-      } catch (e) { console.error(e); }
-
-      try {
-        const localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
-        const updatedSrv = localSrv.map(srv => {
-          if (srv.id === jobId) {
-            return { ...srv, assignedTo: null, technician: null };
-          }
-          return srv;
-        });
-        localStorage.setItem('gps_local_service_jobs', JSON.stringify(updatedSrv));
-      } catch (e) { console.error(e); }
+      upsertLocalWorkOrder(jobId, { assignedTo: null, leadOperator: null, assignedOperator: null });
+      upsertLocalServiceJob(jobId, { assignedTo: null, technician: null });
     }
 
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -937,28 +1019,20 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     }));
 
     if (isService) {
-      try {
-        const localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
-        const updatedLocal = localSrv.map(s => {
-          if (s.id === job.id) {
-            const updatedHistory = newNoteEntry ? [newNoteEntry, ...(s.notesHistory || [])] : (s.notesHistory || []);
-            return {
-              ...s,
-              currentStage: nextStageKey,
-              stageIndex: nextStageIndex + 1,
-              progress: newOverallProgress,
-              status: (hasAdvanced && nextStageIndex === stages.length - 1) ? 'Dispatch Ready' : s.status,
-              notes: noteText || s.notes || '',
-              technicianNotes: noteText || s.technicianNotes || '',
-              lastNoteBy: noteText ? authorName : (s.lastNoteBy || null),
-              lastNoteAt: noteText ? timestampStr : (s.lastNoteAt || null),
-              notesHistory: updatedHistory
-            };
-          }
-          return s;
-        });
-        localStorage.setItem('gps_local_service_jobs', JSON.stringify(updatedLocal));
-      } catch (err) { console.error(err); }
+      upsertLocalServiceJob(job.id, {
+        currentStage: nextStageKey,
+        stageIndex: nextStageIndex + 1,
+        progress: newOverallProgress,
+        status: (hasAdvanced && nextStageIndex === stages.length - 1) ? 'Dispatch Ready' : job.status,
+        notes: noteText || job.notes || '',
+        technicianNotes: noteText || job.technicianNotes || '',
+        lastNoteBy: noteText ? authorName : (job.lastNoteBy || null),
+        lastNoteAt: noteText ? timestampStr : (job.lastNoteAt || null),
+        runoutMetric: stageWorkForm.runoutMetric || job.runoutMetric,
+        vibrationMetric: stageWorkForm.vibrationMetric || job.vibrationMetric,
+        tempMetric: stageWorkForm.tempMetric || job.tempMetric,
+        notesHistory: newNoteEntry ? [newNoteEntry, ...(job.notesHistory || [])] : (job.notesHistory || [])
+      });
     } else {
       setAvailableWorkOrders(prev => prev.map(w => {
         if (w.id === job.id || w.workOrderNo === job.id) {
@@ -980,34 +1054,26 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         return w;
       }));
 
-      try {
-        const localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
-        const updatedLocal = localWos.map(w => {
-          if (w.id === job.id || w.workOrderNo === job.id) {
-            const updatedHistory = newNoteEntry ? [newNoteEntry, ...(w.notesHistory || [])] : (w.notesHistory || []);
-            return {
-              ...w,
-              currentStage: nextStageKey,
-              currentOperation: nextBay,
-              machine: nextMachine,
-              progress: newOverallProgress,
-              status: (hasAdvanced && nextStageIndex === stages.length - 1) ? 'QC Pending' : w.status,
-              notes: noteText || w.notes || '',
-              technicianNotes: noteText || w.technicianNotes || '',
-              lastNoteBy: noteText ? authorName : (w.lastNoteBy || null),
-              lastNoteAt: noteText ? timestampStr : (w.lastNoteAt || null),
-              notesHistory: updatedHistory
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('gps_local_work_orders', JSON.stringify(updatedLocal));
-      } catch (err) { console.error(err); }
+      upsertLocalWorkOrder(job.id, {
+        currentStage: nextStageKey,
+        currentOperation: nextBay,
+        machine: nextMachine,
+        progress: newOverallProgress,
+        status: (hasAdvanced && nextStageIndex === stages.length - 1) ? 'QC Pending' : job.status,
+        notes: noteText || job.notes || '',
+        technicianNotes: noteText || job.technicianNotes || '',
+        lastNoteBy: noteText ? authorName : (job.lastNoteBy || null),
+        lastNoteAt: noteText ? timestampStr : (job.lastNoteAt || null),
+        runoutMetric: stageWorkForm.runoutMetric || job.runoutMetric,
+        vibrationMetric: stageWorkForm.vibrationMetric || job.vibrationMetric,
+        tempMetric: stageWorkForm.tempMetric || job.tempMetric,
+        notesHistory: newNoteEntry ? [newNoteEntry, ...(job.notesHistory || [])] : (job.notesHistory || [])
+      });
     }
 
     // Update staff record
     if (staff) {
-      setStaffList(prev => prev.map(s => {
+      const updatedStaff = staffList.map(s => {
         if (s.id === staff.id) {
           return {
             ...s,
@@ -1022,7 +1088,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           };
         }
         return s;
-      }));
+      });
+      persistStaffList(updatedStaff);
     }
 
     // Create work log entry
@@ -1047,7 +1114,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       status: hasAdvanced ? 'Completed' : 'Working',
       remarks: `${stageWorkForm.notes || 'Stage execution logged.'} Runout: ${stageWorkForm.runoutMetric}, Vib: ${stageWorkForm.vibrationMetric}, Temp: ${stageWorkForm.tempMetric}.`
     };
-    setWorkLogs(prev => [newLog, ...prev]);
+    persistWorkLogs([newLog, ...workLogs]);
 
     // Add activity feed entry
     setActivityFeed(prev => [
@@ -1149,8 +1216,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       remarks: addLogForm.remarks
     };
 
-    // Prepend to workLogs and persist to Supabase
-    setWorkLogs(prev => [newLog, ...prev]);
+    // Prepend to workLogs and persist locally + Supabase
+    persistWorkLogs([newLog, ...workLogs]);
     workforceService.startWorkLog({
       employeeId: emp.id,
       task: addLogForm.task,
@@ -1162,7 +1229,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     }).catch(err => console.error('Failed to persist work log:', err));
 
     // Update staff record
-    setStaffList(prev => prev.map(s => {
+    const updatedStaff = staffList.map(s => {
       if (s.id === emp.id) {
         const newCompleted = addLogForm.status === 'Completed' ? s.completedToday + 1 : s.completedToday;
         return {
@@ -1180,7 +1247,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         };
       }
       return s;
-    }));
+    });
+    persistStaffList(updatedStaff);
 
     // If selected staff is open, update it
     if (selectedStaff && selectedStaff.id === emp.id) {
@@ -1248,7 +1316,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + nowTime;
 
-    setStaffList(prev => prev.map(s => {
+    const updatedStaff = staffList.map(s => {
       if (s.id === updateProgressTarget.id) {
         return {
           ...s,
@@ -1263,7 +1331,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         };
       }
       return s;
-    }));
+    });
+    persistStaffList(updatedStaff);
 
     if (selectedStaff && selectedStaff.id === updateProgressTarget.id) {
       setSelectedStaff(prev => ({
@@ -1304,31 +1373,21 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
       }));
 
       if (isService) {
-        try {
-          const localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
-          const updated = localSrv.map(s => s.id === targetJobId ? {
-            ...s,
-            notes: remarksNote,
-            technicianNotes: remarksNote,
-            lastNoteBy: updateProgressTarget.name,
-            lastNoteAt: timestampStr,
-            notesHistory: [progressNoteEntry, ...(s.notesHistory || [])]
-          } : s);
-          localStorage.setItem('gps_local_service_jobs', JSON.stringify(updated));
-        } catch (e) { }
+        upsertLocalServiceJob(targetJobId, {
+          notes: remarksNote,
+          technicianNotes: remarksNote,
+          lastNoteBy: updateProgressTarget.name,
+          lastNoteAt: timestampStr,
+          notesHistory: [progressNoteEntry]
+        });
       } else {
-        try {
-          const localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
-          const updated = localWos.map(w => (w.id === targetJobId || w.workOrderNo === targetJobId) ? {
-            ...w,
-            notes: remarksNote,
-            technicianNotes: remarksNote,
-            lastNoteBy: updateProgressTarget.name,
-            lastNoteAt: timestampStr,
-            notesHistory: [progressNoteEntry, ...(w.notesHistory || [])]
-          } : w);
-          localStorage.setItem('gps_local_work_orders', JSON.stringify(updated));
-        } catch (e) { }
+        upsertLocalWorkOrder(targetJobId, {
+          notes: remarksNote,
+          technicianNotes: remarksNote,
+          lastNoteBy: updateProgressTarget.name,
+          lastNoteAt: timestampStr,
+          notesHistory: [progressNoteEntry]
+        });
       }
     }
 
@@ -1668,16 +1727,16 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
         <PageHeader
           title="Staff & Workforce"
           subtitle="Employee Work Log & Daily Manufacturing Activity Tracking System"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="content-body">
           <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
             <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {staffError.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+              {staffError.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {staffError.message || 'Unable to retrieve live workforce personnel records from PostgreSQL database.'}
+              {staffError.message || 'Unable to retrieve workforce records. Please check your connection.'}
             </p>
             <button type="button" className="btn btn-secondary" onClick={loadWorkforceData}>
               <RefreshCw size={14} />
@@ -1729,7 +1788,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             title="Download official PDF work log register"
           >
             <Download size={14} />
-            <span>Export Work Log (PDF)</span>
+            <span className="desktop-only-inline">Export Work Log (PDF)</span>
+            <span className="mobile-only-inline">Export</span>
           </button>
 
           <button
@@ -1739,7 +1799,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             title="Start or allocate a task to an available technician"
           >
             <Play size={14} />
-            <span>Start Task</span>
+            <span className="desktop-only-inline">Start Task</span>
+            <span className="mobile-only-inline">Start</span>
           </button>
 
           <button
@@ -1749,7 +1810,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             title="Record an employee work log entry"
           >
             <Plus size={14} />
-            <span>Add Work Log</span>
+            <span className="desktop-only-inline">Add Work Log</span>
+            <span className="mobile-only-inline">+ Log</span>
           </button>
         </div>
       </PageHeader>
@@ -1788,25 +1850,34 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
         {/* 5. UNIVERSAL SEARCH & FILTER BAR */}
         <div className="workforce-filter-bar">
-          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <div className="search-input-wrap">
+            <Search size={14} className="search-icon" />
             <input
               type="text"
               className="form-control"
               placeholder="Search employee, ID, role, WO, spindle..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '32px', height: '32px', fontSize: '12px' }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
 
           {/* Department Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Dept:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', minWidth: '150px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Dept:</span>
             <CustomSelect
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              style={{ minWidth: '130px' }}
+              style={{ flex: 1, minWidth: '120px' }}
               options={[
                 { value: 'All', label: 'All Departments' },
                 { value: 'Production', label: 'Production' },
@@ -1821,12 +1892,12 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
           </div>
 
           {/* Status Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Status:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', minWidth: '140px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Status:</span>
             <CustomSelect
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              style={{ minWidth: '120px' }}
+              style={{ flex: 1, minWidth: '110px' }}
               options={[
                 { value: 'All', label: 'All Statuses' },
                 { value: 'Working', label: 'Working' },
@@ -1851,7 +1922,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             </button>
           )}
 
-          <div style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)' }}>
+          <div style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>
             Showing <strong>{filteredStaff.length}</strong> of {staffList.length} employees
           </div>
         </div>
@@ -1873,7 +1944,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 </span>
               </div>
 
-              <div className="table-responsive">
+              <div className="table-responsive desktop-table-view">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -2171,6 +2242,230 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Card Feed View (≤ 768px) */}
+              <div className="staff-mobile-list">
+                {filteredStaff.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                    No employees match your active filter criteria.
+                  </div>
+                ) : (
+                  filteredStaff.map((emp) => {
+                    const isWorking = emp.status === 'Working' || emp.status === 'Overtime';
+                    const hasJob = emp.workOrder && emp.workOrder !== '—';
+                    const isService = hasJob && (emp.workOrder.startsWith('SR-') || (emp.department || '').toLowerCase().includes('service'));
+                    const stageInfo = hasJob ? getJobStageInfo({ id: emp.workOrder, type: isService ? 'service' : 'production', currentStage: emp.currentTask }) : null;
+
+                    return (
+                      <div
+                        key={emp.id}
+                        className="staff-mobile-item-card"
+                        onClick={() => setSelectedStaff(emp)}
+                      >
+                        {/* Top Row: Avatar + Name + ID + Status */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <div className="staff-avatar" style={{ background: emp.avatarColor || '#7A1F3D', width: '32px', height: '32px', fontSize: '11px' }}>
+                              {emp.initials}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {emp.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                <span className="mono" style={{ fontWeight: 600 }}>{emp.id}</span> • {emp.designation}
+                              </div>
+                            </div>
+                          </div>
+                          <StatusBadge status={emp.status} size="sm" />
+                        </div>
+
+                        {/* Dept & Role Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <span style={{
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            background: '#f1f5f9',
+                            color: '#334155',
+                            fontWeight: 600
+                          }}>
+                            {emp.department}
+                          </span>
+                          <span>•</span>
+                          <span>{emp.role}</span>
+                        </div>
+
+                        {/* Active Task / Stage Row */}
+                        <div style={{
+                          background: 'var(--bg-surface-subtle)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '4px',
+                          padding: '8px 10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+                              Active Stage &amp; Task
+                            </span>
+                            {hasJob && stageInfo && (
+                              <span style={{
+                                fontSize: '9.5px',
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                background: isService ? '#ede9fe' : '#dbeafe',
+                                color: isService ? '#6d28d9' : '#1d4ed8',
+                                fontWeight: 700
+                              }}>
+                                {isService ? `SERVICE · Step ${stageInfo.currentStep}/9` : `PROD · Step ${stageInfo.currentStep}/8`}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {hasJob ? (stageInfo ? stageInfo.shortName : emp.currentTask) : 'Standby / Ready for Assignment'}
+                          </div>
+                          {hasJob && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                WO: <span
+                                  className="mono"
+                                  style={{ fontWeight: 700, color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewJobCaseFile(emp.workOrder);
+                                  }}
+                                >
+                                  {emp.workOrder}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {emp.machine || 'Station'}
+                              </span>
+                            </div>
+                          )}
+                          {emp.notes && (
+                            <div style={{
+                              fontSize: '10.5px',
+                              color: '#334155',
+                              background: '#ffffff',
+                              padding: '3px 6px',
+                              borderRadius: '3px',
+                              border: '1px solid #e2e8f0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <MessageSquare size={10} color="#7A1F3D" style={{ flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {emp.notes}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Started / Duration / Progress */}
+                        {isWorking && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>
+                                Started: <strong className="mono">{emp.started}</strong> ({emp.duration})
+                              </span>
+                              <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                                {emp.progress}%
+                              </span>
+                            </div>
+                            <ProgressBar progress={emp.progress} height={5} />
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div
+                          style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isWorking ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleOpenStageWorkForStaff(emp)}
+                                style={{ flex: '1 1 auto', padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                              >
+                                <Edit3 size={11} />
+                                <span>Update Work</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleOpenJobNoteForStaff(emp)}
+                                style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                              >
+                                <MessageSquare size={11} color="#7A1F3D" />
+                                <span>Note</span>
+                              </button>
+                              {hasJob && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleViewJobCaseFile(emp.workOrder)}
+                                  style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                                >
+                                  <FileText size={11} color="#7A1F3D" />
+                                  <span>Traveler</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleUnassignWorker(emp)}
+                                style={{ padding: '4px 8px', fontSize: '11px', color: '#dc2626', justifyContent: 'center' }}
+                                title="Unassign Technician"
+                              >
+                                <XCircle size={11} color="#dc2626" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                setAssignJobTarget(null);
+                                setAssignJobForm(prev => ({ ...prev, employeeId: emp.id }));
+                                setIsAssignJobModalOpen(true);
+                              }}
+                              style={{ flex: '1 1 auto', padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            >
+                              <UserCheck size={11} />
+                              <span>Deploy to Job</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleOpenAddLog(emp)}
+                            style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            title="Add Work Log"
+                          >
+                            <Plus size={11} />
+                            <span>Log</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setSelectedStaff(emp)}
+                            style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            title="View Profile"
+                          >
+                            <Eye size={11} />
+                            <span>Profile</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2195,7 +2490,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
               </span>
             </div>
 
-            <div className="table-responsive">
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -2260,6 +2555,72 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {INITIAL_DEPARTMENTS_WORKLOAD.map((dept) => {
+                const isHigh = dept.utilization >= 90;
+                return (
+                  <div
+                    key={dept.department}
+                    className="staff-mobile-item-card"
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                        {dept.department}
+                      </div>
+                      <StatusBadge
+                        status={isHigh ? 'Overloaded' : dept.utilization >= 80 ? 'Operating' : 'Available'}
+                        size="sm"
+                      />
+                    </div>
+
+                    {/* 4-Stat Metric Strip */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '6px',
+                      background: 'var(--bg-surface-subtle)',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      textAlign: 'center'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Staff</div>
+                        <div className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>{dept.staffCount}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Active</div>
+                        <div className="mono" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)' }}>{dept.activeTasks}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Completed</div>
+                        <div className="mono" style={{ fontSize: '12px', fontWeight: 700, color: '#059669' }}>{dept.completedToday}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Hours</div>
+                        <div className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>{dept.hoursLogged}</div>
+                      </div>
+                    </div>
+
+                    {/* Utilization Bar */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Workload Capacity</span>
+                        <span className="mono" style={{ fontWeight: 700, color: isHigh ? '#dc2626' : 'var(--text-main)' }}>
+                          {dept.utilization}%
+                        </span>
+                      </div>
+                      <ProgressBar
+                        progress={dept.utilization}
+                        height={6}
+                        color={isHigh ? '#dc2626' : undefined}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -2293,7 +2654,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
             </div>
 
-            <div className="table-responsive">
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -2372,6 +2733,85 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {workLogs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  No work logs recorded yet.
+                </div>
+              ) : (
+                workLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="staff-mobile-item-card"
+                    onClick={() => setSelectedLogDetail(log)}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                          {log.employeeName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          <span className="mono">{log.employeeId}</span> • <span className="mono">{log.date}</span>
+                        </div>
+                      </div>
+                      <StatusBadge status={log.status} size="sm" />
+                    </div>
+
+                    <div style={{
+                      background: 'var(--bg-surface-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '4px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '3px'
+                    }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {log.task}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                        <div>
+                          WO: <span
+                            className="mono"
+                            style={{ fontWeight: 700, color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewWorkOrder(log.workOrder);
+                            }}
+                          >
+                            {log.workOrder}
+                          </span>
+                        </div>
+                        <div className="mono" style={{ color: 'var(--text-muted)' }}>
+                          {log.spindle}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                        {log.machine} • {log.bay?.replace(/Bay/gi, 'Station')}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                      <span className="mono" style={{ color: 'var(--text-muted)' }}>
+                        {log.startTime} - {log.endTime} ({log.duration})
+                      </span>
+                      <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                        {log.progress}%
+                      </span>
+                    </div>
+                    <ProgressBar progress={log.progress} height={5} />
+
+                    {log.remarks && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                        "{log.remarks}"
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -2568,24 +3008,33 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
 
                 {/* Bottom Row: Detailed Search & Select Filters */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
-                  <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-                    <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <div className="search-input-wrap">
+                    <Search size={13} className="search-icon" />
                     <input
                       type="text"
                       className="form-control"
                       placeholder="Search job ID, serial, customer, technician..."
                       value={jobSearchQuery}
                       onChange={e => setJobSearchQuery(e.target.value)}
-                      style={{ paddingLeft: '32px', height: '32px', fontSize: '12px' }}
                     />
+                    {jobSearchQuery && (
+                      <button
+                        type="button"
+                        className="search-clear-btn"
+                        onClick={() => setJobSearchQuery('')}
+                        aria-label="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Type:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 auto', minWidth: '120px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Type:</span>
                     <CustomSelect
                       value={jobTypeFilter}
                       onChange={e => setJobTypeFilter(e.target.value)}
-                      style={{ minWidth: '130px' }}
+                      style={{ flex: 1, minWidth: '100px' }}
                       options={[
                         { value: 'all', label: 'All Types' },
                         { value: 'production', label: 'Production (WO)' },
@@ -2594,12 +3043,12 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Priority:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 auto', minWidth: '120px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Priority:</span>
                     <CustomSelect
                       value={jobPriorityFilter}
                       onChange={e => setJobPriorityFilter(e.target.value)}
-                      style={{ minWidth: '120px' }}
+                      style={{ flex: 1, minWidth: '100px' }}
                       options={[
                         { value: 'all', label: 'All Priorities' },
                         { value: 'critical', label: 'Critical' },
@@ -2610,12 +3059,12 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Status:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 auto', minWidth: '130px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Status:</span>
                     <CustomSelect
                       value={jobStatusFilter}
                       onChange={e => setJobStatusFilter(e.target.value)}
-                      style={{ minWidth: '140px' }}
+                      style={{ flex: 1, minWidth: '110px' }}
                       options={[
                         { value: 'all', label: 'All Statuses' },
                         { value: 'unassigned', label: 'Unassigned Only' },
@@ -2627,12 +3076,12 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sort:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 auto', minWidth: '120px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Sort:</span>
                     <CustomSelect
                       value={jobSortBy}
                       onChange={e => setJobSortBy(e.target.value)}
-                      style={{ minWidth: '135px' }}
+                      style={{ flex: 1, minWidth: '100px' }}
                       options={[
                         { value: 'priority', label: 'Priority' },
                         { value: 'due', label: 'Due Date' },
@@ -2673,7 +3122,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   </span>
                 </div>
 
-                <div className="table-responsive">
+                <div className="table-responsive desktop-table-view">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -3038,6 +3487,299 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Card Feed View (≤ 768px) */}
+                <div className="mobile-card-view">
+                  {allJobs.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                      No active jobs match your filter criteria.
+                    </div>
+                  ) : (
+                    allJobs.map((job) => {
+                      const pc = PRIORITY_COLORS[job.priority] || PRIORITY_COLORS.Normal;
+                      const sc = STATUS_COLORS[job.status] || { bg: '#f8fafc', color: '#64748b' };
+                      const assignedStaff = staffList.find(s => s.name === job.assignedTo);
+                      const stageInfo = getJobStageInfo(job);
+
+                      return (
+                        <div
+                          key={job.id}
+                          className="staff-mobile-item-card"
+                          onClick={() => handleViewJobCaseFile(job)}
+                        >
+                          {/* Top Row: Job ID + Stream Tag + Priority + Status */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span
+                                className="mono"
+                                style={{
+                                  fontWeight: 700,
+                                  fontSize: '13px',
+                                  color: 'var(--primary)',
+                                  textDecoration: 'underline'
+                                }}
+                              >
+                                {job.id}
+                              </span>
+                              <span style={{
+                                fontSize: '9.5px',
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                background: job.type === 'production' ? '#dbeafe' : '#ede9fe',
+                                color: job.type === 'production' ? '#1d4ed8' : '#6d28d9',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}>
+                                {job.type === 'production' ? <Cpu size={9} /> : <Wrench size={9} />}
+                                {job.type === 'production' ? 'PROD' : 'SERVICE'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: pc.bg,
+                                color: pc.text,
+                                border: `1px solid ${pc.border}`
+                              }}>
+                                {job.priority}
+                              </span>
+                              <span style={{
+                                fontSize: '10.5px',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: sc.bg,
+                                color: sc.color,
+                                fontWeight: 600
+                              }}>
+                                {job.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Customer & Model */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                              {job.customer}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {job.model} · <span className="mono" style={{ fontWeight: 600 }}>{job.serial}</span>
+                            </div>
+                          </div>
+
+                          {/* Stream & Active Stage Box */}
+                          <div style={{
+                            background: 'var(--bg-surface-subtle)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '4px',
+                            padding: '8px 10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: '#f1f5f9',
+                                  color: '#475569',
+                                  fontWeight: 700
+                                }}>
+                                  Step {stageInfo.currentStep}/{stageInfo.totalSteps}
+                                </span>
+                                <span style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-main)' }}>
+                                  {stageInfo.shortName}
+                                </span>
+                              </div>
+                              <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: '#b45309' }}>
+                                Due: {job.dueDate}
+                              </span>
+                            </div>
+
+                            {/* Stage Progress Bar Dots */}
+                            <div style={{ display: 'flex', gap: '2px', alignItems: 'center', marginTop: '2px' }}>
+                              {stageInfo.stages.map((stg, sIdx) => {
+                                const isDone = sIdx < stageInfo.currentIndex;
+                                const isCurrent = sIdx === stageInfo.currentIndex;
+                                return (
+                                  <div
+                                    key={stg.key}
+                                    title={`Step ${stg.step}: ${stg.name}`}
+                                    style={{
+                                      flex: 1,
+                                      height: '3px',
+                                      borderRadius: '2px',
+                                      background: isDone ? '#16a34a' : (isCurrent ? '#7A1F3D' : '#e2e8f0')
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              Machine: <strong style={{ color: 'var(--text-main)' }}>{job.machine || stageInfo.defaultMachine}</strong>
+                            </div>
+
+                            {job.notes && (
+                              <div style={{
+                                fontSize: '10.5px',
+                                color: '#334155',
+                                background: '#ffffff',
+                                padding: '3px 6px',
+                                borderRadius: '3px',
+                                border: '1px solid #e2e8f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <MessageSquare size={10} color="#7A1F3D" style={{ flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {job.notes}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Assigned Technician or Alert */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Assigned:</span>
+                            {job.assignedTo ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{
+                                  width: '22px',
+                                  height: '22px',
+                                  borderRadius: '50%',
+                                  background: assignedStaff?.avatarColor || '#7A1F3D',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '9.5px',
+                                  fontWeight: 700,
+                                  color: '#fff'
+                                }}>
+                                  {assignedStaff?.initials || job.assignedTo.split(' ').map(n => n[0]).join('')}
+                                </div>
+                                <span style={{ fontWeight: 600, color: '#166534' }}>{job.assignedTo}</span>
+                              </div>
+                            ) : (
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: '#fef2f2',
+                                color: '#dc2626',
+                                border: '1px solid #fca5a5'
+                              }}>
+                                <AlertTriangle size={10} style={{ marginRight: '3px' }} /> Unassigned
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Progress Meter */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Completion</span>
+                              <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>{job.progress}%</span>
+                            </div>
+                            <ProgressBar progress={job.progress} height={5} />
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div
+                            style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              className={job.assignedTo ? "btn btn-secondary btn-sm" : "btn btn-primary btn-sm"}
+                              onClick={() => {
+                                setAssignJobTarget(job);
+                                setAssignJobForm({
+                                  employeeId: assignedStaff?.id || '',
+                                  stageKey: stageInfo.stageKey,
+                                  machine: stageInfo.defaultMachine,
+                                  bay: stageInfo.defaultBay,
+                                  task: `${stageInfo.shortName} Operation`,
+                                  expectedDuration: '2h 00m',
+                                  remarks: `Assigned to ${job.id} (${job.customer}) on Stage ${stageInfo.currentStep}: ${stageInfo.shortName}.`
+                                });
+                                setIsAssignJobModalOpen(true);
+                              }}
+                              style={{ flex: '1 1 auto', padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            >
+                              <UserCheck size={11} />
+                              <span>{job.assignedTo ? 'Reassign' : 'Assign'}</span>
+                            </button>
+
+                            {job.assignedTo && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleOpenStageWork(job, assignedStaff)}
+                                style={{ flex: '1 1 auto', padding: '4px 8px', fontSize: '11px', borderColor: '#7A1F3D', color: '#7A1F3D', justifyContent: 'center' }}
+                              >
+                                <Edit3 size={11} color="#7A1F3D" />
+                                <span>Stage Work</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleOpenJobNote(job, assignedStaff)}
+                              style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            >
+                              <MessageSquare size={11} color="#7A1F3D" />
+                              <span>Note</span>
+                              {job.notesHistory?.length > 0 && (
+                                <span style={{
+                                  fontSize: '9px',
+                                  background: '#7A1F3D',
+                                  color: '#fff',
+                                  borderRadius: '8px',
+                                  padding: '0 4px',
+                                  lineHeight: '13px'
+                                }}>
+                                  {job.notesHistory.length}
+                                </span>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleViewJobCaseFile(job)}
+                              style={{ padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                            >
+                              <FileText size={11} color="#7A1F3D" />
+                              <span>Traveler</span>
+                            </button>
+
+                            {job.assignedTo && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleUnassignWorker(job)}
+                                style={{ padding: '4px 8px', fontSize: '11px', color: '#dc2626', justifyContent: 'center' }}
+                                title="Unassign Technician"
+                              >
+                                <XCircle size={11} color="#dc2626" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               {/* Available Workers Pool */}
@@ -3152,11 +3894,11 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
             title={`Employee Profile: ${selectedStaff.name} (${selectedStaff.id})`}
             maxWidth="920px"
             footer={
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                   Joined {selectedStaff.joiningDate} • Hours: 08:30 - 17:30
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -3224,7 +3966,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
               </div>
 
               {/* Profile Navigation Sub-Tabs */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '16px' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap', paddingBottom: '2px' }}>
                 <button
                   type="button"
                   onClick={() => setProfileTab('summary')}
@@ -3302,7 +4044,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
                       Today's Performance Summary
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px', textAlign: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '8px', textAlign: 'center' }}>
                       <div style={{ padding: '8px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Assigned</div>
                         <div className="mono" style={{ fontSize: '15px', fontWeight: 700 }}>{selectedStaff.todaySummary?.tasksAssigned || selectedStaff.tasksToday}</div>
@@ -3345,7 +4087,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                       <StatusBadge status={selectedStaff.status} size="sm" />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', fontSize: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', fontSize: '12px' }}>
                       <div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Task Name</div>
                         <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
@@ -4539,7 +5281,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                       const taskName = assignJobForm.task || `${matchedStage.shortName} Operation`;
 
                       // 1. Update staff status & active task
-                      setStaffList(prev => prev.map(s => {
+                      const updatedStaff = staffList.map(s => {
                         if (s.id === emp.id) {
                           return {
                             ...s,
@@ -4555,7 +5297,8 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                           };
                         }
                         return s;
-                      }));
+                      });
+                      persistStaffList(updatedStaff);
 
                       // 2. Update job in state & local storage
                       const isService = assignJobTarget?.type === 'service' || jobId.startsWith('SR-');
@@ -4575,23 +5318,13 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                           return j;
                         }));
 
-                        try {
-                          const localSrv = JSON.parse(localStorage.getItem('gps_local_service_jobs') || '[]');
-                          const updatedSrv = localSrv.map(srv => {
-                            if (srv.id === jobId) {
-                              return {
-                                ...srv,
-                                assignedTo: emp.name,
-                                technician: emp.name,
-                                currentStage: matchedStage.key,
-                                bay: jobBay,
-                                machine: jobMachine
-                              };
-                            }
-                            return srv;
-                          });
-                          localStorage.setItem('gps_local_service_jobs', JSON.stringify(updatedSrv));
-                        } catch (e) { console.error(e); }
+                        upsertLocalServiceJob(jobId, {
+                          assignedTo: emp.name,
+                          technician: emp.name,
+                          currentStage: matchedStage.key,
+                          bay: jobBay,
+                          machine: jobMachine
+                        });
                       } else {
                         setAvailableWorkOrders(prev => prev.map(wo => {
                           if (wo.id === jobId || wo.workOrderNo === jobId) {
@@ -4599,6 +5332,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                               ...wo,
                               assignedTo: emp.name,
                               leadOperator: emp.name,
+                              assignedOperator: emp.name,
                               currentStage: matchedStage.key,
                               currentOperation: jobBay,
                               machine: jobMachine
@@ -4613,6 +5347,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                               ...j,
                               assignedTo: emp.name,
                               leadOperator: emp.name,
+                              assignedOperator: emp.name,
                               currentStage: matchedStage.name,
                               currentStageKey: matchedStage.key,
                               bay: jobBay,
@@ -4622,24 +5357,39 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                           return j;
                         }));
 
-                        try {
-                          const localWos = JSON.parse(localStorage.getItem('gps_local_work_orders') || '[]');
-                          const updatedWos = localWos.map(wo => {
-                            if (wo.id === jobId || wo.workOrderNo === jobId) {
-                              return {
-                                ...wo,
-                                assignedTo: emp.name,
-                                leadOperator: emp.name,
-                                currentStage: matchedStage.key,
-                                currentOperation: jobBay,
-                                machine: jobMachine
-                              };
-                            }
-                            return wo;
-                          });
-                          localStorage.setItem('gps_local_work_orders', JSON.stringify(updatedWos));
-                        } catch (e) { console.error(e); }
+                        upsertLocalWorkOrder(jobId, {
+                          assignedTo: emp.name,
+                          leadOperator: emp.name,
+                          assignedOperator: emp.name,
+                          currentStage: matchedStage.key,
+                          currentOperation: jobBay,
+                          machine: jobMachine
+                        });
                       }
+
+                      // 2b. Add assignment log
+                      const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      const assignLog = {
+                        id: `WL-${Date.now().toString().slice(-6)}`,
+                        employeeId: emp.id,
+                        employeeName: emp.name,
+                        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        period: 'today',
+                        startTime: nowTimeStr,
+                        endTime: 'Active',
+                        duration: 'In Progress',
+                        durationMinutes: 0,
+                        workType: isService ? 'Service Repair' : 'Production',
+                        task: `${matchedStage.name} [Assigned]`,
+                        workOrder: jobId,
+                        spindle: assignJobTarget?.serial || '—',
+                        machine: jobMachine,
+                        bay: jobBay,
+                        progress: 10,
+                        status: 'Working',
+                        remarks: `Staff assigned to job ${jobId} at ${jobBay}. Active on ${matchedStage.name}.`
+                      };
+                      persistWorkLogs([assignLog, ...workLogs]);
 
                       // 3. Log activity
                       const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -4773,7 +5523,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 </div>
 
                 {/* Workstation & Machine */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                   <div className="form-group">
                     <label className="form-label">Assigned Workstation / Bay</label>
                     <input
@@ -4807,7 +5557,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                   <div className="form-group">
                     <label className="form-label">Expected Duration</label>
                     <input
@@ -5003,7 +5753,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                 </div>
 
                 {/* Progress Slider + Status */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', alignItems: 'flex-start' }}>
                   <div className="form-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <label className="form-label" style={{ margin: 0 }}>Stage Progress</label>
@@ -5075,7 +5825,7 @@ export default function WorkforceScreen({ onNavigate, onSelectWorkOrder, onNotif
                     <Gauge size={13} color="#7A1F3D" />
                     <span>Precision Metrology & Logged Measurements</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Runout / Taper (mm)</label>
                       <input

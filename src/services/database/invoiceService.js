@@ -228,11 +228,6 @@ export const invoiceService = {
       };
     });
 
-    // Provide authentic PS MAINTENANCE reference if list is empty so that Client Directory has complete commercial data
-    if (normalizedData.length === 0) {
-      normalizedData.push(DEFAULT_PS_MAINTENANCE_INVOICE);
-    }
-
     return {
       ...res,
       data: normalizedData

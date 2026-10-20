@@ -5,20 +5,20 @@ import StatusBadge from '../components/common/StatusBadge';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
-import { 
-  serviceService, 
-  assetService, 
+import {
+  serviceService,
+  assetService,
   maintenanceService,
   customerService,
-  salesService 
+  salesService
 } from '../services/database';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import { exportServiceJobReportPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { SERVICE_PIPELINE_STAGES, SERVICE_JOBS, CUSTOMERS, SEED_QUOTATIONS } from '../data/mockData';
-import { 
-  Plus, Search, Wrench, AlertTriangle, Clock, 
-  CheckCircle, CheckCircle2, FileText, Eye, RefreshCw, AlertCircle, 
+import {
+  Plus, Search, Wrench, AlertTriangle, Clock,
+  CheckCircle, CheckCircle2, FileText, Eye, RefreshCw, AlertCircle,
   ShieldAlert, Settings, Activity, CheckSquare, Download,
   ChevronRight, Filter, X, ArrowRight, Check, Sparkles,
   Info, ShieldCheck, Gauge, Zap, ExternalLink,
@@ -26,14 +26,14 @@ import {
 } from 'lucide-react';
 
 const STAGE_KEYS_ORDER = [
-  'complaint', 
-  'inspection', 
-  'diagnosis', 
-  'estimate', 
-  'approval', 
-  'repair', 
-  'testing', 
-  'qc', 
+  'complaint',
+  'inspection',
+  'diagnosis',
+  'estimate',
+  'approval',
+  'repair',
+  'testing',
+  'qc',
   'dispatch'
 ];
 
@@ -112,137 +112,8 @@ const STAGE_SOP_DETAILS = {
   }
 };
 
-const FALLBACK_PLANT_ASSETS = [
-  {
-    id: 'AST-RIG-01',
-    dbId: 'ast-rig-01',
-    assetTag: 'AST-RIG-01',
-    name: 'Schenck CAB 920 Dual-Plane High-Speed Balancing Rig',
-    category: 'Balancing Bench',
-    station: 'Metrology & Balancing Lab',
-    stationId: 'station-04',
-    purchaseDate: '2023-04-15',
-    costFormatted: '₹48,50,000',
-    purchaseCost: 4850000,
-    calibrationCycleDays: 180,
-    status: 'Active'
-  },
-  {
-    id: 'AST-GRD-02',
-    dbId: 'ast-grd-02',
-    assetTag: 'AST-GRD-02',
-    name: 'Studer S33 CNC Universal Cylindrical Grinding Machine',
-    category: 'Precision Grinder',
-    station: 'Shaft Regrinding Station',
-    stationId: 'station-02',
-    purchaseDate: '2022-08-20',
-    costFormatted: '₹82,00,000',
-    purchaseCost: 8200000,
-    calibrationCycleDays: 90,
-    status: 'Active'
-  },
-  {
-    id: 'AST-TALY-03',
-    dbId: 'ast-taly-03',
-    assetTag: 'AST-TALY-03',
-    name: 'Taylor Hobson Talyrond 565 Roundness & Form Metrology System',
-    category: 'Metrology Lab',
-    station: 'Metrology & Balancing Lab',
-    stationId: 'station-04',
-    purchaseDate: '2023-11-10',
-    costFormatted: '₹36,00,000',
-    purchaseCost: 3600000,
-    calibrationCycleDays: 180,
-    status: 'Active'
-  },
-  {
-    id: 'AST-CLEAN-04',
-    dbId: 'ast-clean-04',
-    assetTag: 'AST-CLEAN-04',
-    name: 'Crest Ultrasonic Multi-Stage Decontamination Console',
-    category: 'Wash Station',
-    station: 'Teardown & Inward Station',
-    stationId: 'station-01',
-    purchaseDate: '2024-01-18',
-    costFormatted: '₹14,20,000',
-    purchaseCost: 1420000,
-    calibrationCycleDays: 120,
-    status: 'Active'
-  },
-  {
-    id: 'AST-THERM-05',
-    dbId: 'ast-therm-05',
-    assetTag: 'AST-THERM-05',
-    name: '6-Station Automated Thermal Run-in & Bearing Test Stand',
-    category: 'Test Stand',
-    station: 'Cleanroom Assembly Room',
-    stationId: 'station-03',
-    purchaseDate: '2023-06-30',
-    costFormatted: '₹22,50,000',
-    purchaseCost: 2250000,
-    calibrationCycleDays: 90,
-    status: 'Active'
-  },
-  {
-    id: 'AST-AIRG-06',
-    dbId: 'ast-airg-06',
-    assetTag: 'AST-AIRG-06',
-    name: 'Heidenhain Sub-Micron Air Gauging & Runout Diagnostic Unit',
-    category: 'Metrology Lab',
-    station: 'Metrology & Balancing Lab',
-    stationId: 'station-04',
-    purchaseDate: '2024-03-05',
-    costFormatted: '₹9,80,000',
-    purchaseCost: 980000,
-    calibrationCycleDays: 90,
-    status: 'Active'
-  }
-];
-
-const FALLBACK_MAINTENANCE_ORDERS = [
-  {
-    id: 'MNT-2026-018',
-    dbId: 'mnt-2026-018',
-    orderNumber: 'MNT-2026-018',
-    assetId: 'ast-rig-01',
-    assetTag: 'AST-RIG-01',
-    assetName: 'Schenck CAB 920 Dual-Plane Balancing Rig',
-    orderType: 'Calibration',
-    scheduledDate: '2026-03-01',
-    technician: 'Vikram Shinde',
-    downtimeHours: 2.0,
-    costFormatted: '₹18,500',
-    status: 'Scheduled'
-  },
-  {
-    id: 'MNT-2026-015',
-    dbId: 'mnt-2026-015',
-    orderNumber: 'MNT-2026-015',
-    assetId: 'ast-grd-02',
-    assetTag: 'AST-GRD-02',
-    assetName: 'Studer S33 CNC Universal Cylindrical Grinder',
-    orderType: 'Preventive',
-    scheduledDate: '2026-02-24',
-    technician: 'Suresh Sawant',
-    downtimeHours: 3.5,
-    costFormatted: '₹34,000',
-    status: 'Completed'
-  },
-  {
-    id: 'MNT-2026-019',
-    dbId: 'mnt-2026-019',
-    orderNumber: 'MNT-2026-019',
-    assetId: 'ast-clean-04',
-    assetTag: 'AST-CLEAN-04',
-    assetName: 'Crest Ultrasonic Multi-Stage Decontamination Console',
-    orderType: 'Preventive',
-    scheduledDate: '2026-03-05',
-    technician: 'Ramesh Deshmukh',
-    downtimeHours: 1.0,
-    costFormatted: '₹8,500',
-    status: 'In Progress'
-  }
-];
+const FALLBACK_PLANT_ASSETS = [];
+const FALLBACK_MAINTENANCE_ORDERS = [];
 
 export const getNormalizedStageKey = (stageStr) => {
   if (!stageStr) return 'repair';
@@ -264,14 +135,14 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
   const [serviceJobs, setServiceJobs] = useState([]);
   const [plantAssets, setPlantAssets] = useState([]);
   const [maintenanceOrders, setMaintenanceOrders] = useState([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStageFilter, setSelectedStageFilter] = useState('all');
   const [inspectedStageKey, setInspectedStageKey] = useState(null);
-  
+
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -312,10 +183,10 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
       'Ceramic Hybrid P4S/ABEC-7 Bearing Pack',
       'Dynamic Balancing to ISO G0.4'
     ],
-    estimatedCost: '1,95,000',
-    technicianName: 'Vikram Shinde (Sr. Spindle Specialist)',
-    initialRunout: '0.0050',
-    drawbarForce: '16.5',
+    estimatedCost: '',
+    technicianName: '',
+    initialRunout: '',
+    drawbarForce: '',
     notes: ''
   });
 
@@ -332,9 +203,9 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
           setCustomersList(custRes.data.map(c => ({
             id: c.id,
             name: c.company_name || c.name,
-            contactPerson: c.contact_person || '',
-            phone: c.phone || '',
-            email: c.email || ''
+            contactPerson: c.primary_contact_name || c.contact_person || '',
+            phone: c.primary_phone || c.phone || '',
+            email: c.primary_email || c.email || ''
           })));
         } else if (CUSTOMERS && CUSTOMERS.length > 0) {
           setCustomersList(CUSTOMERS.map(c => ({
@@ -389,21 +260,30 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
 
       // Service Jobs
       let jobs = [];
+      const localJobMap = new Map();
+      localJobs.forEach(j => {
+        if (j.id) localJobMap.set(j.id, j);
+      });
+
       if (jobsRes?.data && jobsRes.data.length > 0) {
-        // Merge DB jobs with local jobs (avoid duplicates)
-        const dbJobIds = new Set(jobsRes.data.map(j => j.id));
-        const extraLocal = localJobs.filter(j => !dbJobIds.has(j.id));
-        jobs = [...extraLocal, ...jobsRes.data];
-      } else {
-        // Fallback to SEED / mock data merged with local
-        const seedJobs = (SERVICE_JOBS && SERVICE_JOBS.length > 0) ? SERVICE_JOBS : [];
-        const seen = new Set();
-        const combined = [...localJobs, ...seedJobs];
-        jobs = combined.filter(j => {
-          if (!j || !j.id || seen.has(j.id)) return false;
-          seen.add(j.id);
-          return true;
+        // Merge DB jobs with local jobs (local updates take precedence because assignments/stages happen in Workforce)
+        const mergedDb = jobsRes.data.map(dj => {
+          const match = localJobMap.get(dj.id);
+          return match ? { ...dj, ...match } : dj;
         });
+        const seen = new Set(mergedDb.map(j => j.id));
+        const extraLocal = localJobs.filter(j => !seen.has(j.id));
+        jobs = [...extraLocal, ...mergedDb];
+      } else {
+        // Fallback to SEED / mock data merged with local updates
+        const seedJobs = (SERVICE_JOBS && SERVICE_JOBS.length > 0) ? SERVICE_JOBS : [];
+        const mergedSeed = seedJobs.map(sj => {
+          const match = localJobMap.get(sj.id);
+          return match ? { ...sj, ...match } : sj;
+        });
+        const seen = new Set(mergedSeed.map(j => j.id));
+        const extraLocal = localJobs.filter(j => !seen.has(j.id));
+        jobs = [...extraLocal, ...mergedSeed];
       }
 
       setServiceJobs(jobs);
@@ -453,10 +333,10 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
   useEffect(() => {
     loadData();
 
-    // Listen for live updates across ERP screens (Sales, Quotations, Customers, Jobs)
+    // Listen for live updates across ERP screens (Sales, Quotations, Customers, Jobs, Workforce)
     const handleEntityUpdate = (e) => {
       const entity = e.detail?.entity;
-      if (!entity || entity === 'service-jobs' || entity === 'quotations' || entity === 'sales' || entity === 'customers') {
+      if (!entity || entity === 'service-jobs' || entity === 'service' || entity === 'workforce' || entity === 'quotations' || entity === 'sales' || entity === 'customers') {
         loadData();
       }
     };
@@ -719,7 +599,7 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
       const exists = prev.scopeOfWork.includes(tag);
       return {
         ...prev,
-        scopeOfWork: exists 
+        scopeOfWork: exists
           ? prev.scopeOfWork.filter(t => t !== tag)
           : [...prev.scopeOfWork, tag]
       };
@@ -785,10 +665,10 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
         bearingLot: 'LOT-FAG-2026-X99',
         drawbarForce: `${jobFormData.drawbarForce || '16.5'} kN`,
         scopeOfWork: jobFormData.scopeOfWork,
-        notes: selectedQuotation 
+        notes: selectedQuotation
           ? (jobFormData.notes?.trim()
-              ? `[Linked Quote: ${selectedQuotation.estimateNo || selectedQuotation.id}] ${jobFormData.notes.trim()}`
-              : `Linked to Approved Quotation ${selectedQuotation.estimateNo || selectedQuotation.id}.`)
+            ? `[Linked Quote: ${selectedQuotation.estimateNo || selectedQuotation.id}] ${jobFormData.notes.trim()}`
+            : `Linked to Approved Quotation ${selectedQuotation.estimateNo || selectedQuotation.id}.`)
           : (jobFormData.notes?.trim() || `Inward job ticket logged for ${jobFormData.customerCompany}. Symptoms: ${jobFormData.failureDescription || 'Factory overhaul requested'}`),
         findings: {
           taperCondition: `Initial runout measured at ${jobFormData.initialRunout || '0.0050'} mm. Standard benchmark: ≤ 0.0010 mm.`,
@@ -797,19 +677,19 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
           statorInsulation: "Stator megger insulation audit scheduled."
         },
         lifecycle: [
-          { 
-            name: "Complaint Logged", 
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), 
-            done: true, 
-            note: `Logged for ${jobFormData.customerCompany} by ${jobFormData.technicianName.split(' ')[0]}` 
+          {
+            name: "Complaint Logged",
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            done: true,
+            note: `Logged for ${jobFormData.customerCompany} by ${jobFormData.technicianName.split(' ')[0]}`
           },
           { name: "Incoming Inspection", date: "Pending", done: initialStageKey !== 'complaint', note: "Incoming runout & baseline vibration audit" },
-          { name: "Teardown & Diagnosis", date: "Pending", done: ['diagnosis','estimate','approval','repair','testing','qc','dispatch'].includes(initialStageKey), note: "Cleanroom teardown & failure analysis" },
-          { name: "Cost Estimation", date: "Pending", done: ['estimate','approval','repair','testing','qc','dispatch'].includes(initialStageKey), note: "BOM & labor quotation generation" },
-          { name: "Customer Approval", date: "Pending", done: ['approval','repair','testing','qc','dispatch'].includes(initialStageKey), note: "Client PO confirmation & kit release" },
-          { name: "Rebuild & Grinding", date: "Pending", done: ['repair','testing','qc','dispatch'].includes(initialStageKey), note: "Shaft re-grinding & bearing rebuild" },
-          { name: "Balancing & Run-in", date: "Pending", done: ['testing','qc','dispatch'].includes(initialStageKey), note: "Dynamic balancing to ISO G0.4 & thermal run-in" },
-          { name: "Final QC Certification", date: "Pending", done: ['qc','dispatch'].includes(initialStageKey), note: "Final nose taper runout & drawbar check" },
+          { name: "Teardown & Diagnosis", date: "Pending", done: ['diagnosis', 'estimate', 'approval', 'repair', 'testing', 'qc', 'dispatch'].includes(initialStageKey), note: "Cleanroom teardown & failure analysis" },
+          { name: "Cost Estimation", date: "Pending", done: ['estimate', 'approval', 'repair', 'testing', 'qc', 'dispatch'].includes(initialStageKey), note: "BOM & labor quotation generation" },
+          { name: "Customer Approval", date: "Pending", done: ['approval', 'repair', 'testing', 'qc', 'dispatch'].includes(initialStageKey), note: "Client PO confirmation & kit release" },
+          { name: "Rebuild & Grinding", date: "Pending", done: ['repair', 'testing', 'qc', 'dispatch'].includes(initialStageKey), note: "Shaft re-grinding & bearing rebuild" },
+          { name: "Balancing & Run-in", date: "Pending", done: ['testing', 'qc', 'dispatch'].includes(initialStageKey), note: "Dynamic balancing to ISO G0.4 & thermal run-in" },
+          { name: "Final QC Certification", date: "Pending", done: ['qc', 'dispatch'].includes(initialStageKey), note: "Final nose taper runout & drawbar check" },
           { name: "Express Dispatch", date: "Pending", done: initialStageKey === 'dispatch', note: "Express crated delivery" }
         ]
       };
@@ -1010,10 +890,10 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
     const text = (noteModalText || '').trim();
     const targetStageKey = noteModalStage || selectedJob.currentStage || 'repair';
     const targetStageObj = SERVICE_PIPELINE_STAGES.find(s => s.key === targetStageKey) || { name: targetStageKey };
-    
-    const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + 
+
+    const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' +
       new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     const stageChanged = getNormalizedStageKey(selectedJob.currentStage) !== getNormalizedStageKey(targetStageKey);
 
     const newNoteEntry = text ? {
@@ -1147,11 +1027,6 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
     });
   }, [serviceJobs, searchQuery, selectedStageFilter]);
 
-  // Active SOP details for the inspected stage
-  const activeStageKeyForInspector = inspectedStageKey || (selectedStageFilter !== 'all' ? selectedStageFilter : (selectedJob ? getNormalizedStageKey(selectedJob.currentStage) : 'repair'));
-  const inspectedSop = STAGE_SOP_DETAILS[activeStageKeyForInspector] || STAGE_SOP_DETAILS.repair;
-  const inspectedStageObj = SERVICE_PIPELINE_STAGES.find(s => s.key === activeStageKeyForInspector) || SERVICE_PIPELINE_STAGES[5];
-  const spindlesInInspectedStage = serviceJobs.filter(j => getNormalizedStageKey(j.currentStage) === activeStageKeyForInspector);
 
   // Metrics
   const activeOverhaulsCount = serviceJobs.filter(j => j.status !== 'Completed').length;
@@ -1165,24 +1040,25 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
 
   return (
     <div className="content-area">
-      <PageHeader 
-        title="Spindle Overhaul, Rebuilding & Service" 
+      <PageHeader
+        title="Spindle Overhaul, Rebuilding & Service"
         subtitle="Log overhaul intake & inspect spindle case files across 9-stage lifecycle • Technician assignment & stage progress managed in Staff & Workforce"
         badge={`${serviceJobs.length} In System (${activeOverhaulsCount} Active)`}
       >
         {onNavigate && (
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn btn-secondary"
             onClick={() => onNavigate('workforce')}
             title="Manage technician assignments and stage progress in Staff & Workforce"
           >
             <Users size={14} />
-            <span>Staff & Workforce (Assign & Stages)</span>
+            <span className="desktop-only-inline">Staff & Workforce (Assign & Stages)</span>
+            <span className="mobile-only-inline">Workforce</span>
           </button>
         )}
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             if (selectedJob) {
@@ -1204,1692 +1080,2156 @@ export default function ServiceScreen({ onNavigate, onNotify }) {
           title="Preview official overhaul & metrology report"
         >
           <FileText size={14} />
-          <span>Service Report (PDF)</span>
+          <span className="desktop-only-inline">Service Report (PDF)</span>
+          <span className="mobile-only-inline">Report (PDF)</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={handleOpenAddJobModal}
         >
           <Plus size={14} />
-          <span>+ Add Spindle Service Job</span>
+          <span className="desktop-only-inline">Add Spindle Service Job</span>
+          <span className="mobile-only-inline">+ Add Job</span>
         </button>
       </PageHeader>
 
       <div className="content-body">
 
-      {/* Top KPI Metrics Strip (Standard GPS ERP .metrics-grid) */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-top">
-            <span className="metric-label">Active Spindle Overhauls</span>
-            <div className="metric-icon-wrap" style={{ color: 'var(--primary)' }}>
-              <Wrench size={16} />
+        {/* Top KPI Metrics Strip (Standard GPS ERP .metrics-grid) */}
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Active Spindle Overhauls</span>
+              <div className="metric-icon-wrap" style={{ color: 'var(--primary)' }}>
+                <Wrench size={16} />
+              </div>
+            </div>
+            <div className="metric-value">{activeOverhaulsCount}</div>
+            <div className="metric-footer" style={{ color: 'var(--primary)' }}>
+              9-stage shopfloor pipeline
             </div>
           </div>
-          <div className="metric-value">{activeOverhaulsCount}</div>
-          <div className="metric-footer" style={{ color: 'var(--primary)' }}>
-            9-stage shopfloor pipeline
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Critical Urgency</span>
+              <div className="metric-icon-wrap" style={{ color: '#dc2626' }}>
+                <AlertTriangle size={16} />
+              </div>
+            </div>
+            <div className="metric-value">{criticalCount}</div>
+            <div className="metric-footer" style={{ color: '#dc2626' }}>
+              Machine line-down priority
+            </div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Dynamic Balancing & QC</span>
+              <div className="metric-icon-wrap" style={{ color: '#0284c7' }}>
+                <Activity size={16} />
+              </div>
+            </div>
+            <div className="metric-value">{balancingQcCount}</div>
+            <div className="metric-footer" style={{ color: '#0284c7' }}>
+              ISO G0.4 & runout sign-off
+            </div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-top">
+              <span className="metric-label">Plant Assets Active</span>
+              <div className="metric-icon-wrap" style={{ color: '#16a34a' }}>
+                <Settings size={16} />
+              </div>
+            </div>
+            <div className="metric-value">{activeAssetsCount}</div>
+            <div className="metric-footer" style={{ color: '#16a34a' }}>
+              Balancing rigs & CNC grinders
+            </div>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="metric-top">
-            <span className="metric-label">Critical Urgency</span>
-            <div className="metric-icon-wrap" style={{ color: '#dc2626' }}>
-              <AlertTriangle size={16} />
+        {/* 9-Stage Service Restoration Pipeline Banner */}
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-title">
+              <Wrench size={16} color="#7A1F3D" />
+              <span>9-Stage Spindle Restoration & Recalibration Pipeline</span>
+              <span className="badge badge-neutral" style={{ fontSize: '11px', fontWeight: 500 }}>
+                Click any stage to filter or inspect SOP
+              </span>
             </div>
-          </div>
-          <div className="metric-value">{criticalCount}</div>
-          <div className="metric-footer" style={{ color: '#dc2626' }}>
-            Machine line-down priority
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-top">
-            <span className="metric-label">Dynamic Balancing & QC</span>
-            <div className="metric-icon-wrap" style={{ color: '#0284c7' }}>
-              <Activity size={16} />
-            </div>
-          </div>
-          <div className="metric-value">{balancingQcCount}</div>
-          <div className="metric-footer" style={{ color: '#0284c7' }}>
-            ISO G0.4 & runout sign-off
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-top">
-            <span className="metric-label">Plant Assets Active</span>
-            <div className="metric-icon-wrap" style={{ color: '#16a34a' }}>
-              <Settings size={16} />
-            </div>
-          </div>
-          <div className="metric-value">{activeAssetsCount}</div>
-          <div className="metric-footer" style={{ color: '#16a34a' }}>
-            Balancing rigs & CNC grinders
-          </div>
-        </div>
-      </div>
-
-      {/* 9-Stage Service Restoration Pipeline Banner */}
-      <div className="section-card">
-        <div className="card-header">
-          <div className="card-title">
-            <Wrench size={16} color="#7A1F3D" />
-            <span>9-Stage Spindle Restoration & Recalibration Pipeline</span>
-            <span className="badge badge-neutral" style={{ fontSize: '11px', fontWeight: 500 }}>
-              Click any stage to filter or inspect SOP
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <button 
-              type="button" 
-              className={`btn btn-sm ${selectedStageFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => {
-                setSelectedStageFilter('all');
-                setInspectedStageKey(null);
-              }}
-            >
-              <span>All Stages ({serviceJobs.length})</span>
-            </button>
-            {selectedStageFilter !== 'all' && (
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-sm"
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedStageFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => {
                   setSelectedStageFilter('all');
                   setInspectedStageKey(null);
                 }}
-                title="Clear stage filter"
-                style={{ color: 'var(--primary)' }}
               >
-                <X size={13} />
-                <span>Clear Filter</span>
+                <span>All Stages ({serviceJobs.length})</span>
               </button>
-            )}
-            <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={13} />
-              <span>Target TAT: &lt; 5 Days</span>
-            </span>
-          </div>
-        </div>
-
-        <div style={{ padding: '14px 16px 8px' }}>
-          <PipelineVisualizer 
-            stages={stagesWithCounts} 
-            activeStage={selectedStageFilter !== 'all' ? selectedStageFilter : (activeTab === 'detail' && selectedJob ? getNormalizedStageKey(selectedJob.currentStage) : null)}
-            onSelectStage={(stageKey) => handleStageClick(stageKey)}
-          />
-        </div>
-
-        {/* Interactive Stage Inspector & SOP Quality Gate Details */}
-        <div style={{ 
-          margin: '10px 16px 16px', 
-          padding: '14px 16px', 
-          backgroundColor: 'var(--bg-subtle, #f8fafc)', 
-          border: '1px solid var(--border-color)', 
-          borderRadius: 'var(--radius-md)' 
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ flex: '1', minWidth: '280px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span className="badge badge-primary mono" style={{ fontSize: '11px', fontWeight: 700 }}>
-                  0{inspectedStageObj.id}
-                </span>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>
-                  {inspectedSop.title}
-                </h4>
-                <span className="badge badge-neutral mono" style={{ fontSize: '10px' }}>
-                  {inspectedSop.sopCode}
-                </span>
-              </div>
-              <p style={{ margin: '0 0 8px 0', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {inspectedSop.procedure}
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                <span>Lead Gatekeeper: <strong style={{ color: 'var(--text-main)' }}>{inspectedSop.gatekeeper}</strong></span>
-                <span>Quality Benchmark: <strong className="mono" style={{ color: 'var(--primary)' }}>{inspectedSop.toleranceBenchmark}</strong></span>
-                <span>Active Spindles in Stage: <strong className="mono" style={{ color: 'var(--text-main)' }}>{spindlesInInspectedStage.length}</strong></span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {activeTab === 'detail' && selectedJob && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleTransitionToStage(activeStageKeyForInspector)}
-                  title={`Transition ${selectedJob.id} to ${inspectedStageObj.name} stage`}
-                >
-                  <ArrowRight size={13} />
-                  <span>Move Spindle to {inspectedStageObj.name}</span>
-                </button>
-              )}
-
-              {selectedStageFilter !== activeStageKeyForInspector ? (
+              {selectedStageFilter !== 'all' && (
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={() => setSelectedStageFilter(activeStageKeyForInspector)}
-                >
-                  <Filter size={13} />
-                  <span>Filter Jobs ({spindlesInInspectedStage.length})</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setSelectedStageFilter('all')}
+                  onClick={() => {
+                    setSelectedStageFilter('all');
+                    setInspectedStageKey(null);
+                  }}
+                  title="Clear stage filter"
+                  style={{ color: 'var(--primary)' }}
                 >
                   <X size={13} />
-                  <span>Reset Filter</span>
+                  <span>Clear Filter</span>
                 </button>
               )}
+              <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={13} />
+                <span>Target TAT: &lt; 5 Days</span>
+              </span>
             </div>
           </div>
 
-          {/* Quick spindle list tags in this stage */}
-          {spindlesInInspectedStage.length > 0 && (
-            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                Spindles at this stage:
-              </span>
-              {spindlesInInspectedStage.map(job => (
+          <div style={{ padding: '14px 16px 16px' }}>
+            <PipelineVisualizer
+              stages={stagesWithCounts}
+              activeStage={selectedStageFilter !== 'all' ? selectedStageFilter : (activeTab === 'detail' && selectedJob ? getNormalizedStageKey(selectedJob.currentStage) : null)}
+              onSelectStage={(stageKey) => handleStageClick(stageKey)}
+            />
+          </div>
+
+          {/* Interactive SOP Details Card */}
+          {inspectedStageKey && STAGE_SOP_DETAILS[inspectedStageKey] && (
+            <div style={{
+              margin: '0 16px 14px 16px',
+              padding: '12px 14px',
+              background: '#fffafb',
+              border: '1px solid #f2d2dc',
+              borderRadius: '8px',
+              boxShadow: '0 1px 3px rgba(122, 31, 61, 0.04)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px', color: '#7A1F3D', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={15} />
+                    {STAGE_SOP_DETAILS[inspectedStageKey].title}
+                  </span>
+                  <span className="badge badge-primary mono" style={{ fontSize: '10.5px', padding: '2px 7px' }}>
+                    {STAGE_SOP_DETAILS[inspectedStageKey].sopCode}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Gatekeeper: <strong style={{ color: 'var(--text-main)' }}>{STAGE_SOP_DETAILS[inspectedStageKey].gatekeeper}</strong>
+                  </span>
+                </div>
                 <button
-                  key={job.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedJob(job);
-                    setActiveTab('detail');
-                  }}
-                  className="btn btn-secondary btn-sm mono"
-                  style={{ fontSize: '11px', padding: '3px 8px', height: 'auto' }}
-                  title={`View case file for ${job.id} (${job.customer})`}
+                  onClick={() => setInspectedStageKey(null)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                  title="Close SOP preview"
                 >
-                  <span>{job.id}</span>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({job.spindleSerial})</span>
+                  <X size={14} />
                 </button>
-              ))}
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '6px 0 8px', lineHeight: 1.5 }}>
+                {STAGE_SOP_DETAILS[inspectedStageKey].procedure}
+              </p>
+              <div style={{ display: 'flex', gap: '8px 16px', flexWrap: 'wrap', fontSize: '11px', paddingTop: '6px', borderTop: '1px dashed #e2ccd5' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Acceptance Criteria: </span>
+                  <span style={{ color: 'var(--text-main)' }}>{STAGE_SOP_DETAILS[inspectedStageKey].acceptanceCriteria}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Tolerance Benchmark: </span>
+                  <strong className="mono" style={{ color: '#7A1F3D' }}>{STAGE_SOP_DETAILS[inspectedStageKey].toleranceBenchmark}</strong>
+                </div>
+              </div>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <Tabs 
-        tabs={[
-          { id: 'list', label: 'Active Service & Repair Jobs', count: filteredJobs.length },
-          { id: 'detail', label: selectedJob ? `Case File: ${selectedJob.id}` : 'Case File' },
-          { id: 'assets', label: 'Plant Assets Registry', count: plantAssets.length },
-          { id: 'maintenance', label: 'Maintenance Orders', count: maintenanceOrders.length }
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
+        {/* Navigation Tabs */}
+        <Tabs
+          tabs={[
+            { id: 'list', label: 'Active Service & Repair Jobs', count: filteredJobs.length },
+            { id: 'detail', label: selectedJob ? `Case File: ${selectedJob.id}` : 'Case File' },
+            { id: 'assets', label: 'Plant Assets Registry', count: plantAssets.length },
+            { id: 'maintenance', label: 'Maintenance Orders', count: maintenanceOrders.length }
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
 
-      {/* Tab 1: Service Jobs List */}
-      {activeTab === 'list' && (
-        <div className="section-card">
-          <div className="filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div className="search-input-wrap" style={{ flex: '1', maxWidth: '420px' }}>
-              <Search size={14} className="search-icon" />
-              <input 
-                type="text" 
-                className="form-control"
-                placeholder="Search ticket, serial, customer, technician..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {selectedStageFilter !== 'all' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="badge badge-primary mono" style={{ padding: '6px 10px', fontSize: '12px' }}>
-                    Filter: {inspectedStageObj.name} ({filteredJobs.length} Jobs)
-                  </span>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setSelectedStageFilter('all')}
-                  >
-                    <X size={12} />
-                    <span>Clear</span>
-                  </button>
+        {/* Tab 1: Service Jobs List */}
+        {activeTab === 'list' && (
+          <div className="section-card">
+            <div className="filter-bar">
+              <div className="filter-group">
+                <div className="search-input-wrap">
+                  <Search size={14} className="search-icon" />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search ticket, serial, customer, technician..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
-              )}
-              <button 
-                type="button" 
+
+                {selectedStageFilter !== 'all' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="badge badge-primary mono" style={{ padding: '6px 10px', fontSize: '12px' }}>
+                      Filter: {SERVICE_PIPELINE_STAGES.find(s => s.key === selectedStageFilter)?.name || selectedStageFilter} ({filteredJobs.length} Jobs)
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setSelectedStageFilter('all')}
+                    >
+                      <X size={12} />
+                      <span>Clear</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
                 className="btn btn-primary btn-sm"
                 onClick={handleOpenAddJobModal}
                 title="Add a new spindle service or overhaul job"
               >
                 <Plus size={13} />
-                <span>+ Add Spindle Job</span>
+                <span>Add Spindle Job</span>
               </button>
             </div>
-          </div>
 
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Job Ticket</th>
-                  <th>Spindle Serial</th>
-                  <th>Customer</th>
-                  <th>Customer Complaint / Symptoms</th>
-                  <th>Pipeline Stage</th>
-                  <th>Assigned Specialist</th>
-                  <th>Received Date</th>
-                  <th>Est. Cost</th>
-                  <th>Priority</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredJobs.length === 0 ? (
+            <div className="table-responsive desktop-table-view">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
-                      <div>No active service or repair jobs match the current filter or search criteria.</div>
-                      <button 
-                        type="button" 
-                        className="btn btn-primary btn-sm"
-                        style={{ marginTop: '12px' }}
-                        onClick={handleOpenAddJobModal}
-                      >
-                        <Plus size={13} />
-                        <span>+ Add Spindle Job</span>
-                      </button>
-                    </td>
+                    <th>Job Ticket</th>
+                    <th>Spindle Serial</th>
+                    <th>Customer</th>
+                    <th>Customer Complaint / Symptoms</th>
+                    <th>Pipeline Stage</th>
+                    <th>Assigned Specialist</th>
+                    <th>Received Date</th>
+                    <th>Est. Cost</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ) : (
-                  filteredJobs.map((job) => {
-                    const stageKey = getNormalizedStageKey(job.currentStage);
-                    const stageObj = SERVICE_PIPELINE_STAGES.find(s => s.key === stageKey);
-                    return (
-                      <tr key={job.id}>
-                        <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                          {job.id}
-                          {job.quotationNo && (
-                            <span 
-                              className="badge badge-neutral mono" 
-                              style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 5px', color: '#7A1F3D', border: '1px solid #e2ccd5' }}
-                              title={`Linked to Quotation ${job.quotationNo}`}
+                </thead>
+                <tbody>
+                  {filteredJobs.length === 0 ? (
+                    <tr>
+                      <td colSpan="11" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                        <div>No active service or repair jobs match the current filter or search criteria.</div>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ marginTop: '12px' }}
+                          onClick={handleOpenAddJobModal}
+                        >
+                          <Plus size={13} />
+                          <span>Add Spindle Job</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredJobs.map((job) => {
+                      const stageKey = getNormalizedStageKey(job.currentStage);
+                      const stageObj = SERVICE_PIPELINE_STAGES.find(s => s.key === stageKey);
+                      return (
+                        <tr key={job.id}>
+                          <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                            {job.id}
+                            {job.quotationNo && (
+                              <span
+                                className="badge badge-neutral mono"
+                                style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 5px', color: '#7A1F3D', border: '1px solid #e2ccd5' }}
+                                title={`Linked to Quotation ${job.quotationNo}`}
+                              >
+                                Quote: {job.quotationNo}
+                              </span>
+                            )}
+                          </td>
+                          <td className="mono" style={{ fontWeight: 500 }}>{job.spindleSerial}</td>
+                          <td style={{ fontWeight: 500 }}>{job.customer}</td>
+                          <td style={{ maxWidth: '260px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {job.complaint}
+                          </td>
+                          <td>
+                            <span
+                              className="badge badge-neutral mono"
+                              style={{ cursor: 'pointer', fontSize: '11px' }}
+                              onClick={() => handleStageClick(stageKey)}
+                              title="Filter by this stage"
                             >
-                              Quote: {job.quotationNo}
+                              {stageObj ? `0${stageObj.id} ${stageObj.name}` : job.currentStage}
                             </span>
-                          )}
-                        </td>
-                        <td className="mono" style={{ fontWeight: 500 }}>{job.spindleSerial}</td>
-                        <td style={{ fontWeight: 500 }}>{job.customer}</td>
-                        <td style={{ maxWidth: '260px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {job.complaint}
-                        </td>
-                        <td>
-                          <span 
-                            className="badge badge-neutral mono" 
-                            style={{ cursor: 'pointer', fontSize: '11px' }}
-                            onClick={() => handleStageClick(stageKey)}
+                          </td>
+                          <td style={{ fontSize: '12px' }}>
+                            <div
+                              style={{ fontWeight: 600, color: 'var(--text-main)', cursor: (job.technician || job.assignedTo) ? 'pointer' : 'default' }}
+                              onClick={() => {
+                                if ((job.technician || job.assignedTo) && onNavigate) {
+                                  localStorage.setItem('gps_active_workforce_job_id', job.id);
+                                  localStorage.setItem('gps_workforce_action', 'assign');
+                                  onNavigate('workforce');
+                                }
+                              }}
+                              title={(job.technician || job.assignedTo) ? 'Manage in Staff & Workforce' : ''}
+                            >
+                              {(job.technician || job.assignedTo) || <span style={{ color: '#dc2626', fontWeight: 600 }}>Unassigned</span>}
+                            </div>
+                            {!(job.technician || job.assignedTo) && onNavigate && (
+                              <div
+                                style={{ fontSize: '10px', color: 'var(--primary)', cursor: 'pointer', marginTop: '2px', fontWeight: 600 }}
+                                onClick={() => {
+                                  localStorage.setItem('gps_active_workforce_job_id', job.id);
+                                  localStorage.setItem('gps_workforce_action', 'assign');
+                                  onNavigate('workforce');
+                                }}
+                                title="Assign specialist in Staff & Workforce"
+                              >
+                                Assign in Workforce →
+                              </div>
+                            )}
+                          </td>
+                          <td className="mono" style={{ fontSize: '12px' }}>{job.receivedDate}</td>
+                          <td className="mono" style={{ fontWeight: 600 }}>{job.estimatedCost}</td>
+                          <td><StatusBadge status={job.priority} size="sm" /></td>
+                          <td><StatusBadge status={job.status} /></td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '5px 12px', gap: '5px', fontWeight: 600, color: 'var(--primary)', borderColor: 'var(--border-color)' }}
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setActiveTab('detail');
+                                if (typeof window !== 'undefined') {
+                                  localStorage.setItem('gps_active_service_job_id', job.id);
+                                }
+                              }}
+                              title={`Open Spindle Service Diagnostics & Overhaul Case File for ${job.id}`}
+                            >
+                              <FileText size={13} color="#7A1F3D" />
+                              <span>Case File</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {filteredJobs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  <div>No active service or repair jobs match the current filter or search criteria.</div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    style={{ marginTop: '12px' }}
+                    onClick={handleOpenAddJobModal}
+                  >
+                    <Plus size={13} />
+                    <span>Add Spindle Job</span>
+                  </button>
+                </div>
+              ) : (
+                filteredJobs.map((job) => {
+                  const stageKey = getNormalizedStageKey(job.currentStage);
+                  const stageObj = SERVICE_PIPELINE_STAGES.find(s => s.key === stageKey);
+                  const isAssigned = Boolean(job.technician || job.assignedTo);
+
+                  return (
+                    <div
+                      key={job.id}
+                      className="service-mobile-card"
+                      onClick={() => {
+                        setSelectedJob(job);
+                        setActiveTab('detail');
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem('gps_active_service_job_id', job.id);
+                        }
+                      }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                    >
+                      {/* Top Header: Ticket ID + Status Badges */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
+                              {job.id}
+                            </span>
+                            {job.quotationNo && (
+                              <span
+                                className="badge badge-neutral mono"
+                                style={{ fontSize: '10px', padding: '1px 5px', color: '#7A1F3D', border: '1px solid #e2ccd5' }}
+                              >
+                                Quote: {job.quotationNo}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, marginTop: '2px' }}>
+                            {job.customer}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                          <StatusBadge status={job.priority} size="sm" />
+                          <StatusBadge status={job.status} size="sm" />
+                        </div>
+                      </div>
+
+                      {/* Serial, Model & Stage Bar */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: '8px',
+                        padding: '8px 10px',
+                        background: 'var(--bg-surface-subtle, #f8fafc)',
+                        borderRadius: '6px',
+                        fontSize: '11.5px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Spindle Serial</div>
+                          <div className="mono" style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            {job.spindleSerial}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pipeline Stage</div>
+                          <span
+                            className="badge badge-neutral mono"
+                            style={{ display: 'inline-block', fontSize: '10.5px', padding: '2px 6px', marginTop: '1px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStageClick(stageKey);
+                            }}
                             title="Filter by this stage"
                           >
                             {stageObj ? `0${stageObj.id} ${stageObj.name}` : job.currentStage}
                           </span>
-                        </td>
-                        <td style={{ fontSize: '12px' }}>
-                          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
-                            {job.technician || <span style={{ color: '#dc2626', fontWeight: 600 }}>Unassigned</span>}
-                          </div>
-                          {!job.technician && onNavigate && (
-                            <div 
-                              style={{ fontSize: '10px', color: 'var(--primary)', cursor: 'pointer', marginTop: '2px', fontWeight: 600 }}
-                              onClick={() => onNavigate('workforce')}
-                            >
-                              Assign in Workforce →
+                        </div>
+                      </div>
+
+                      {/* Complaint Snippet */}
+                      {job.complaint && (
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4, background: '#ffffff', padding: '6px 8px', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                          <strong style={{ color: 'var(--text-main)', fontSize: '11px' }}>Symptom: </strong>
+                          {job.complaint}
+                        </div>
+                      )}
+
+                      {/* Assigned Specialist & Bottom Bar */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        paddingTop: '6px',
+                        borderTop: '1px solid var(--border-color)',
+                        fontSize: '11px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          <User size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                          <span style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontWeight: isAssigned ? 600 : 400,
+                            color: isAssigned ? 'var(--text-main)' : '#dc2626'
+                          }}>
+                            {isAssigned ? (job.technician || job.assignedTo) : 'Unassigned'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12px' }}>
+                              {job.estimatedCost}
                             </div>
-                          )}
-                        </td>
-                        <td className="mono" style={{ fontSize: '12px' }}>{job.receivedDate}</td>
-                        <td className="mono" style={{ fontWeight: 600 }}>{job.estimatedCost}</td>
-                        <td><StatusBadge status={job.priority} size="sm" /></td>
-                        <td><StatusBadge status={job.status} /></td>
-                        <td>
-                          <button 
-                            type="button" 
+                            <div className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                              {job.receivedDate}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm"
-                            style={{ padding: '5px 12px', gap: '5px', fontWeight: 600, color: 'var(--primary)', borderColor: 'var(--border-color)' }}
-                            onClick={() => {
+                            style={{ padding: '3px 8px', fontSize: '11px', gap: '4px', height: '26px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedJob(job);
                               setActiveTab('detail');
                               if (typeof window !== 'undefined') {
                                 localStorage.setItem('gps_active_service_job_id', job.id);
                               }
                             }}
-                            title={`Open Spindle Service Diagnostics & Overhaul Case File for ${job.id}`}
                           >
-                            <FileText size={13} color="#7A1F3D" />
+                            <FileText size={11} color="#7A1F3D" />
                             <span>Case File</span>
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: Service Detail Case File */}
-      {activeTab === 'detail' && selectedJob && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="section-card">
-            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h2 className="mono" style={{ fontSize: '20px', fontWeight: 700 }}>{selectedJob.id}</h2>
-                  <StatusBadge status={selectedJob.status} />
-                  <StatusBadge status={selectedJob.priority} size="sm" />
-                </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-                  Serial: <strong className="mono">{selectedJob.spindleSerial}</strong> ({selectedJob.spindleModel || 'GPS-HSK-A63-24K'}) • Customer: <strong>{selectedJob.customer}</strong> • Current Stage: <strong className="mono font-bold" style={{ color: 'var(--primary)' }}>{selectedJob.currentStage}</strong>
-                  {selectedJob.quotationNo && (
-                    <> • Linked Quote: <strong className="mono" style={{ color: '#7A1F3D' }}>{selectedJob.quotationNo}</strong></>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleDirectDownloadPdf(selectedJob)}
-                  title="Direct download official overhaul & metrology diagnostics report (PDF)"
-                >
-                  <Download size={14} />
-                  <span>Download PDF</span>
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setPreviewDoc({
-                      ...selectedJob,
-                      type: 'Service Report',
-                      id: selectedJob.id || 'SRV-2026-0041'
-                    });
-                    setIsPreviewOpen(true);
-                  }}
-                  title="Preview official overhaul & metrology diagnostics report (PDF)"
-                >
-                  <FileText size={14} />
-                  <span>Preview Report</span>
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleAdvanceStep}
-                  title="Advance to next stage in 9-stage pipeline"
-                >
-                  <Wrench size={14} />
-                  <span>Advance Pipeline Stage</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setNoteModalText(selectedJob.notes || '');
-                    setIsNoteModalOpen(true);
-                  }}
-                  title="Add or update technician notes for this overhaul job"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <MessageSquare size={14} color="#7A1F3D" />
-                  <span>Technician Note</span>
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-primary btn-sm"
-                  onClick={handleCompleteRebuild}
-                  title="Sign off rebuild with final QC tolerance (ISO G0.4, 0.0008 mm)"
-                >
-                  <CheckCircle size={14} />
-                  <span>Complete Rebuild Step</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Stage Quick Jumper Bar */}
-            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-subtle, #f8fafc)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Set Stage Directly:
-              </span>
-              {SERVICE_PIPELINE_STAGES.map(s => {
-                const isCurrent = getNormalizedStageKey(selectedJob.currentStage) === s.key;
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => handleTransitionToStage(s.key)}
-                    className={`btn btn-sm mono ${isCurrent ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ fontSize: '11px', padding: '3px 8px', height: '26px' }}
-                  >
-                    0{s.id} {s.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Diagnostic Findings Grid */}
-            <div style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Disassembly & Metrology Diagnostic Overview</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                <div style={{ padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#b91c1c' }}>Spindle Taper & Runout Condition</div>
-                  <div style={{ fontSize: '12px', color: '#7f1d1d', marginTop: '4px' }}>
-                    Initial Runout: <span className="mono font-bold">{selectedJob.taperRunoutInitial ? `${selectedJob.taperRunoutInitial} mm` : '0.0058 mm'}</span> (Tolerance limit: 0.0010 mm).
-                  </div>
-                  {selectedJob.taperRunoutFinal && (
-                    <div style={{ fontSize: '12px', color: '#166534', marginTop: '4px', fontWeight: 600 }}>
-                      Final Runout Achieved: <span className="mono">{selectedJob.taperRunoutFinal} mm</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
-                <div style={{ padding: '14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#b45309' }}>Bearing Raceways & Balls Inspection</div>
-                  <div style={{ fontSize: '12px', color: '#78350f', marginTop: '4px' }}>
-                    {selectedJob.findings?.bearingState || "Front ceramic hybrid bearings suffered coolant wash-out; raceway spalling on #2 bearing."}
-                  </div>
-                </div>
-
-                <div style={{ padding: '14px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>Balancing & Dynamic Target</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Balancing Target: <strong className="mono">{selectedJob.balancingGrade || 'ISO G0.4'}</strong>. Bearing Pack Lot: <strong className="mono">{selectedJob.bearingLot || 'LOT-FAG-2026-B88'}</strong>.
-                  </div>
-                </div>
-              </div>
-
-              {/* Dedicated Service Notes & Additional Issues Card in Case File */}
-              <div style={{ marginTop: '14px', padding: '14px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#7A1F3D', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MessageSquare size={14} />
-                    <span>Technician Notes, Observations & SOP Handover Log</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {selectedJob.quotationNo && (
-                      <span className="badge badge-neutral mono" style={{ fontSize: '10px' }}>
-                        Quote: {selectedJob.quotationNo}
-                      </span>
-                    )}
+        {/* Tab 2: Service Detail Case File */}
+        {activeTab === 'detail' && selectedJob && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="section-card">
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '3px 8px', fontSize: '11px', gap: '4px', height: '26px' }}
-                      onClick={() => {
-                        setNoteModalText(selectedJob.notes || selectedJob.technicianNotes || '');
-                        setNoteModalStage(selectedJob.currentStage);
-                        setIsNoteModalOpen(true);
-                      }}
+                      className="btn btn-secondary btn-sm mobile-only-inline"
+                      onClick={() => setActiveTab('list')}
+                      style={{ height: '26px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
+                      title="Back to Active Jobs List"
                     >
-                      <Plus size={12} />
-                      <span>{selectedJob.notes ? 'Edit / Add Note' : 'Add Note'}</span>
+                      <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
+                      <span>Jobs</span>
                     </button>
+                    <h2 className="mono" style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>{selectedJob.id}</h2>
+                    <StatusBadge status={selectedJob.status} />
+                    <StatusBadge status={selectedJob.priority} size="sm" />
                   </div>
-                </div>
-
-                {selectedJob.notes ? (
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-main)', lineHeight: 1.5, whiteSpace: 'pre-line', padding: '8px 12px', background: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: selectedJob.notesHistory?.length ? '10px' : '0' }}>
-                    {selectedJob.notes}
-                    {selectedJob.lastNoteAt && (
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        — {selectedJob.lastNoteBy || 'Technician'}, {selectedJob.lastNoteAt}
-                      </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+                    Serial: <strong className="mono">{selectedJob.spindleSerial}</strong> ({selectedJob.spindleModel || 'GPS-HSK-A63-24K'}) • Customer: <strong>{selectedJob.customer}</strong> • Current Stage: <strong className="mono font-bold" style={{ color: 'var(--primary)' }}>{selectedJob.currentStage}</strong>
+                    {selectedJob.quotationNo && (
+                      <> • Linked Quote: <strong className="mono" style={{ color: '#7A1F3D' }}>{selectedJob.quotationNo}</strong></>
                     )}
                   </div>
-                ) : (
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: selectedJob.notesHistory?.length ? '10px' : '0' }}>
-                    No technician notes logged yet for this service job. Click "Add Note" to log metrology readings, teardown observations, or shop-floor handover remarks.
-                  </div>
-                )}
-
-                {selectedJob.notesHistory && selectedJob.notesHistory.length > 0 && (
-                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                      Stage Notes & Handover Trail ({selectedJob.notesHistory.length}):
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                      {selectedJob.notesHistory.map((nh, nIdx) => (
-                        <div key={nh.id || nIdx} style={{ fontSize: '11.5px', padding: '6px 10px', background: '#fff', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>
-                            <span><strong style={{ color: '#7A1F3D' }}>{nh.stageName || nh.stageKey}</strong> · {nh.author}</span>
-                            <span className="mono">{nh.timestamp}</span>
-                          </div>
-                          <div style={{ color: 'var(--text-main)' }}>{nh.text}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'detail' && !selectedJob && (
-        <div className="section-card" style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Wrench size={48} style={{ opacity: 0.25, margin: '0 auto 16px', color: 'var(--primary)' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>No Service Ticket Selected</h3>
-          <p style={{ fontSize: '13px', maxWidth: '380px', margin: '0 auto' }}>
-            Select a service ticket from the Active Service Jobs list or log a new service overhaul request.
-          </p>
-        </div>
-      )}
-
-      {/* Tab 3: Plant Assets Registry */}
-      {activeTab === 'assets' && (
-        <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">
-              <Settings size={16} color="#7A1F3D" />
-              <span>Plant Machinery, Balancing Rigs & Metrology Assets</span>
-            </div>
-            <span className="badge badge-neutral mono">{plantAssets.length} Assets</span>
-          </div>
-
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Asset Tag</th>
-                  <th>Machine Name</th>
-                  <th>Category</th>
-                  <th>Station Location</th>
-                  <th>Purchase Date</th>
-                  <th>Capital Cost</th>
-                  <th>Calibration Cycle</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plantAssets.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                      No plant machinery or balancing assets registered.
-                    </td>
-                  </tr>
-                ) : (
-                  plantAssets.map((ast) => (
-                    <tr key={ast.id}>
-                      <td className="mono font-bold" style={{ color: 'var(--primary)' }}>{ast.assetTag}</td>
-                      <td style={{ fontWeight: 500 }}>{ast.name}</td>
-                      <td><span className="badge badge-neutral">{ast.category}</span></td>
-                      <td>{ast.station}</td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{ast.purchaseDate}</td>
-                      <td className="mono" style={{ fontWeight: 600 }}>{ast.costFormatted}</td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{ast.calibrationCycleDays} Days</td>
-                      <td><StatusBadge status={ast.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: Maintenance Orders */}
-      {activeTab === 'maintenance' && (
-        <div className="section-card">
-          <div className="card-header">
-            <div className="card-title">
-              <Activity size={16} color="#7A1F3D" />
-              <span>Preventive, Breakdown & Calibration Maintenance Orders</span>
-            </div>
-            <span className="badge badge-neutral mono">{maintenanceOrders.length} Orders</span>
-          </div>
-
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Order #</th>
-                  <th>Machine Asset</th>
-                  <th>Order Type</th>
-                  <th>Scheduled Date</th>
-                  <th>Assigned Tech</th>
-                  <th>Downtime</th>
-                  <th>Cost</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {maintenanceOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                      No maintenance orders recorded.
-                    </td>
-                  </tr>
-                ) : (
-                  maintenanceOrders.map((mnt) => (
-                    <tr key={mnt.id}>
-                      <td className="mono font-bold" style={{ color: 'var(--primary)' }}>{mnt.orderNumber}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{mnt.assetName}</div>
-                        <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mnt.assetTag}</div>
-                      </td>
-                      <td><span className="badge badge-neutral">{mnt.orderType}</span></td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{mnt.scheduledDate}</td>
-                      <td style={{ fontSize: '12px' }}>{mnt.technician}</td>
-                      <td className="mono" style={{ fontSize: '12px' }}>{mnt.downtimeHours} hrs</td>
-                      <td className="mono" style={{ fontWeight: 600 }}>{mnt.costFormatted}</td>
-                      <td><StatusBadge status={mnt.status} /></td>
-                      <td>
-                        {mnt.status !== 'Completed' ? (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleCompleteMaintenance(mnt.dbId || mnt.id)}
-                            title="Execute SOP and sign off maintenance order"
-                          >
-                            <CheckSquare size={13} />
-                            <span>Complete</span>
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Completed</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Add Spindle Service & Overhaul Job Modal */}
-      <Modal
-        isOpen={isAddJobModalOpen || isLogOpen}
-        onClose={() => {
-          setIsAddJobModalOpen(false);
-          setIsLogOpen(false);
-        }}
-        title="Add Spindle Service & Overhaul Job"
-        maxWidth="920px"
-        footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              Ticket: <strong className="mono" style={{ color: '#7A1F3D' }}>{jobFormData.ticketId}</strong> • Serial: <strong className="mono">{jobFormData.spindleSerial}</strong>
-              {selectedQuotation && (
-                <span style={{ marginLeft: '8px', color: '#15803d', fontWeight: 600 }}>
-                  • Linked to Quote: <strong className="mono">{selectedQuotation.estimateNo || selectedQuotation.id}</strong>
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => {
-                  setIsAddJobModalOpen(false);
-                  setIsLogOpen(false);
-                }} 
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={handleCreateServiceJob} 
-                disabled={isSubmitting}
-                style={{ background: '#7A1F3D', borderColor: '#7A1F3D' }}
-              >
-                <Plus size={14} />
-                <span>{isSubmitting ? 'Registering Job...' : '+ Add Spindle Job'}</span>
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <form onSubmit={handleCreateServiceJob} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          
-          {/* Job Generation & Case File Notice */}
-          <div style={{
-            padding: '10px 14px',
-            background: '#f8fafc',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <FileText size={18} color="#7A1F3D" style={{ flexShrink: 0 }} />
-            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              <strong style={{ color: 'var(--text-main)' }}>Spindle Service Job Intake:</strong> Submitting this ticket logs the spindle into the factory and generates its <strong>Service Diagnostics Case File</strong>. Specialist technician allocation, rebuild workstation routing, and stage progression are managed centrally in <strong>Staff & Workforce</strong>.
-            </div>
-          </div>
-
-          {/* Quick-Fill from Approved Quotation (Sales & Quotes) */}
-          <div style={{ 
-            border: '1.5px solid #e2ccd5', 
-            borderRadius: '8px', 
-            padding: '14px 16px', 
-            background: '#fdfafb',
-            boxShadow: '0 1px 3px rgba(122, 31, 61, 0.04)' 
-          }}>
-            {/* Header with Title & Approved Counter */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  borderRadius: '6px', 
-                  background: '#F5E8ED', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  color: '#7A1F3D'
-                }}>
-                  <FileText size={15} />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#7A1F3D', fontWeight: 700, fontSize: '13px' }}>
-                      Quick-Fill from Approved Quotation (Sales & Quotes)
-                    </span>
-                    <span className="badge badge-success" style={{ fontSize: '10px', padding: '2px 7px' }}>
-                      <CheckCircle2 size={11} style={{ marginRight: '3px' }} />
-                      {approvedQuotesCount} Approved Available
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                    Import customer, spindle serial, overhaul scope & commercial pricing directly from an approved quotation
-                  </div>
-                </div>
-              </div>
-
-              {selectedQuotation && (
-                <button
-                  type="button"
-                  onClick={handleClearSelectedQuotation}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '11px', padding: '3px 8px', height: '26px', color: '#b91c1c', borderColor: '#fca5a5' }}
-                  title="Unlink and clear quotation data"
-                >
-                  <X size={12} />
-                  <span>Clear Linked Quote</span>
-                </button>
-              )}
-            </div>
-
-            {/* Active Linked Quotation Confirmation Banner */}
-            {selectedQuotation ? (
-              <div style={{ 
-                background: '#f0fdf4', 
-                border: '1px solid #86efac', 
-                borderRadius: '6px', 
-                padding: '10px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckCircle2 size={18} color="#16a34a" style={{ flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#14532d', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>Linked Quote: <strong className="mono">{selectedQuotation.estimateNo || selectedQuotation.id}</strong></span>
-                      <span className="badge badge-success" style={{ fontSize: '10px' }}>Approved</span>
-                      <span style={{ fontSize: '11px', color: '#166534', fontWeight: 500 }}>
-                        • Quoted: <strong>₹{Number(selectedQuotation.totalAmount || selectedQuotation.subtotal || 0).toLocaleString('en-IN')}</strong>
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
-                      Customer: <strong>{selectedQuotation.customer}</strong> • Spindle Serial: <strong className="mono">{selectedQuotation.spindleSerial || 'Pending'}</strong> • Date: {selectedQuotation.date || 'Recent'}
-                    </div>
-                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
                   <button
                     type="button"
-                    onClick={() => setSelectedQuotation(null)}
                     className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '11px', padding: '4px 9px', height: '28px', background: '#ffffff' }}
+                    onClick={() => handleDirectDownloadPdf(selectedJob)}
+                    title="Direct download official overhaul & metrology diagnostics report (PDF)"
+                    style={{ flex: '1 1 auto' }}
                   >
-                    <Search size={12} />
-                    <span>Pick Another Quote</span>
+                    <Download size={14} />
+                    <span className="desktop-only-inline">Download PDF</span>
+                    <span className="mobile-only-inline">PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setPreviewDoc({
+                        ...selectedJob,
+                        type: 'Service Report',
+                        id: selectedJob.id || 'SRV-2026-0041'
+                      });
+                      setIsPreviewOpen(true);
+                    }}
+                    title="Preview official overhaul & metrology diagnostics report (PDF)"
+                    style={{ flex: '1 1 auto' }}
+                  >
+                    <FileText size={14} />
+                    <span className="desktop-only-inline">Preview Report</span>
+                    <span className="mobile-only-inline">Preview</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleAdvanceStep}
+                    title="Advance to next stage in 9-stage pipeline"
+                    style={{ flex: '1 1 auto' }}
+                  >
+                    <Wrench size={14} />
+                    <span className="desktop-only-inline">Advance Pipeline Stage</span>
+                    <span className="mobile-only-inline">Advance Stage</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setNoteModalText(selectedJob.notes || '');
+                      setIsNoteModalOpen(true);
+                    }}
+                    title="Add or update technician notes for this overhaul job"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flex: '1 1 auto' }}
+                  >
+                    <MessageSquare size={14} color="#7A1F3D" />
+                    <span className="desktop-only-inline">Technician Note</span>
+                    <span className="mobile-only-inline">Note</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleCompleteRebuild}
+                    title="Sign off rebuild with final QC tolerance (ISO G0.4, 0.0008 mm)"
+                    style={{ flex: '1 1 auto' }}
+                  >
+                    <CheckCircle size={14} />
+                    <span className="desktop-only-inline">Complete Rebuild Step</span>
+                    <span className="mobile-only-inline">Complete</span>
                   </button>
                 </div>
               </div>
-            ) : (
-              /* Quotation Search & Select Browser */
-              <div>
-                {/* Search Input & Filter Toggle */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="text"
-                      className="form-control"
-                      style={{ 
-                        height: '32px', 
-                        paddingLeft: '30px', 
-                        paddingRight: quoteSearchQuery ? '28px' : '10px', 
-                        fontSize: '11.5px',
-                        borderColor: '#e2ccd5'
-                      }}
-                      placeholder="Search quotations by Quote #, Customer, Serial, Spindle Model, or Scope..."
-                      value={quoteSearchQuery}
-                      onChange={(e) => setQuoteSearchQuery(e.target.value)}
-                    />
-                    {quoteSearchQuery && (
+
+              {/* Assigned Overhaul Specialist & Service Workforce Lead Banner */}
+              {(() => {
+                let localStaff = [];
+                try { localStaff = JSON.parse(localStorage.getItem('gps_local_workforce_staff') || '[]'); } catch (e) { }
+                const techName = selectedJob.technician || selectedJob.assignedTo;
+                const assignedTech = techName ? (
+                  localStaff.find(s => s.workOrder === selectedJob.id || (s.name && techName.toLowerCase().includes(s.name.toLowerCase()))) || {
+                    name: techName,
+                    role: 'Service Overhaul Specialist',
+                    bay: selectedJob.bay || 'Station 2 - Grinding & Assembly',
+                    machine: selectedJob.machine || 'Studer S33 CNC Grinder',
+                    status: 'Working',
+                    started: '08:30 AM',
+                    initials: techName.split(' ').map(n => n[0]).join('').slice(0, 2)
+                  }
+                ) : null;
+
+                return (
+                  <div style={{
+                    margin: '14px 16px 0 16px',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: assignedTech ? '#f8fafc' : '#fffbeb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        backgroundColor: assignedTech ? (assignedTech.avatarColor || '#7A1F3D') : '#fef3c7',
+                        color: assignedTech ? '#fff' : '#d97706',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        flexShrink: 0
+                      }}>
+                        {assignedTech ? (assignedTech.initials || assignedTech.name.split(' ').map(n => n[0]).join('').slice(0, 2)) : <User size={20} />}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', fontWeight: 700 }}>
+                            Assigned Service Specialist & Workforce Lead
+                          </span>
+                          {assignedTech && (
+                            <span className="badge badge-success" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                              {assignedTech.status || 'Working'}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                          {assignedTech ? assignedTech.name : <span style={{ color: '#d97706' }}>Unassigned · Manage in Staff & Workforce</span>}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>Service Bay: <strong className="mono">{assignedTech?.bay || selectedJob.bay || 'Station 2 - Grinding & Assembly'}</strong></span>
+                          <span>Equipment: <strong className="mono">{assignedTech?.machine || selectedJob.machine || 'Studer S33 / Schenck Rig'}</strong></span>
+                          {assignedTech?.started && <span>Active Since: <strong className="mono">{assignedTech.started}</strong></span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
                         type="button"
-                        onClick={() => setQuoteSearchQuery('')}
-                        style={{
-                          position: 'absolute',
-                          right: '8px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          padding: '2px'
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontWeight: 600 }}
+                        onClick={() => {
+                          localStorage.setItem('gps_active_workforce_job_id', selectedJob.id);
+                          localStorage.setItem('gps_workforce_action', assignedTech ? 'stage' : 'assign');
+                          if (onNavigate) onNavigate('workforce');
                         }}
+                        title="Manage stage progression, staff assignment and metrology updates in Workforce"
                       >
-                        <X size={13} />
+                        <Users size={14} />
+                        <span>{assignedTech ? 'Manage in Staff & Workforce →' : '+ Assign Staff in Workforce →'}</span>
                       </button>
-                    )}
-                  </div>
-
-                  {/* Filter Toggle: Approved Only vs All Quotations */}
-                  <div style={{ display: 'flex', borderRadius: '4px', border: '1px solid #e2ccd5', overflow: 'hidden', flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => setQuoteFilterApprovedOnly(true)}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        background: quoteFilterApprovedOnly ? '#7A1F3D' : '#ffffff',
-                        color: quoteFilterApprovedOnly ? '#ffffff' : 'var(--text-secondary)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <CheckCircle2 size={11} />
-                      <span>Approved Only ({approvedQuotesCount})</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQuoteFilterApprovedOnly(false)}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        background: !quoteFilterApprovedOnly ? '#7A1F3D' : '#ffffff',
-                        color: !quoteFilterApprovedOnly ? '#ffffff' : 'var(--text-secondary)',
-                        border: 'none',
-                        borderLeft: '1px solid #e2ccd5',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      All Quotes ({quotationsList.length})
-                    </button>
-                  </div>
-                </div>
-
-                {/* Scrollable Quotation Cards List */}
-                <div style={{ 
-                  maxHeight: '190px', 
-                  overflowY: 'auto', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '6px',
-                  paddingRight: '2px'
-                }}>
-                  {filteredQuotations.length === 0 ? (
-                    <div style={{ 
-                      padding: '16px', 
-                      textAlign: 'center', 
-                      background: '#ffffff', 
-                      borderRadius: '6px', 
-                      border: '1px dashed #d1d5db',
-                      color: 'var(--text-muted)',
-                      fontSize: '11.5px'
-                    }}>
-                      {quoteSearchQuery ? (
-                        <>No quotations matching "<strong>{quoteSearchQuery}</strong>". Try clearing search or toggling "All Quotes".</>
-                      ) : quoteFilterApprovedOnly ? (
-                        <>
-                          No quotations currently marked as "Approved". Toggle to <strong>All Quotes ({quotationsList.length})</strong> or approve quotes in Sales & Quotes.
-                        </>
-                      ) : (
-                        <>No quotations found in the system.</>
-                      )}
                     </div>
-                  ) : (
-                    filteredQuotations.map((quote) => {
-                      const isApproved = (quote.status || quote.rawStatus || '').toLowerCase() === 'approved';
-                      const totalCost = Number(quote.totalAmount || quote.subtotal || 0);
-                      const itemsSummary = (quote.items || []).map(i => i.desc || i.name).filter(Boolean).slice(0, 2).join(' • ');
+                  </div>
+                );
+              })()}
 
-                      return (
-                        <div
-                          key={quote.id || quote.estimateNo}
-                          onClick={() => handleSelectQuotation(quote)}
-                          style={{
-                            padding: '9px 12px',
-                            background: '#ffffff',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '12px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#7A1F3D';
-                            e.currentTarget.style.background = '#FDF6F8';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--border-color)';
-                            e.currentTarget.style.background = '#ffffff';
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                              <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: '#7A1F3D' }}>
-                                {quote.estimateNo || quote.id}
-                              </span>
-                              <span className={`badge ${isApproved ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
-                                {quote.status || 'Quote'}
-                              </span>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                {quote.date || '2026'}
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: 'var(--text-main)', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 600 }}>
-                                {quote.customer}
-                              </span>
-                              {quote.spindleSerial && (
-                                <span className="mono" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                                  Serial: <strong>{quote.spindleSerial}</strong>
-                                </span>
-                              )}
-                              {quote.contactPerson && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                                  Attn: {quote.contactPerson}
-                                </span>
-                              )}
-                            </div>
-
-                            {itemsSummary && (
-                              <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {itemsSummary}
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div className="mono" style={{ fontWeight: 700, fontSize: '12.5px', color: 'var(--text-main)' }}>
-                              ₹{totalCost.toLocaleString('en-IN')}
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              style={{ 
-                                marginTop: '4px', 
-                                fontSize: '10.5px', 
-                                padding: '2px 8px', 
-                                height: '24px',
-                                background: '#7A1F3D',
-                                borderColor: '#7A1F3D'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectQuotation(quote);
-                              }}
-                            >
-                              <Plus size={11} />
-                              <span>Use This Quote</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div style={{ marginTop: '6px', fontSize: '10.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                  Click any quotation above to auto-fill the form, or scroll down to enter spindle service job details manually.
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Section 1: Ticket & Schedule */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
-              <Hash size={14} />
-              <span>Service Ticket & Pipeline Scheduling</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr 1fr', gap: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Job Ticket ID *</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '12px', fontWeight: 700, color: '#7A1F3D' }}
-                  value={jobFormData.ticketId}
-                  onChange={(e) => setJobFormData({ ...jobFormData, ticketId: e.target.value })}
-                  placeholder="e.g. SR-2026-045"
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Inward Date *</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.receivedDate}
-                  onChange={(e) => setJobFormData({ ...jobFormData, receivedDate: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Promised TAT Target *</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.targetDate}
-                  onChange={(e) => setJobFormData({ ...jobFormData, targetDate: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Initial Stage *</label>
-                <select 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.initialStage}
-                  onChange={(e) => setJobFormData({ ...jobFormData, initialStage: e.target.value })}
-                >
-                  {SERVICE_PIPELINE_STAGES.map(s => (
-                    <option key={s.key} value={s.key}>
-                      0{s.id} {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Urgency Priority</label>
-                <select 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
-                  value={jobFormData.priority}
-                  onChange={(e) => setJobFormData({ ...jobFormData, priority: e.target.value })}
-                >
-                  <option value="Critical">Critical (Line Down)</option>
-                  <option value="High">High Priority</option>
-                  <option value="Medium">Medium (Scheduled)</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Customer Particulars */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
-                <Building2 size={14} />
-                <span>Customer & Client Particulars</span>
-              </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                Select registered customer or enter unlisted company
-              </span>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr 1.2fr', gap: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Customer Account *</label>
-                <select
-                  className="form-control"
-                  style={{ height: '32px', fontSize: '11.5px', borderColor: '#7A1F3D', fontWeight: 600 }}
-                  value={customersList.some(c => c.name.toLowerCase() === (jobFormData.customerCompany || '').toLowerCase()) ? jobFormData.customerCompany : (jobFormData.customerCompany ? '__custom__' : '')}
-                  onChange={(e) => handleCustomerSelect(e.target.value)}
-                >
-                  <option value="">-- Choose Registered Customer --</option>
-                  {customersList.map((c, idx) => (
-                    <option key={idx} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                  <option value="__custom__">+ Enter New / Unlisted Customer Manually...</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Customer / Company Name *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
-                  value={jobFormData.customerCompany}
-                  onChange={(e) => setJobFormData({ ...jobFormData, customerCompany: e.target.value })}
-                  placeholder="e.g. Tata Advanced Systems Ltd"
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Contact Person</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.contactPerson}
-                  onChange={(e) => setJobFormData({ ...jobFormData, contactPerson: e.target.value })}
-                  placeholder="e.g. Rajesh Khurana"
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Phone / Email</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.contactPhone || jobFormData.contactEmail}
-                  onChange={(e) => setJobFormData({ ...jobFormData, contactPhone: e.target.value, contactEmail: e.target.value })}
-                  placeholder="+91 98230 44102"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Spindle Specifications */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
-              <Wrench size={14} />
-              <span>Spindle Asset & Metrology Specifications</span>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.6fr 1fr 1fr', gap: '10px', marginBottom: jobFormData.spindleModel === '__custom__' ? '8px' : '0' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Spindle Serial Number *</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
-                  value={jobFormData.spindleSerial}
-                  onChange={(e) => setJobFormData({ ...jobFormData, spindleSerial: e.target.value })}
-                  placeholder="e.g. GPS-2025-0745"
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Spindle Model *</label>
-                <select 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
-                  value={jobFormData.spindleModel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    let taper = jobFormData.taperStandard;
-                    let rpm = jobFormData.maxRpm;
-                    if (val === 'GPS-HSK-A63-24K') { taper = 'HSK-A63'; rpm = 24000; }
-                    else if (val === 'GPS-BT40-15K') { taper = 'BT40'; rpm = 15000; }
-                    else if (val === 'GPS-BT50-10K') { taper = 'BT50'; rpm = 10000; }
-                    else if (val === 'GPS-HF-60K') { taper = 'HSK-E25'; rpm = 60000; }
-                    else if (val === 'GPS-HSK-E40-42K') { taper = 'HSK-E40'; rpm = 42000; }
-                    else if (val === 'GPS-BBT40-12K') { taper = 'BBT40'; rpm = 12000; }
-                    setJobFormData(prev => ({ ...prev, spindleModel: val, taperStandard: taper, maxRpm: rpm }));
-                  }}
-                >
-                  <option value="GPS-HSK-A63-24K">GPS-HSK-A63-24K (24,000 RPM Motorized)</option>
-                  <option value="GPS-BT40-15K">GPS-BT40-15K (15,000 RPM Direct Drive)</option>
-                  <option value="GPS-BT50-10K">GPS-BT50-10K (10,000 RPM Heavy-Duty)</option>
-                  <option value="GPS-HF-60K">GPS-HF-60K (60,000 RPM Micro Milling)</option>
-                  <option value="GPS-HSK-E40-42K">GPS-HSK-E40-42K (42,000 RPM Graphite)</option>
-                  <option value="GPS-BBT40-12K">GPS-BBT40-12K (12,000 RPM Dual Contact)</option>
-                  <option value="__custom__">+ Other / Custom Spindle Model...</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Taper Standard</label>
-                <select
-                  className="form-control"
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.taperStandard}
-                  onChange={(e) => setJobFormData({ ...jobFormData, taperStandard: e.target.value })}
-                >
-                  <option value="HSK-A63">HSK-A63</option>
-                  <option value="BT40">BT40</option>
-                  <option value="BT50">BT50</option>
-                  <option value="HSK-E40">HSK-E40</option>
-                  <option value="BBT40">BBT40</option>
-                  <option value="ISO 30">ISO 30</option>
-                  <option value="Other">Other Custom</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Max RPM</label>
-                <input 
-                  type="number" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.maxRpm}
-                  onChange={(e) => setJobFormData({ ...jobFormData, maxRpm: e.target.value })}
-                  placeholder="24000"
-                />
-              </div>
-            </div>
-
-            {jobFormData.spindleModel === '__custom__' && (
-              <div style={{ marginTop: '8px' }}>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Custom Model / OEM Make *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '12px' }}
-                  value={jobFormData.customModel}
-                  onChange={(e) => setJobFormData({ ...jobFormData, customModel: e.target.value })}
-                  placeholder="e.g. Kessler HSK-63 / Fischer 30,000 RPM"
-                  required
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Section 4: Symptoms, Scope & Assignment */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
-              <AlertTriangle size={14} />
-              <span>Failure Symptoms, Scope of Overhaul & Commercials</span>
-            </div>
-
-            <div style={{ marginBottom: '10px' }}>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>
-                Customer Reported Symptoms / Failure Description *
-              </label>
-              <textarea 
-                className="form-control" 
-                rows={2} 
-                style={{ height: '54px', padding: '6px 8px', fontSize: '12px' }} 
-                value={jobFormData.failureDescription}
-                onChange={(e) => setJobFormData({ ...jobFormData, failureDescription: e.target.value })}
-                placeholder="Describe failure symptoms: vibration velocity, bearing chatter, overheating, crash damage, or coolant ingress..."
-                required
-              />
-              
-              {/* Quick Symptom Injection Tags */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Quick append:</span>
-                {[
-                  'Vibration >4.5 mm/s',
-                  'Bearing Noise',
-                  'Thermal Trip >70°C',
-                  'Coolant Ingress',
-                  'Taper Fretting',
-                  'Low Drawbar Force (<14 kN)',
-                  'Machine Crash',
-                  'Scheduled Rebuild'
-                ].map((symptom, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => appendSymptom(symptom)}
-                    style={{
-                      background: '#F8FAF9',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '12px',
-                      padding: '2px 8px',
-                      fontSize: '10px',
-                      color: '#374151',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    + {symptom}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Scope of Work Multi-Select */}
-            <div style={{ marginBottom: '12px' }}>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '5px' }}>
-                Factory Overhaul Scope (Select Planned Work Operations)
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-                {[
-                  'Full Mechanical Teardown & Ultrasonic Wash',
-                  'Ceramic Hybrid P4S/ABEC-7 Bearing Pack',
-                  'Shaft Nose Taper CNC Regrinding',
-                  'Belleville Spring Pack & Drawbar Rebuild',
-                  'Dynamic Balancing to ISO G0.4',
-                  'Precision Rotary Seals & Viton O-Rings',
-                  'Encoder / Sensor Recalibration',
-                  'Thermal Stabilization & 6-Hour Run-in'
-                ].map((scopeItem, idx) => {
-                  const isSelected = jobFormData.scopeOfWork.includes(scopeItem);
+              {/* Stage Quick Jumper Bar */}
+              <div style={{
+                padding: '10px 16px',
+                backgroundColor: 'var(--bg-subtle, #f8fafc)',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'thin',
+                marginTop: '16px'
+              }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
+                  Set Stage Directly:
+                </span>
+                {SERVICE_PIPELINE_STAGES.map(s => {
+                  const isCurrent = getNormalizedStageKey(selectedJob.currentStage) === s.key;
                   return (
-                    <div 
-                      key={idx}
-                      onClick={() => toggleScopeTag(scopeItem)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        border: isSelected ? '1px solid #7A1F3D' : '1px solid var(--border-color)',
-                        background: isSelected ? '#F5E8ED' : '#ffffff',
-                        color: isSelected ? '#7A1F3D' : 'var(--text-main)',
-                        fontWeight: isSelected ? 600 : 400
-                      }}
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => handleTransitionToStage(s.key)}
+                      className={`btn btn-sm mono ${isCurrent ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '11px', padding: '3px 8px', height: '26px', flexShrink: 0 }}
                     >
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected} 
-                        readOnly 
-                        style={{ cursor: 'pointer', accentColor: '#7A1F3D' }}
-                      />
-                      <span>{scopeItem}</span>
-                    </div>
+                      0{s.id} {s.name}
+                    </button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* Commercials & Baseline Metrology */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.6fr 1fr 1fr', gap: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Estimated Overhaul Cost (₹)</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
-                  value={jobFormData.estimatedCost}
-                  onChange={(e) => setJobFormData({ ...jobFormData, estimatedCost: e.target.value })}
-                  placeholder="1,95,000"
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Assigned Lead Specialist *</label>
-                <select 
-                  className="form-control" 
-                  style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
-                  value={jobFormData.technicianName}
-                  onChange={(e) => setJobFormData({ ...jobFormData, technicianName: e.target.value })}
-                >
-                  <option value="Vikram Shinde (Sr. Spindle Specialist)">Vikram Shinde (Sr. Spindle Specialist)</option>
-                  <option value="Suresh Sawant (Master Grinder)">Suresh Sawant (Master Grinder)</option>
-                  <option value="Ramesh Deshmukh (Metrology & QC)">Ramesh Deshmukh (Metrology & QC)</option>
-                  <option value="Ganesh Pawar (Assembly Lead)">Ganesh Pawar (Assembly Lead)</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Inward Runout (mm)</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.initialRunout}
-                  onChange={(e) => setJobFormData({ ...jobFormData, initialRunout: e.target.value })}
-                  placeholder="0.0050"
-                />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Drawbar Force (kN)</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
-                  style={{ height: '32px', fontSize: '11.5px' }}
-                  value={jobFormData.drawbarForce}
-                  onChange={(e) => setJobFormData({ ...jobFormData, drawbarForce: e.target.value })}
-                  placeholder="16.5"
-                />
+              {/* Diagnostic Findings Grid */}
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Disassembly & Metrology Diagnostic Overview</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                  <div style={{ padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#b91c1c' }}>Spindle Taper & Runout Condition</div>
+                    <div style={{ fontSize: '12px', color: '#7f1d1d', marginTop: '4px' }}>
+                      Initial Runout: <span className="mono font-bold">{selectedJob.taperRunoutInitial ? `${selectedJob.taperRunoutInitial} mm` : '0.0058 mm'}</span> (Tolerance limit: 0.0010 mm).
+                    </div>
+                    {(selectedJob.taperRunoutFinal || selectedJob.runoutMetric) && (
+                      <div style={{ fontSize: '12px', color: '#166534', marginTop: '4px', fontWeight: 600 }}>
+                        Final Runout Achieved: <span className="mono">{selectedJob.taperRunoutFinal || selectedJob.runoutMetric}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#b45309' }}>Bearing Raceways & Balls Inspection</div>
+                    <div style={{ fontSize: '12px', color: '#78350f', marginTop: '4px' }}>
+                      {selectedJob.findings?.bearingState || "Front ceramic hybrid bearings suffered coolant wash-out; raceway spalling on #2 bearing."}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>Balancing & Dynamic Target</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Balancing Target: <strong className="mono">{selectedJob.balancingGrade || 'ISO G0.4'}</strong>. Bearing Pack Lot: <strong className="mono">{selectedJob.bearingLot || 'LOT-FAG-2026-B88'}</strong>.
+                    </div>
+                  </div>
+
+                  {(selectedJob.runoutMetric || selectedJob.vibrationMetric || selectedJob.tempMetric) && (
+                    <div style={{ padding: '14px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: '#047857' }}>Live Shop Floor Metrology & Telemetry (Workforce Logged)</div>
+                      <div style={{ fontSize: '12px', color: '#065f46', marginTop: '6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                        <div>Runout: <strong className="mono">{selectedJob.runoutMetric || '0.0008 mm'}</strong></div>
+                        <div>Vibration FFT: <strong className="mono">{selectedJob.vibrationMetric || '0.35 mm/s'}</strong></div>
+                        <div>Thermal: <strong className="mono">{selectedJob.tempMetric || '32.5 °C'}</strong></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dedicated Service Notes & Additional Issues Card in Case File */}
+                <div style={{ marginTop: '14px', padding: '14px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#7A1F3D', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MessageSquare size={14} />
+                      <span>Technician Notes, Observations & SOP Handover Log</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {selectedJob.quotationNo && (
+                        <span className="badge badge-neutral mono" style={{ fontSize: '10px' }}>
+                          Quote: {selectedJob.quotationNo}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '3px 8px', fontSize: '11px', gap: '4px', height: '26px' }}
+                        onClick={() => {
+                          setNoteModalText(selectedJob.notes || selectedJob.technicianNotes || '');
+                          setNoteModalStage(selectedJob.currentStage);
+                          setIsNoteModalOpen(true);
+                        }}
+                      >
+                        <Plus size={12} />
+                        <span>{selectedJob.notes ? 'Edit / Add Note' : 'Add Note'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {selectedJob.notes ? (
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-main)', lineHeight: 1.5, whiteSpace: 'pre-line', padding: '8px 12px', background: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: selectedJob.notesHistory?.length ? '10px' : '0' }}>
+                      {selectedJob.notes}
+                      {selectedJob.lastNoteAt && (
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          — {selectedJob.lastNoteBy || 'Technician'}, {selectedJob.lastNoteAt}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: selectedJob.notesHistory?.length ? '10px' : '0' }}>
+                      No technician notes logged yet for this service job. Click "Add Note" to log metrology readings, teardown observations, or shop-floor handover remarks.
+                    </div>
+                  )}
+
+                  {selectedJob.notesHistory && selectedJob.notesHistory.length > 0 && (
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                        Stage Notes & Handover Trail ({selectedJob.notesHistory.length}):
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                        {selectedJob.notesHistory.map((nh, nIdx) => (
+                          <div key={nh.id || nIdx} style={{ fontSize: '11.5px', padding: '6px 10px', background: '#fff', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                              <span><strong style={{ color: '#7A1F3D' }}>{nh.stageName || nh.stageKey}</strong> · {nh.author}</span>
+                              <span className="mono">{nh.timestamp}</span>
+                            </div>
+                            <div style={{ color: 'var(--text-main)' }}>{nh.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Workforce Overhaul Execution & Telemetry Trail */}
+                {(() => {
+                  let localLogs = [];
+                  try { localLogs = JSON.parse(localStorage.getItem('gps_local_work_logs') || '[]'); } catch (e) { }
+                  const jobLogs = localLogs.filter(l => l.workOrder === selectedJob.id);
+
+                  return (
+                    <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#7A1F3D', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={15} />
+                          <span>Workforce Overhaul Execution & Telemetry Logs ({jobLogs.length})</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '11px', gap: '4px', height: '26px' }}
+                          onClick={() => {
+                            localStorage.setItem('gps_active_workforce_job_id', selectedJob.id);
+                            localStorage.setItem('gps_workforce_action', 'stage');
+                            if (onNavigate) onNavigate('workforce');
+                          }}
+                        >
+                          <Users size={12} />
+                          <span>Update in Workforce →</span>
+                        </button>
+                      </div>
+
+                      {jobLogs.length === 0 ? (
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '10px 0' }}>
+                          No staff work logs recorded yet for {selectedJob.id}. Overhaul technicians log stage execution, work duration, and precision metrology in Staff & Workforce.
+                        </div>
+                      ) : (
+                        <>
+                          <div className="table-responsive desktop-table-view">
+                            <table className="data-table" style={{ fontSize: '12px' }}>
+                              <thead>
+                                <tr>
+                                  <th>Log ID</th>
+                                  <th>Technician</th>
+                                  <th>Timestamp</th>
+                                  <th>Duration</th>
+                                  <th>Stage / Task</th>
+                                  <th>Bay & Machine</th>
+                                  <th>Status</th>
+                                  <th>Operational Remarks & Metrology</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {jobLogs.map(log => (
+                                  <tr key={log.id}>
+                                    <td className="mono" style={{ fontWeight: 600, color: 'var(--primary)', fontSize: '11px' }}>{log.id}</td>
+                                    <td style={{ fontWeight: 600 }}>{log.employeeName}</td>
+                                    <td className="mono" style={{ fontSize: '11px' }}>{log.date} {log.startTime}</td>
+                                    <td className="mono" style={{ fontSize: '11px' }}>{log.duration || '—'}</td>
+                                    <td style={{ fontWeight: 500 }}>{log.task}</td>
+                                    <td style={{ fontSize: '11px' }}>
+                                      <div>{log.bay || 'Station 2'}</div>
+                                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{log.machine || 'Studer Grinder'}</div>
+                                    </td>
+                                    <td><StatusBadge status={log.status || 'Completed'} size="sm" /></td>
+                                    <td style={{ maxWidth: '280px', lineHeight: 1.4 }}>{log.remarks}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="mobile-card-view">
+                            {jobLogs.map(log => (
+                              <div key={log.id} style={{
+                                padding: '10px 12px',
+                                background: '#ffffff',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '6px',
+                                fontSize: '11.5px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>{log.id}</span>
+                                  <StatusBadge status={log.status || 'Completed'} size="sm" />
+                                </div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                                  {log.employeeName} · <span style={{ fontWeight: 500 }}>{log.task}</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', color: 'var(--text-muted)', fontSize: '11px', flexWrap: 'wrap' }}>
+                                  <span>Time: <strong className="mono">{log.date} {log.startTime}</strong> ({log.duration || '—'})</span>
+                                  <span>Station: <strong className="mono">{log.bay || 'Station 2'}</strong></span>
+                                </div>
+                                {log.remarks && (
+                                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', background: 'var(--bg-surface-subtle, #f8fafc)', padding: '6px 8px', borderRadius: '4px' }}>
+                                    {log.remarks}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
+        )}
 
-          {/* Section 5: Additional Notes, Observed Issues & Customer Instructions */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
-                <FileText size={14} />
-                <span>Job Notes, Other Issues & Special Instructions</span>
+        {activeTab === 'detail' && !selectedJob && (
+          <div className="section-card" style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Wrench size={48} style={{ opacity: 0.25, margin: '0 auto 16px', color: 'var(--primary)' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>No Service Ticket Selected</h3>
+            <p style={{ fontSize: '13px', maxWidth: '380px', margin: '0 auto' }}>
+              Select a service ticket from the Active Service Jobs list or log a new service overhaul request.
+            </p>
+          </div>
+        )}
+
+        {/* Tab 3: Plant Assets Registry */}
+        {activeTab === 'assets' && (
+          <div className="section-card">
+            <div className="card-header">
+              <div className="card-title">
+                <Settings size={16} color="#7A1F3D" />
+                <span>Plant Machinery, Balancing Rigs & Metrology Assets</span>
               </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                Log any additional defects, secondary issues, or client special requests
-              </span>
+              <span className="badge badge-neutral mono">{plantAssets.length} Assets</span>
             </div>
 
-            <div>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>
-                Notes / Other Issues / Special Instructions
-              </label>
-              <textarea 
-                className="form-control" 
-                rows={3} 
-                style={{ height: '70px', padding: '8px 10px', fontSize: '12px', resize: 'vertical' }} 
-                value={jobFormData.notes}
-                onChange={(e) => setJobFormData({ ...jobFormData, notes: e.target.value })}
-                placeholder="Write any other issue, observed defects, or special instructions (e.g., Return replaced bearings to client; Customer witnessing dynamic balancing run; Inspect stator coolant jacket for micro-cracks; Urgent delivery required by Friday)..."
-              />
+            <div className="table-responsive desktop-table-view">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Asset Tag</th>
+                    <th>Machine Name</th>
+                    <th>Category</th>
+                    <th>Station Location</th>
+                    <th>Purchase Date</th>
+                    <th>Capital Cost</th>
+                    <th>Calibration Cycle</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plantAssets.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                        No plant machinery or balancing assets registered.
+                      </td>
+                    </tr>
+                  ) : (
+                    plantAssets.map((ast) => (
+                      <tr key={ast.id}>
+                        <td className="mono font-bold" style={{ color: 'var(--primary)' }}>{ast.assetTag}</td>
+                        <td style={{ fontWeight: 500 }}>{ast.name}</td>
+                        <td><span className="badge badge-neutral">{ast.category}</span></td>
+                        <td>{ast.station}</td>
+                        <td className="mono" style={{ fontSize: '12px' }}>{ast.purchaseDate}</td>
+                        <td className="mono" style={{ fontWeight: 600 }}>{ast.costFormatted}</td>
+                        <td className="mono" style={{ fontSize: '12px' }}>{ast.calibrationCycleDays} Days</td>
+                        <td><StatusBadge status={ast.status} /></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Quick-Append Note Suggestions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Quick append:</span>
-                {[
-                  'Return replaced bearings to client',
-                  'Customer witnessing dynamic balance run',
-                  'Inspect stator coolant jacket for leakage',
-                  'Inspect drawbar gripper fingers for fretting',
-                  'Pre-dispatch balancing FFT spectrum report required',
-                  'Vibration baseline exceeded 4.5 mm/s on arrival',
-                  'Urgent delivery required (line-down breakdown)'
-                ].map((noteTag, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setJobFormData(prev => {
-                        const cur = (prev.notes || '').trim();
-                        if (!cur) return { ...prev, notes: noteTag };
-                        if (cur.includes(noteTag)) return prev;
-                        return { ...prev, notes: `${cur}\n• ${noteTag}` };
-                      });
-                    }}
-                    style={{
-                      background: '#F8FAF9',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '12px',
-                      padding: '2px 8px',
-                      fontSize: '10px',
-                      color: '#374151',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    + {noteTag}
-                  </button>
-                ))}
-              </div>
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {plantAssets.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                  No plant machinery or balancing assets registered.
+                </div>
+              ) : (
+                plantAssets.map((ast) => (
+                  <div key={ast.id} className="service-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="mono font-bold" style={{ color: 'var(--primary)', fontSize: '13px' }}>{ast.assetTag}</span>
+                      <StatusBadge status={ast.status} size="sm" />
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>{ast.name}</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '11px' }}>{ast.category}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Location: <strong>{ast.station}</strong></span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '11px',
+                      paddingTop: '6px',
+                      borderTop: '1px solid var(--border-color)'
+                    }}>
+                      <span className="mono" style={{ color: 'var(--text-muted)' }}>Cycle: {ast.calibrationCycleDays} Days ({ast.purchaseDate})</span>
+                      <span className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>{ast.costFormatted}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        </form>
-      </Modal>
+        )}
 
-      {/* Service Overhaul Report Pop-up Preview Modal */}
-      <DocumentPreviewModal 
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        doc={previewDoc}
-        onNotify={onNotify}
-      />
+        {/* Tab 4: Maintenance Orders */}
+        {activeTab === 'maintenance' && (
+          <div className="section-card">
+            <div className="card-header">
+              <div className="card-title">
+                <Activity size={16} color="#7A1F3D" />
+                <span>Preventive, Breakdown & Calibration Maintenance Orders</span>
+              </div>
+              <span className="badge badge-neutral mono">{maintenanceOrders.length} Orders</span>
+            </div>
 
-      {/* Technician Stage Note Modal */}
-      {isNoteModalOpen && selectedJob && (
+            <div className="table-responsive desktop-table-view">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Machine Asset</th>
+                    <th>Order Type</th>
+                    <th>Scheduled Date</th>
+                    <th>Assigned Tech</th>
+                    <th>Downtime</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maintenanceOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                        No maintenance orders recorded.
+                      </td>
+                    </tr>
+                  ) : (
+                    maintenanceOrders.map((mnt) => (
+                      <tr key={mnt.id}>
+                        <td className="mono font-bold" style={{ color: 'var(--primary)' }}>{mnt.orderNumber}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{mnt.assetName}</div>
+                          <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mnt.assetTag}</div>
+                        </td>
+                        <td><span className="badge badge-neutral">{mnt.orderType}</span></td>
+                        <td className="mono" style={{ fontSize: '12px' }}>{mnt.scheduledDate}</td>
+                        <td style={{ fontSize: '12px' }}>{mnt.technician}</td>
+                        <td className="mono" style={{ fontSize: '12px' }}>{mnt.downtimeHours} hrs</td>
+                        <td className="mono" style={{ fontWeight: 600 }}>{mnt.costFormatted}</td>
+                        <td><StatusBadge status={mnt.status} /></td>
+                        <td>
+                          {mnt.status !== 'Completed' ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleCompleteMaintenance(mnt.dbId || mnt.id)}
+                              title="Execute SOP and sign off maintenance order"
+                            >
+                              <CheckSquare size={13} />
+                              <span>Complete</span>
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Completed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {maintenanceOrders.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                  No maintenance orders recorded.
+                </div>
+              ) : (
+                maintenanceOrders.map((mnt) => (
+                  <div key={mnt.id} className="service-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="mono font-bold" style={{ color: 'var(--primary)', fontSize: '13px' }}>{mnt.orderNumber}</span>
+                      <StatusBadge status={mnt.status} size="sm" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)' }}>{mnt.assetName}</div>
+                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mnt.assetTag}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '11px' }}>{mnt.orderType}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tech: <strong>{mnt.technician}</strong></span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '11px',
+                      paddingTop: '6px',
+                      borderTop: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <div className="mono" style={{ color: 'var(--text-muted)' }}>{mnt.scheduledDate}</div>
+                        <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>{mnt.costFormatted} ({mnt.downtimeHours} hrs)</div>
+                      </div>
+                      {mnt.status !== 'Completed' ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleCompleteMaintenance(mnt.dbId || mnt.id)}
+                          style={{ padding: '3px 8px', fontSize: '11px' }}
+                        >
+                          <CheckSquare size={12} />
+                          <span>Complete</span>
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Completed</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Add Spindle Service & Overhaul Job Modal */}
         <Modal
-          isOpen={isNoteModalOpen}
-          onClose={() => setIsNoteModalOpen(false)}
-          title={`Technician Notes & Stage Update — ${selectedJob.id}`}
-          maxWidth="600px"
+          isOpen={isAddJobModalOpen || isLogOpen}
+          onClose={() => {
+            setIsAddJobModalOpen(false);
+            setIsLogOpen(false);
+          }}
+          title="Add Spindle Service & Overhaul Job"
+          maxWidth="920px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsNoteModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSaveServiceNote}
-                style={{ background: '#7A1F3D', borderColor: '#7A1F3D' }}
-              >
-                <Check size={14} />
-                <span>Save Note & Update Stage</span>
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', flex: '1 1 200px' }}>
+                Ticket: <strong className="mono" style={{ color: '#7A1F3D' }}>{jobFormData.ticketId}</strong> • Serial: <strong className="mono">{jobFormData.spindleSerial}</strong>
+                {selectedQuotation && (
+                  <span style={{ marginLeft: '8px', color: '#15803d', fontWeight: 600 }}>
+                    • Linked: <strong className="mono">{selectedQuotation.estimateNo || selectedQuotation.id}</strong>
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setIsAddJobModalOpen(false);
+                    setIsLogOpen(false);
+                  }}
+                  disabled={isSubmitting}
+                  style={{ flex: '1 1 auto', minWidth: '80px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleCreateServiceJob}
+                  disabled={isSubmitting}
+                  style={{ background: '#7A1F3D', borderColor: '#7A1F3D', flex: '1 1 auto', minWidth: '140px' }}
+                >
+                  <Plus size={14} />
+                  <span>{isSubmitting ? 'Registering...' : '+ Add Spindle Job'}</span>
+                </button>
+              </div>
             </div>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form onSubmit={handleCreateServiceJob} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+            {/* Job Generation & Case File Notice */}
             <div style={{
-              padding: '12px 14px',
+              padding: '10px 14px',
               background: '#f8fafc',
               border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              fontSize: '12px'
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
             }}>
-              <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '3px' }}>
-                <span className="mono">{selectedJob.id}</span> · {selectedJob.spindleModel} ({selectedJob.spindleSerial})
-              </div>
-              <div style={{ color: 'var(--text-secondary)' }}>
-                Client: <strong>{selectedJob.customer}</strong> • Assigned Tech: <strong>{selectedJob.technician || 'Shop Floor Team'}</strong>
+              <FileText size={18} color="#7A1F3D" style={{ flexShrink: 0 }} />
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                <strong style={{ color: 'var(--text-main)' }}>Spindle Service Job Intake:</strong> Submitting this ticket logs the spindle into the factory and generates its <strong>Service Diagnostics Case File</strong>. Specialist technician allocation, rebuild workstation routing, and stage progression are managed centrally in <strong>Staff & Workforce</strong>.
               </div>
             </div>
 
-            {/* Overhaul Pipeline Stage Selection */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Wrench size={13} color="#7A1F3D" />
-                <span>Service Overhaul Pipeline Stage / Status</span>
-              </label>
-              <select
-                className="form-control"
-                value={noteModalStage || selectedJob.currentStage || 'repair'}
-                onChange={e => setNoteModalStage(e.target.value)}
-                style={{ fontSize: '13px', fontWeight: 600 }}
-              >
-                {SERVICE_PIPELINE_STAGES.map(s => (
-                  <option key={s.key} value={s.key}>
-                    0{s.id} {s.name} {getNormalizedStageKey(selectedJob.currentStage) === s.key ? '(Current Stage)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <MessageSquare size={13} color="#7A1F3D" />
-                <span>Technician & Overhaul Findings Note</span>
-                <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-
-              <textarea
-                className="form-control"
-                rows={3}
-                style={{ fontSize: '12px', lineHeight: '1.5' }}
-                value={noteModalText}
-                onChange={e => setNoteModalText(e.target.value)}
-                placeholder="Log disassembly findings, measured runout, bearing clearance, torque applied, shaft grinding tolerances, or cleanroom notes..."
-                autoFocus
-              />
-
-              <div style={{ marginTop: '6px' }}>
-                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                  Quick Preset Chips:
+            {/* Quick-Fill from Approved Quotation (Sales & Quotes) */}
+            <div style={{
+              border: '1.5px solid #e2ccd5',
+              borderRadius: '8px',
+              padding: '14px 16px',
+              background: '#fdfafb',
+              boxShadow: '0 1px 3px rgba(122, 31, 61, 0.04)'
+            }}>
+              {/* Header with Title & Approved Counter */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    background: '#F5E8ED',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#7A1F3D'
+                  }}>
+                    <FileText size={15} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#7A1F3D', fontWeight: 700, fontSize: '13px' }}>
+                        Quick-Fill from Approved Quotation (Sales & Quotes)
+                      </span>
+                      <span className="badge badge-success" style={{ fontSize: '10px', padding: '2px 7px' }}>
+                        <CheckCircle2 size={11} style={{ marginRight: '3px' }} />
+                        {approvedQuotesCount} Approved Available
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                      Import customer, spindle serial, overhaul scope & commercial pricing directly from an approved quotation
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                  {[
-                    '✓ Incoming runout ≤ 0.001 mm audit passed',
-                    '✓ Cleanroom teardown complete; bearings de-staged',
-                    '✓ Shaft journal reground within ±0.002 mm tolerance',
-                    '✓ Ceramic hybrid bearing pack preloaded to 12.5 kN',
-                    '✓ Dynamic balancing achieved ISO 1940 G0.4',
-                    '✓ 6h thermal run-in test temp rise normal (≤ 15°C)',
-                    '⚠ Awaiting customer PO / approval for drawbar collet',
-                    '✓ Final nose taper runout 0.0008 mm certified'
-                  ].map((preset, pIdx) => (
+
+                {selectedQuotation && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelectedQuotation}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11px', padding: '3px 8px', height: '26px', color: '#b91c1c', borderColor: '#fca5a5' }}
+                    title="Unlink and clear quotation data"
+                  >
+                    <X size={12} />
+                    <span>Clear Linked Quote</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Active Linked Quotation Confirmation Banner */}
+              {selectedQuotation ? (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  borderRadius: '6px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle2 size={18} color="#16a34a" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#14532d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Linked Quote: <strong className="mono">{selectedQuotation.estimateNo || selectedQuotation.id}</strong></span>
+                        <span className="badge badge-success" style={{ fontSize: '10px' }}>Approved</span>
+                        <span style={{ fontSize: '11px', color: '#166534', fontWeight: 500 }}>
+                          • Quoted: <strong>₹{Number(selectedQuotation.totalAmount || selectedQuotation.subtotal || 0).toLocaleString('en-IN')}</strong>
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
+                        Customer: <strong>{selectedQuotation.customer}</strong> • Spindle Serial: <strong className="mono">{selectedQuotation.spindleSerial || 'Pending'}</strong> • Date: {selectedQuotation.date || 'Recent'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      key={pIdx}
                       type="button"
+                      onClick={() => setSelectedQuotation(null)}
                       className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '11px', padding: '4px 9px', height: '28px', background: '#ffffff' }}
+                    >
+                      <Search size={12} />
+                      <span>Pick Another Quote</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Quotation Search & Select Browser */
+                <div>
+                  {/* Search Input & Filter Toggle */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: '1 1 200px' }}>
+                      <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{
+                          height: '32px',
+                          paddingLeft: '30px',
+                          paddingRight: quoteSearchQuery ? '28px' : '10px',
+                          fontSize: '11.5px',
+                          borderColor: '#e2ccd5'
+                        }}
+                        placeholder="Search quotations by Quote #, Customer, Serial, Spindle Model, or Scope..."
+                        value={quoteSearchQuery}
+                        onChange={(e) => setQuoteSearchQuery(e.target.value)}
+                      />
+                      {quoteSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setQuoteSearchQuery('')}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: '2px'
+                          }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Toggle: Approved Only vs All Quotations */}
+                    <div style={{ display: 'flex', borderRadius: '4px', border: '1px solid #e2ccd5', overflow: 'hidden', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setQuoteFilterApprovedOnly(true)}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          background: quoteFilterApprovedOnly ? '#7A1F3D' : '#ffffff',
+                          color: quoteFilterApprovedOnly ? '#ffffff' : 'var(--text-secondary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <CheckCircle2 size={11} />
+                        <span>Approved Only ({approvedQuotesCount})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuoteFilterApprovedOnly(false)}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          background: !quoteFilterApprovedOnly ? '#7A1F3D' : '#ffffff',
+                          color: !quoteFilterApprovedOnly ? '#ffffff' : 'var(--text-secondary)',
+                          border: 'none',
+                          borderLeft: '1px solid #e2ccd5',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        All Quotes ({quotationsList.length})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Scrollable Quotation Cards List */}
+                  <div style={{
+                    maxHeight: '190px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    paddingRight: '2px'
+                  }}>
+                    {filteredQuotations.length === 0 ? (
+                      <div style={{
+                        padding: '16px',
+                        textAlign: 'center',
+                        background: '#ffffff',
+                        borderRadius: '6px',
+                        border: '1px dashed #d1d5db',
+                        color: 'var(--text-muted)',
+                        fontSize: '11.5px'
+                      }}>
+                        {quoteSearchQuery ? (
+                          <>No quotations matching "<strong>{quoteSearchQuery}</strong>". Try clearing search or toggling "All Quotes".</>
+                        ) : quoteFilterApprovedOnly ? (
+                          <>
+                            No quotations currently marked as "Approved". Toggle to <strong>All Quotes ({quotationsList.length})</strong> or approve quotes in Sales & Quotes.
+                          </>
+                        ) : (
+                          <>No quotations found in the system.</>
+                        )}
+                      </div>
+                    ) : (
+                      filteredQuotations.map((quote) => {
+                        const isApproved = (quote.status || quote.rawStatus || '').toLowerCase() === 'approved';
+                        const totalCost = Number(quote.totalAmount || quote.subtotal || 0);
+                        const itemsSummary = (quote.items || []).map(i => i.desc || i.name).filter(Boolean).slice(0, 2).join(' • ');
+
+                        return (
+                          <div
+                            key={quote.id || quote.estimateNo}
+                            onClick={() => handleSelectQuotation(quote)}
+                            style={{
+                              padding: '9px 12px',
+                              background: '#ffffff',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              flexWrap: 'wrap'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#7A1F3D';
+                              e.currentTarget.style.background = '#FDF6F8';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--border-color)';
+                              e.currentTarget.style.background = '#ffffff';
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                                <span className="mono" style={{ fontWeight: 700, fontSize: '12px', color: '#7A1F3D' }}>
+                                  {quote.estimateNo || quote.id}
+                                </span>
+                                <span className={`badge ${isApproved ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                  {quote.status || 'Quote'}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  {quote.date || '2026'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: 'var(--text-main)', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 600 }}>
+                                  {quote.customer}
+                                </span>
+                                {quote.spindleSerial && (
+                                  <span className="mono" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                    Serial: <strong>{quote.spindleSerial}</strong>
+                                  </span>
+                                )}
+                                {quote.contactPerson && (
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                    Attn: {quote.contactPerson}
+                                  </span>
+                                )}
+                              </div>
+
+                              {itemsSummary && (
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {itemsSummary}
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div className="mono" style={{ fontWeight: 700, fontSize: '12.5px', color: 'var(--text-main)' }}>
+                                ₹{totalCost.toLocaleString('en-IN')}
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  marginTop: '4px',
+                                  fontSize: '10.5px',
+                                  padding: '2px 8px',
+                                  height: '24px',
+                                  background: '#7A1F3D',
+                                  borderColor: '#7A1F3D'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectQuotation(quote);
+                                }}
+                              >
+                                <Plus size={11} />
+                                <span>Use This Quote</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '6px', fontSize: '10.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Click any quotation above to auto-fill the form, or scroll down to enter spindle service job details manually.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section 1: Ticket & Schedule */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                <Hash size={14} />
+                <span>Service Ticket & Pipeline Scheduling</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Job Ticket ID *</label>
+                  <input
+                    type="text"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '12px', fontWeight: 700, color: '#7A1F3D' }}
+                    value={jobFormData.ticketId}
+                    onChange={(e) => setJobFormData({ ...jobFormData, ticketId: e.target.value })}
+                    placeholder="e.g. SR-2026-045"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Inward Date *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.receivedDate}
+                    onChange={(e) => setJobFormData({ ...jobFormData, receivedDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Promised TAT Target *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.targetDate}
+                    onChange={(e) => setJobFormData({ ...jobFormData, targetDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Initial Stage *</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.initialStage}
+                    onChange={(e) => setJobFormData({ ...jobFormData, initialStage: e.target.value })}
+                  >
+                    {SERVICE_PIPELINE_STAGES.map(s => (
+                      <option key={s.key} value={s.key}>
+                        0{s.id} {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Urgency Priority</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
+                    value={jobFormData.priority}
+                    onChange={(e) => setJobFormData({ ...jobFormData, priority: e.target.value })}
+                  >
+                    <option value="Critical">Critical (Line Down)</option>
+                    <option value="High">High Priority</option>
+                    <option value="Medium">Medium (Scheduled)</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Customer Particulars */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                  <Building2 size={14} />
+                  <span>Customer & Client Particulars</span>
+                </div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  Select registered customer or enter unlisted company
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Customer Account *</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px', borderColor: '#7A1F3D', fontWeight: 600 }}
+                    value={customersList.some(c => c.name.toLowerCase() === (jobFormData.customerCompany || '').toLowerCase()) ? jobFormData.customerCompany : (jobFormData.customerCompany ? '__custom__' : '')}
+                    onChange={(e) => handleCustomerSelect(e.target.value)}
+                  >
+                    <option value="">-- Choose Registered Customer --</option>
+                    {customersList.map((c, idx) => (
+                      <option key={idx} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                    <option value="__custom__">+ Enter New / Unlisted Customer Manually...</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Customer / Company Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
+                    value={jobFormData.customerCompany}
+                    onChange={(e) => setJobFormData({ ...jobFormData, customerCompany: e.target.value })}
+                    placeholder="e.g. Tata Advanced Systems Ltd"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Contact Person</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.contactPerson}
+                    onChange={(e) => setJobFormData({ ...jobFormData, contactPerson: e.target.value })}
+                    placeholder="e.g. Rajesh Khurana"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Phone / Email</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.contactPhone || jobFormData.contactEmail}
+                    onChange={(e) => setJobFormData({ ...jobFormData, contactPhone: e.target.value, contactEmail: e.target.value })}
+                    placeholder="+91 98230 44102"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Spindle Specifications */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                <Wrench size={14} />
+                <span>Spindle Asset & Metrology Specifications</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: jobFormData.spindleModel === '__custom__' ? '8px' : '0' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Spindle Serial Number *</label>
+                  <input
+                    type="text"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
+                    value={jobFormData.spindleSerial}
+                    onChange={(e) => setJobFormData({ ...jobFormData, spindleSerial: e.target.value })}
+                    placeholder="e.g. GPS-2025-0745"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Spindle Model *</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
+                    value={jobFormData.spindleModel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      let taper = jobFormData.taperStandard;
+                      let rpm = jobFormData.maxRpm;
+                      if (val === 'GPS-HSK-A63-24K') { taper = 'HSK-A63'; rpm = 24000; }
+                      else if (val === 'GPS-BT40-15K') { taper = 'BT40'; rpm = 15000; }
+                      else if (val === 'GPS-BT50-10K') { taper = 'BT50'; rpm = 10000; }
+                      else if (val === 'GPS-HF-60K') { taper = 'HSK-E25'; rpm = 60000; }
+                      else if (val === 'GPS-HSK-E40-42K') { taper = 'HSK-E40'; rpm = 42000; }
+                      else if (val === 'GPS-BBT40-12K') { taper = 'BBT40'; rpm = 12000; }
+                      setJobFormData(prev => ({ ...prev, spindleModel: val, taperStandard: taper, maxRpm: rpm }));
+                    }}
+                  >
+                    <option value="GPS-HSK-A63-24K">GPS-HSK-A63-24K (24,000 RPM Motorized)</option>
+                    <option value="GPS-BT40-15K">GPS-BT40-15K (15,000 RPM Direct Drive)</option>
+                    <option value="GPS-BT50-10K">GPS-BT50-10K (10,000 RPM Heavy-Duty)</option>
+                    <option value="GPS-HF-60K">GPS-HF-60K (60,000 RPM Micro Milling)</option>
+                    <option value="GPS-HSK-E40-42K">GPS-HSK-E40-42K (42,000 RPM Graphite)</option>
+                    <option value="GPS-BBT40-12K">GPS-BBT40-12K (12,000 RPM Dual Contact)</option>
+                    <option value="__custom__">+ Other / Custom Spindle Model...</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Taper Standard</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.taperStandard}
+                    onChange={(e) => setJobFormData({ ...jobFormData, taperStandard: e.target.value })}
+                  >
+                    <option value="HSK-A63">HSK-A63</option>
+                    <option value="BT40">BT40</option>
+                    <option value="BT50">BT50</option>
+                    <option value="HSK-E40">HSK-E40</option>
+                    <option value="BBT40">BBT40</option>
+                    <option value="ISO 30">ISO 30</option>
+                    <option value="Other">Other Custom</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Max RPM</label>
+                  <input
+                    type="number"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.maxRpm}
+                    onChange={(e) => setJobFormData({ ...jobFormData, maxRpm: e.target.value })}
+                    placeholder="24000"
+                  />
+                </div>
+              </div>
+
+              {jobFormData.spindleModel === '__custom__' && (
+                <div style={{ marginTop: '8px' }}>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Custom Model / OEM Make *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '12px' }}
+                    value={jobFormData.customModel}
+                    onChange={(e) => setJobFormData({ ...jobFormData, customModel: e.target.value })}
+                    placeholder="e.g. Kessler HSK-63 / Fischer 30,000 RPM"
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Symptoms, Scope & Assignment */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                <AlertTriangle size={14} />
+                <span>Failure Symptoms, Scope of Overhaul & Commercials</span>
+              </div>
+
+              <div style={{ marginBottom: '10px' }}>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>
+                  Customer Reported Symptoms / Failure Description *
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  style={{ height: '54px', padding: '6px 8px', fontSize: '12px' }}
+                  value={jobFormData.failureDescription}
+                  onChange={(e) => setJobFormData({ ...jobFormData, failureDescription: e.target.value })}
+                  placeholder="Describe failure symptoms: vibration velocity, bearing chatter, overheating, crash damage, or coolant ingress..."
+                  required
+                />
+
+                {/* Quick Symptom Injection Tags */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Quick append:</span>
+                  {[
+                    'Vibration >4.5 mm/s',
+                    'Bearing Noise',
+                    'Thermal Trip >70°C',
+                    'Coolant Ingress',
+                    'Taper Fretting',
+                    'Low Drawbar Force (<14 kN)',
+                    'Machine Crash',
+                    'Scheduled Rebuild'
+                  ].map((symptom, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => appendSymptom(symptom)}
                       style={{
-                        fontSize: '10.5px',
-                        padding: '2px 7px',
+                        background: '#F8FAF9',
+                        border: '1px solid #d1d5db',
                         borderRadius: '12px',
-                        background: '#f8fafc',
-                        borderColor: '#e2e8f0'
-                      }}
-                      onClick={() => {
-                        setNoteModalText(prev => prev ? `${prev} • ${preset}` : preset);
+                        padding: '2px 8px',
+                        fontSize: '10px',
+                        color: '#374151',
+                        cursor: 'pointer'
                       }}
                     >
-                      + {preset}
+                      + {symptom}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scope of Work Multi-Select */}
+              <div style={{ marginBottom: '12px' }}>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '5px' }}>
+                  Factory Overhaul Scope (Select Planned Work Operations)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px' }}>
+                  {[
+                    'Full Mechanical Teardown & Ultrasonic Wash',
+                    'Ceramic Hybrid P4S/ABEC-7 Bearing Pack',
+                    'Shaft Nose Taper CNC Regrinding',
+                    'Belleville Spring Pack & Drawbar Rebuild',
+                    'Dynamic Balancing to ISO G0.4',
+                    'Precision Rotary Seals & Viton O-Rings',
+                    'Encoder / Sensor Recalibration',
+                    'Thermal Stabilization & 6-Hour Run-in'
+                  ].map((scopeItem, idx) => {
+                    const isSelected = jobFormData.scopeOfWork.includes(scopeItem);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => toggleScopeTag(scopeItem)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #7A1F3D' : '1px solid var(--border-color)',
+                          background: isSelected ? '#F5E8ED' : '#ffffff',
+                          color: isSelected ? '#7A1F3D' : 'var(--text-main)',
+                          fontWeight: isSelected ? 600 : 400
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          readOnly
+                          style={{ cursor: 'pointer', accentColor: '#7A1F3D' }}
+                        />
+                        <span>{scopeItem}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Commercials & Baseline Metrology */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Estimated Overhaul Cost (₹)</label>
+                  <input
+                    type="text"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '12px', fontWeight: 600 }}
+                    value={jobFormData.estimatedCost}
+                    onChange={(e) => setJobFormData({ ...jobFormData, estimatedCost: e.target.value })}
+                    placeholder="1,95,000"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Assigned Lead Specialist *</label>
+                  <select
+                    className="form-control"
+                    style={{ height: '32px', fontSize: '11.5px', fontWeight: 600 }}
+                    value={jobFormData.technicianName}
+                    onChange={(e) => setJobFormData({ ...jobFormData, technicianName: e.target.value })}
+                  >
+                    <option value="Vikram Shinde (Sr. Spindle Specialist)">Vikram Shinde (Sr. Spindle Specialist)</option>
+                    <option value="Suresh Sawant (Master Grinder)">Suresh Sawant (Master Grinder)</option>
+                    <option value="Ramesh Deshmukh (Metrology & QC)">Ramesh Deshmukh (Metrology & QC)</option>
+                    <option value="Ganesh Pawar (Assembly Lead)">Ganesh Pawar (Assembly Lead)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Inward Runout (mm)</label>
+                  <input
+                    type="text"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.initialRunout}
+                    onChange={(e) => setJobFormData({ ...jobFormData, initialRunout: e.target.value })}
+                    placeholder="0.0050"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>Drawbar Force (kN)</label>
+                  <input
+                    type="text"
+                    className="form-control mono"
+                    style={{ height: '32px', fontSize: '11.5px' }}
+                    value={jobFormData.drawbarForce}
+                    onChange={(e) => setJobFormData({ ...jobFormData, drawbarForce: e.target.value })}
+                    placeholder="16.5"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: Additional Notes, Observed Issues & Customer Instructions */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7A1F3D', fontWeight: 700, fontSize: '12px' }}>
+                  <FileText size={14} />
+                  <span>Job Notes, Other Issues & Special Instructions</span>
+                </div>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  Log any additional defects, secondary issues, or client special requests
+                </span>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '3px' }}>
+                  Notes / Other Issues / Special Instructions
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  style={{ height: '70px', padding: '8px 10px', fontSize: '12px', resize: 'vertical' }}
+                  value={jobFormData.notes}
+                  onChange={(e) => setJobFormData({ ...jobFormData, notes: e.target.value })}
+                  placeholder="Write any other issue, observed defects, or special instructions (e.g., Return replaced bearings to client; Customer witnessing dynamic balancing run; Inspect stator coolant jacket for micro-cracks; Urgent delivery required by Friday)..."
+                />
+
+                {/* Quick-Append Note Suggestions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Quick append:</span>
+                  {[
+                    'Return replaced bearings to client',
+                    'Customer witnessing dynamic balance run',
+                    'Inspect stator coolant jacket for leakage',
+                    'Inspect drawbar gripper fingers for fretting',
+                    'Pre-dispatch balancing FFT spectrum report required',
+                    'Vibration baseline exceeded 4.5 mm/s on arrival',
+                    'Urgent delivery required (line-down breakdown)'
+                  ].map((noteTag, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setJobFormData(prev => {
+                          const cur = (prev.notes || '').trim();
+                          if (!cur) return { ...prev, notes: noteTag };
+                          if (cur.includes(noteTag)) return prev;
+                          return { ...prev, notes: `${cur}\n• ${noteTag}` };
+                        });
+                      }}
+                      style={{
+                        background: '#F8FAF9',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '12px',
+                        padding: '2px 8px',
+                        fontSize: '10px',
+                        color: '#374151',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + {noteTag}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
+          </form>
+        </Modal>
 
-            {/* Chronological Notes History */}
-            {selectedJob.notesHistory && selectedJob.notesHistory.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Past Stage Notes History ({selectedJob.notesHistory.length})
+        {/* Service Overhaul Report Pop-up Preview Modal */}
+        <DocumentPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          doc={previewDoc}
+          onNotify={onNotify}
+        />
+
+        {/* Technician Stage Note Modal */}
+        {isNoteModalOpen && selectedJob && (
+          <Modal
+            isOpen={isNoteModalOpen}
+            onClose={() => setIsNoteModalOpen(false)}
+            title={`Technician Notes & Stage Update — ${selectedJob.id}`}
+            maxWidth="600px"
+            footer={
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsNoteModalOpen(false)}
+                  style={{ flex: '1 1 auto', minWidth: '80px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveServiceNote}
+                  style={{ background: '#7A1F3D', borderColor: '#7A1F3D', flex: '1 1 auto', minWidth: '160px' }}
+                >
+                  <Check size={14} />
+                  <span>Save Note & Update Stage</span>
+                </button>
+              </div>
+            }
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{
+                padding: '12px 14px',
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '3px' }}>
+                  <span className="mono">{selectedJob.id}</span> · {selectedJob.spindleModel} ({selectedJob.spindleSerial})
                 </div>
-                <div style={{ maxHeight: '130px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {selectedJob.notesHistory.map((nh, idx) => (
-                    <div key={nh.id || idx} style={{ padding: '7px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #f1f5f9', fontSize: '11px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '2px', fontSize: '10px' }}>
-                        <span><strong style={{ color: '#7A1F3D' }}>{nh.stageName || nh.stageKey}</strong> · {nh.author}</span>
-                        <span className="mono">{nh.timestamp}</span>
-                      </div>
-                      <div style={{ color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{nh.text}</div>
-                    </div>
-                  ))}
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  Client: <strong>{selectedJob.customer}</strong> • Assigned Tech: <strong>{selectedJob.technician || 'Shop Floor Team'}</strong>
                 </div>
               </div>
-            )}
-          </div>
-        </Modal>
-      )}
+
+              {/* Overhaul Pipeline Stage Selection */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Wrench size={13} color="#7A1F3D" />
+                  <span>Service Overhaul Pipeline Stage / Status</span>
+                </label>
+                <select
+                  className="form-control"
+                  value={noteModalStage || selectedJob.currentStage || 'repair'}
+                  onChange={e => setNoteModalStage(e.target.value)}
+                  style={{ fontSize: '13px', fontWeight: 600 }}
+                >
+                  {SERVICE_PIPELINE_STAGES.map(s => (
+                    <option key={s.key} value={s.key}>
+                      0{s.id} {s.name} {getNormalizedStageKey(selectedJob.currentStage) === s.key ? '(Current Stage)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <MessageSquare size={13} color="#7A1F3D" />
+                  <span>Technician & Overhaul Findings Note</span>
+                  <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  style={{ fontSize: '12px', lineHeight: '1.5' }}
+                  value={noteModalText}
+                  onChange={e => setNoteModalText(e.target.value)}
+                  placeholder="Log disassembly findings, measured runout, bearing clearance, torque applied, shaft grinding tolerances, or cleanroom notes..."
+                  autoFocus
+                />
+
+                <div style={{ marginTop: '6px' }}>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
+                    Quick Preset Chips:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    {[
+                      '✓ Incoming runout ≤ 0.001 mm audit passed',
+                      '✓ Cleanroom teardown complete; bearings de-staged',
+                      '✓ Shaft journal reground within ±0.002 mm tolerance',
+                      '✓ Ceramic hybrid bearing pack preloaded to 12.5 kN',
+                      '✓ Dynamic balancing achieved ISO 1940 G0.4',
+                      '✓ 6h thermal run-in test temp rise normal (≤ 15°C)',
+                      '⚠ Awaiting customer PO / approval for drawbar collet',
+                      '✓ Final nose taper runout 0.0008 mm certified'
+                    ].map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          fontSize: '10.5px',
+                          padding: '2px 7px',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          borderColor: '#e2e8f0'
+                        }}
+                        onClick={() => {
+                          setNoteModalText(prev => prev ? `${prev} • ${preset}` : preset);
+                        }}
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chronological Notes History */}
+              {selectedJob.notesHistory && selectedJob.notesHistory.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Past Stage Notes History ({selectedJob.notesHistory.length})
+                  </div>
+                  <div style={{ maxHeight: '130px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {selectedJob.notesHistory.map((nh, idx) => (
+                      <div key={nh.id || idx} style={{ padding: '7px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #f1f5f9', fontSize: '11px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '2px', fontSize: '10px' }}>
+                          <span><strong style={{ color: '#7A1F3D' }}>{nh.stageName || nh.stageKey}</strong> · {nh.author}</span>
+                          <span className="mono">{nh.timestamp}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{nh.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );

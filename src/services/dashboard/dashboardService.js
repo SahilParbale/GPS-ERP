@@ -228,25 +228,17 @@ export const dashboardService = {
       console.info('[GPS-ERP Dashboard] Live query notice (falling back to GPS seed dataset):', err.message);
     }
 
-    // Seamless fallback to GPS precision spindle demo dataset
+    // Clean zero metric fallback
     return {
-      data: DASHBOARD_METRICS && DASHBOARD_METRICS.length > 0 ? DASHBOARD_METRICS : [
-        { id: 'active_jobs', label: 'Active Jobs', value: '24', trend: '+3 this week', isUp: true, icon: 'Cpu' },
-        { id: 'in_prod', label: 'In Production', value: '18', trend: 'Workstations active', isUp: true, icon: 'Cog' },
-        { id: 'pending_qc', label: 'Pending QC', value: '4', trend: '2 urgent sign-offs', isUp: false, alert: true, icon: 'CheckCircle2' },
-        { id: 'ready_dispatch', label: 'Ready Dispatch', value: '6', trend: 'Dispatch today', isUp: true, icon: 'Truck' },
-        { id: 'active_service', label: 'Active Service', value: '7', trend: 'Avg TAT 4.2d', isUp: true, icon: 'Wrench' },
-        { id: 'low_stock', label: 'Low Stock Items', value: '3', trend: 'Ceramic bearings', alert: true, isUp: false, icon: 'AlertTriangle' },
-        { id: 'receivables', label: 'Outstanding Rec.', value: '₹18.4L', trend: '₹6.2L due < 7d', isUp: true, icon: 'DollarSign' }
-      ],
+      data: DASHBOARD_METRICS || [],
       rawTotals: {
-        activeJobs: 24,
-        inProduction: 18,
-        pendingQc: 4,
-        readyDispatch: 6,
-        activeService: 7,
-        lowStock: 3,
-        outstandingReceivables: 1840000
+        activeJobs: 0,
+        inProduction: 0,
+        pendingQc: 0,
+        readyDispatch: 0,
+        activeService: 0,
+        lowStock: 0,
+        outstandingReceivables: 0
       },
       error: null
     };
@@ -319,7 +311,7 @@ export const dashboardService = {
 
     return { 
       data: PRODUCTION_PIPELINE_STAGES || [], 
-      counts: { material: 3, machining: 4, grinding: 5, assembly: 3, balancing: 3, testing: 2, qc: 4, dispatch: 6 }, 
+      counts: { material: 0, machining: 0, grinding: 0, assembly: 0, balancing: 0, testing: 0, qc: 0, dispatch: 0 }, 
       error: null 
     };
   },
@@ -336,17 +328,7 @@ export const dashboardService = {
       return { data: stages, error: null };
     }
 
-    const stages = [
-      { id: 1, key: 'inward', name: 'Inward Receipt', desc: 'Customer spindle intake & RMA docket', count: 1 },
-      { id: 2, key: 'teardown', name: 'Teardown', desc: 'Disassembly & failure diagnostics', count: 2 },
-      { id: 3, key: 'cleaning', name: 'Ultrasonic Clean', desc: 'Degrease & cleanroom drying', count: 1 },
-      { id: 4, key: 'machining', name: 'Shaft Sleeving', desc: 'Laser cladding & taper grind', count: 1 },
-      { id: 5, key: 'assembly', name: 'Bearing Assembly', desc: 'Class 1000 ceramic hybrid fit', count: 1 },
-      { id: 6, key: 'balancing', name: 'Dynamic Balancing', desc: 'Schenck dual-plane ISO G0.4', count: 1 },
-      { id: 7, key: 'run_in', name: '4h Run-in Test', desc: 'Vibration FFT & thermal rise log', count: 1 },
-      { id: 8, key: 'qc', name: 'Final Metrology', desc: 'Air gauging runout <1.0 µm', count: 1 },
-      { id: 9, key: 'dispatch', name: 'Customer Return', desc: 'Calibration certificate & crate', count: 2 }
-    ];
+    const stages = (SERVICE_PIPELINE_STAGES || []).map(s => ({ ...s, count: 0 }));
     return { data: stages, error: null };
   },
 

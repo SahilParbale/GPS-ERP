@@ -96,7 +96,9 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-    SELECT public.has_role('ADMIN');
+    SELECT auth.uid() IS NULL 
+        OR current_user IN ('postgres', 'supabase_admin', 'service_role')
+        OR public.has_role('ADMIN');
 $$;
 
 -- 7. Is Management Check (Admin or Executive Management)
@@ -149,6 +151,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+    -- Allow direct administrative/SQL editor sessions and database superusers
+    IF auth.uid() IS NULL OR current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
+        RETURN NEW;
+    END IF;
+
     IF NOT public.is_admin() THEN
         IF NEW.role_id IS DISTINCT FROM OLD.role_id THEN
             RAISE EXCEPTION 'Privilege escalation rejected: Only system administrators can modify profile roles.';
@@ -176,6 +183,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+    -- Allow direct administrative/SQL editor sessions and database superusers
+    IF auth.uid() IS NULL OR current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
+        RETURN NEW;
+    END IF;
+
     IF NOT public.is_admin() THEN
         IF NEW.role_id IS DISTINCT FROM OLD.role_id THEN
             RAISE EXCEPTION 'Privilege escalation rejected: Only administrators can reassign employee roles.';

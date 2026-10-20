@@ -21,68 +21,7 @@ import { isCleanSlateMode } from '../utils/dataMode';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 
-const PRESET_INVOICES = [
-  {
-    invoice: 'INV-2026-019',
-    customer: 'Tata Advanced Systems',
-    customerFullName: 'Tata Advanced Systems Ltd',
-    customerGstin: '36AAACT2718E1ZQ',
-    address: 'Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510',
-    state: '36-Telangana',
-    pin: '501510',
-    product: 'GPS-HSK-A63-24K Motorized Spindle Unit',
-    hsn: '84669390',
-    qty: 2,
-    unit: 'Sets',
-    taxable: 842000,
-    gst: 18,
-    transporter: 'ABC Logistics',
-    transporterId: '27AABCA9081T1Z5',
-    vehicle: 'MH12AB1234',
-    mode: 'Road',
-    distance: '540 km'
-  },
-  {
-    invoice: 'INV-2026-021',
-    customer: 'Bharat Forge',
-    customerFullName: 'Bharat Forge Ltd',
-    customerGstin: '27AAACB1829D1Z2',
-    address: 'Mundhwa Industrial Area, Pune Cantonment, Pune - 411036, Maharashtra',
-    state: '27-Maharashtra',
-    pin: '411036',
-    product: 'GPS-BT40-15K Spindle Rebuild & Bearing Overhaul',
-    hsn: '84669390',
-    qty: 1,
-    unit: 'Set',
-    taxable: 544322,
-    gst: 18,
-    transporter: 'FastTrack Logistics',
-    transporterId: '27AABCF4411Q1ZN',
-    vehicle: 'MH14CD5678',
-    mode: 'Road',
-    distance: '35 km'
-  },
-  {
-    invoice: 'INV-2026-024',
-    customer: 'Godrej Aerospace',
-    customerFullName: 'Godrej & Boyce Aerospace Division',
-    customerGstin: '27AAACG0821M1Z5',
-    address: 'Plant 14, Pirojshanagar, Vikhroli East, Mumbai - 400079',
-    state: '27-Maharashtra',
-    pin: '400079',
-    product: 'GPS-HF-60K Ultra High-Speed Aerospace Spindle',
-    hsn: '84669390',
-    qty: 1,
-    unit: 'Set',
-    taxable: 1250000,
-    gst: 18,
-    transporter: 'V-Trans India Ltd',
-    transporterId: '27AAACV1290K1ZX',
-    vehicle: 'MH04EF9012',
-    mode: 'Road',
-    distance: '165 km'
-  }
-];
+const PRESET_INVOICES = [];
 
 export default function EWayBillScreen({ onNavigate, onNotify }) {
   const [isCleanSlate, setIsCleanSlate] = useState(isCleanSlateMode());
@@ -170,30 +109,23 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
   // Multi-section form state
   const [formSection, setFormSection] = useState('all'); // or 'document', 'customer', 'transport', 'goods'
   const [formData, setFormData] = useState({
-    // DOCUMENT
-    invoice: 'INV-2026-019',
-    invoiceDate: '09 Sep 2026',
-    transactionType: 'Supply',
-
-    // CUSTOMER
-    customer: 'Tata Advanced Systems',
-    customerFullName: 'Tata Advanced Systems Ltd',
-    customerGstin: '36AAACT2718E1ZQ',
-    customerAddress: 'Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510',
-    customerState: '36-Telangana',
-    customerPin: '501510',
-
-    // TRANSPORT
-    transporter: 'ABC Logistics',
-    transporterId: '27AABCA9081T1Z5',
-    vehicle: 'MH12AB1234',
-    mode: 'Road',
-    distance: '540 km',
-    transportDocNo: 'LR-2026-88192',
-
-    // GOODS
+    invoice: "",
+    invoiceDate: "",
+    transactionType: "Supply",
+    customer: "",
+    customerFullName: "",
+    customerGstin: "",
+    customerAddress: "",
+    customerState: "27-Maharashtra",
+    customerPin: "",
+    transporter: "",
+    transporterId: "",
+    vehicle: "",
+    mode: "Road",
+    distance: "",
+    transportDocNo: "",
     goods: [
-      { id: 1, product: 'GPS-HSK-A63-24K Motorized Spindle Unit', hsn: '84669390', quantity: 2, unit: 'Sets', taxableValue: 842000, gstRate: 18 }
+      { id: 1, product: "", hsn: "84669390", quantity: 1, unit: "Sets", taxableValue: 0, gstRate: 18 }
     ]
   });
 
@@ -482,7 +414,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
               borderRadius: '16px',
               boxShadow: '0 20px 40px -20px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)',
               border: '1px solid var(--border-color)',
-              background: 'var(--bg-surface)'
+              background: 'var(--bg-surface)',
+              alignItems: 'center'
             }}
           >
             <div style={{
@@ -503,8 +436,11 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+              width: 'fit-content',
               gap: '6px',
-              padding: '4px 12px',
+              padding: '5px 14px',
               borderRadius: '20px',
               background: 'rgba(122, 31, 61, 0.08)',
               color: 'var(--primary)',
@@ -512,7 +448,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.6px',
-              marginBottom: '16px'
+              margin: '0 auto 16px'
             }}>
               <Clock size={12} />
               <span>Coming Soon</span>
@@ -553,16 +489,16 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         <PageHeader 
           title="E-Way Bill System" 
           subtitle="Consignment transit passes, Part-A/Part-B transporter logistics & dispatch compliance"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="content-body">
           <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
             <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+              {error.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {error.message || 'Unable to retrieve E-Way Bills from PostgreSQL database.'}
+              {error.message || 'Unable to retrieve E-Way Bills. Please check your connection.'}
             </p>
             <button type="button" className="btn btn-secondary" onClick={loadEWBs}>
               <RefreshCw size={14} />
@@ -760,6 +696,16 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
             <CustomSelect 
@@ -1080,16 +1026,17 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
         title={editingEWBId ? `Edit E-Way Bill: ${editingEWBId}` : "+ Generate Official E-Way Bill (NIC API v1.03)"}
         maxWidth="840px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Total Invoice: <strong className="mono" style={{ color: 'var(--primary)', fontSize: '14px' }}>₹{calculations.totalInvoiceValue.toLocaleString('en-IN')}</strong>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary" 
                 onClick={() => setIsGenerateModalOpen(false)}
                 disabled={isSubmitting}
+                style={{ flex: '1 1 auto', minWidth: '70px' }}
               >
                 Discard
               </button>
@@ -1098,6 +1045,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 className="btn btn-secondary" 
                 onClick={() => handleSaveEWB('Draft')}
                 disabled={isSubmitting}
+                style={{ flex: '1 1 auto', minWidth: '80px' }}
               >
                 Save Draft
               </button>
@@ -1106,6 +1054,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 className="btn btn-primary" 
                 onClick={() => handleSaveEWB('Active')}
                 disabled={isSubmitting}
+                style={{ flex: '1 1 auto', justifyContent: 'center' }}
               >
                 <Truck size={13} />
                 <span>{isSubmitting ? 'Transmitting to NIC...' : 'Generate EWB'}</span>
@@ -1494,14 +1443,15 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           title={`E-Way Bill: ${selectedEWB.ewbNumber}`}
           maxWidth="840px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 Vehicle: <strong className="mono" style={{ color: 'var(--primary)' }}>{selectedEWB.vehicle}</strong> • Valid Until: {selectedEWB.validUntil}
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
+                  className="btn btn-secondary btn-sm" 
+                  style={{ flex: '1 1 auto', minWidth: '65px', justifyContent: 'center' }}
                   onClick={() => {
                     try {
                       exportEWayBillPdf(selectedEWB);
@@ -1517,7 +1467,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </button>
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
+                  className="btn btn-secondary btn-sm" 
+                  style={{ flex: '1 1 auto', minWidth: '95px', justifyContent: 'center' }}
                   onClick={() => {
                     try {
                       exportEWayBillPdf(selectedEWB);
@@ -1529,11 +1480,13 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                   }}
                 >
                   <FileText size={13} />
-                  <span>Download PDF</span>
+                  <span className="desktop-only-inline">Download PDF</span>
+                  <span className="mobile-only-inline">PDF</span>
                 </button>
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
+                  className="btn btn-secondary btn-sm" 
+                  style={{ flex: '1 1 auto', minWidth: '65px', justifyContent: 'center' }}
                   onClick={() => onNotify(`Transit pass link copied for ${selectedEWB.ewbNumber}`)}
                 >
                   <Share2 size={13} />
@@ -1541,7 +1494,8 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
                 </button>
                 <button 
                   type="button" 
-                  className="btn btn-primary" 
+                  className="btn btn-primary btn-sm" 
+                  style={{ flex: '1 1 auto', minWidth: '95px', justifyContent: 'center' }}
                   onClick={() => {
                     setIsDetailDrawerOpen(false);
                     handleOpenEmail(selectedEWB);
@@ -1787,7 +1741,7 @@ export default function EWayBillScreen({ onNavigate, onNotify }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
               gap: '10px',
               padding: '12px',
               background: '#f8fafc',

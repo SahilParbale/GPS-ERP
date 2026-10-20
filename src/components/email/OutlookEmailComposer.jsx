@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Minus, Maximize2, Minimize2, Send, Paperclip, 
-  Eye, FileText, Trash2, Plus, Check, AlertCircle, 
-  RotateCcw, Download, Sparkles, User, Mail
+  Eye, FileText, Trash2, Plus, AlertCircle, Mail, ArrowLeft
 } from 'lucide-react';
 import { 
   DEFAULT_SENDER, 
@@ -318,6 +317,7 @@ export default function OutlookEmailComposer({
   if (isMinimized) {
     return (
       <div 
+        className="outlook-minimized-dock"
         style={{
           position: 'fixed',
           bottom: '16px',
@@ -382,61 +382,467 @@ export default function OutlookEmailComposer({
 
   return (
     <>
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* SCOPED STYLES: FULL OUTLOOK RESPONSIVE COMPOSE FOR MOBILE & DESKTOP */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* SCOPED STYLES: FULL OUTLOOK RESPONSIVE COMPOSE FOR MOBILE & DESKTOP */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <style>{`
+        .outlook-composer-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.55);
+          backdrop-filter: blur(2px);
+          z-index: 1050;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          box-sizing: border-box;
+        }
+
+        .outlook-composer-dialog {
+          background: #ffffff;
+          width: 100%;
+          max-width: 820px;
+          height: auto;
+          max-height: 90vh;
+          border-radius: 8px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          position: relative;
+        }
+
+        .outlook-composer-dialog.is-maximized {
+          max-width: 100vw !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          max-height: 100vh !important;
+          border-radius: 0 !important;
+        }
+
+        /* ── Header Bar ── */
+        .outlook-composer-header {
+          padding: 10px 16px;
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+          gap: 8px;
+        }
+
+        /* ── Fields Section (From, To, CC, Subject) ── */
+        .outlook-composer-fields {
+          background: #fafafa;
+          border-bottom: 1px solid #e5e5e5;
+          padding: 8px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        .outlook-field-row {
+          display: flex;
+          align-items: center;
+          min-height: 32px;
+          font-size: 12px;
+        }
+
+        .outlook-field-label {
+          width: 65px;
+          min-width: 65px;
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .outlook-field-input-box {
+          flex: 1;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 6px;
+          background: #ffffff;
+          border: 1px solid #cbd5e1;
+          border-radius: 4px;
+          padding: 3px 8px;
+          min-height: 32px;
+          min-width: 0;
+        }
+
+        .outlook-recipient-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: var(--primary-light);
+          color: var(--primary);
+          border: 1px solid rgba(122, 31, 61, 0.20);
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 11.5px;
+          font-weight: 500;
+          max-width: 100%;
+        }
+
+        .outlook-recipient-badge.cc-badge {
+          background: var(--status-neutral-bg);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-color);
+        }
+
+        .outlook-recipient-badge-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 200px;
+        }
+
+        .outlook-recipient-badge-remove {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          display: flex;
+          color: inherit;
+        }
+
+        .outlook-composer-body-area {
+          flex: 1;
+          padding: 16px 20px;
+          display: flex;
+          flex-direction: column;
+          min-height: 180px;
+        }
+
+        .outlook-attachments-section {
+          padding: 12px 20px;
+          background: var(--bg-surface-subtle);
+          border-top: 1px solid var(--border-color);
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .outlook-attachments-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 8px;
+        }
+
+        /* ── Bottom Toolbar ── */
+        .outlook-composer-bottom-bar {
+          padding: 10px 18px;
+          background: #ffffff;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        /* ── Mobile Layout (< 769px) ── */
+        @media (max-width: 768px) {
+          .outlook-composer-backdrop {
+            padding: 0 !important;
+            background: #ffffff !important;
+            align-items: stretch !important;
+            justify-content: stretch !important;
+          }
+
+          .outlook-composer-dialog {
+            max-width: 100vw !important;
+            width: 100vw !important;
+            height: 100% !important;
+            height: 100dvh !important;
+            max-height: 100% !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+          }
+
+          .outlook-composer-header {
+            background: #0078D4 !important;
+            color: #ffffff !important;
+            padding: max(8px, env(safe-area-inset-top)) 10px 8px !important;
+            min-height: calc(48px + env(safe-area-inset-top)) !important;
+            box-sizing: border-box !important;
+            border-bottom: 1px solid #005a9e !important;
+          }
+
+          .outlook-header-title {
+            color: #ffffff !important;
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+
+          .desktop-window-controls {
+            display: none !important;
+          }
+
+          .outlook-composer-fields {
+            padding: 8px 12px !important;
+            gap: 6px !important;
+            background: #f8fafc !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+          }
+
+          .outlook-field-label {
+            width: 48px !important;
+            min-width: 48px !important;
+            font-size: 11.5px !important;
+            color: #475569 !important;
+            font-weight: 700 !important;
+          }
+
+          .outlook-field-input-box {
+            padding: 3px 6px !important;
+            min-height: 32px !important;
+            border-radius: 6px !important;
+          }
+
+          .outlook-field-input-box input {
+            min-width: 70px !important;
+            font-size: 14px !important;
+            height: 26px !important;
+          }
+
+          .outlook-recipient-badge-text {
+            max-width: min(155px, 44vw) !important;
+          }
+
+          .outlook-recipient-badge-remove {
+            padding: 3px !important;
+          }
+
+          .outlook-subject-input {
+            font-size: 14px !important;
+            height: 34px !important;
+            border-radius: 6px !important;
+            padding: 0 8px !important;
+          }
+
+          .outlook-composer-body-area {
+            padding: 12px 14px !important;
+          }
+
+          .outlook-body-textarea {
+            font-size: 14px !important; /* Prevents auto-zoom on iOS */
+            min-height: 140px !important;
+          }
+
+          .outlook-attachments-section {
+            padding: 10px 12px !important;
+          }
+
+          .outlook-attachments-grid {
+            grid-template-columns: 1fr !important;
+            gap: 6px !important;
+          }
+
+          .outlook-att-btn {
+            height: 28px !important;
+            width: 28px !important;
+            padding: 5px !important;
+          }
+
+          .outlook-attach-menu-dropdown {
+            max-width: calc(100vw - 24px) !important;
+            width: 280px !important;
+          }
+
+          .outlook-preview-wrapper {
+            padding: 10px 12px !important;
+          }
+
+          .outlook-preview-card {
+            padding: 14px 12px !important;
+          }
+
+          .outlook-composer-bottom-bar {
+            padding: 8px 12px !important;
+            padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+            gap: 8px !important;
+            background: #ffffff !important;
+            border-top: 1px solid #e2e8f0 !important;
+          }
+
+          .bottom-left-group {
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+          }
+
+          .bottom-left-group .template-wrapper {
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+
+          .bottom-right-group {
+            display: flex !important;
+            gap: 6px !important;
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+
+          .bottom-right-group button {
+            flex: 1 !important;
+            justify-content: center !important;
+            padding: 8px 6px !important;
+            font-size: 12px !important;
+            height: 38px !important;
+            min-height: 38px !important;
+            border-radius: 6px !important;
+          }
+
+          .bottom-right-group .btn-send-main {
+            flex: 1.4 !important;
+          }
+
+          .outlook-minimized-dock {
+            left: 12px !important;
+            right: 12px !important;
+            max-width: none !important;
+            bottom: 12px !important;
+          }
+        }
+      `}</style>
+
       <div 
-        className="modal-backdrop" 
-        style={{ zIndex: 999, padding: isMaximized ? '0' : '16px' }}
+        className="outlook-composer-backdrop" 
         onClick={handleCloseAttempt}
       >
         <div 
-          className="modal-dialog" 
-          style={{ 
-            maxWidth: isMaximized ? '100vw' : '820px', 
-            width: isMaximized ? '100vw' : '100%', 
-            height: isMaximized ? '100vh' : 'auto',
-            maxHeight: isMaximized ? '100vh' : '90vh',
-            borderRadius: isMaximized ? '0' : 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-lg)'
-          }} 
+          className={`outlook-composer-dialog ${isMaximized ? 'is-maximized' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Outlook-Style Window Header */}
-          <div style={{ 
-            padding: '10px 16px', 
-            background: 'var(--bg-surface)', 
-            borderBottom: '1px solid var(--border-color)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexShrink: 0
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                borderRadius: '4px', 
-                background: 'var(--primary-light)', 
-                color: 'var(--primary)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}>
+          <div className="outlook-composer-header">
+            {/* Mobile Back / Close Button */}
+            <button
+              type="button"
+              className="mobile-only-flex"
+              onClick={handleCloseAttempt}
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                border: 'none',
+                borderRadius: '4px',
+                color: '#ffffff',
+                width: '32px',
+                height: '32px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Cancel / Close"
+            >
+              <ArrowLeft size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+              <div 
+                className="desktop-only-flex"
+                style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  borderRadius: '4px', 
+                  background: 'var(--primary-light)', 
+                  color: 'var(--primary)', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
                 <Mail size={14} />
               </div>
-              <h3 style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                {documentData?.id ? `Email ${documentType === 'invoice' ? 'Tax Invoice' : 'Quotation'} — ${documentData.id}` : 'New Message'}
-              </h3>
-              {documentData?.customer && (
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  ({documentData.customer})
-                </span>
-              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h3 className="outlook-header-title">
+                  {documentData?.id ? (
+                    <>
+                      <span className="desktop-only-inline">{`Email ${documentType === 'invoice' ? 'Tax Invoice' : 'Quotation'} — ${documentData.id}`}</span>
+                      <span className="mobile-only-inline">{`${documentType === 'invoice' ? 'Invoice' : 'Quote'} ${documentData.id}`}</span>
+                    </>
+                  ) : 'New Message'}
+                </h3>
+                {documentData?.customer && (
+                  <span className="desktop-only-inline" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    ({documentData.customer})
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Window Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Mobile Header Quick Actions: Paperclip + Primary Send */}
+            <div className="mobile-only-flex" style={{ alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setShowAttachMenu(!showAttachMenu)}
+                style={{
+                  background: 'rgba(255,255,255,0.18)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#ffffff',
+                  width: '34px',
+                  height: '34px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+                title="Attach Document"
+              >
+                <Paperclip size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={isSending}
+                style={{
+                  background: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#0078D4',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  height: '34px',
+                  padding: '0 12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                }}
+                title="Send Email"
+              >
+                {isSending ? (
+                  <div style={{ width: '12px', height: '12px', border: '2px solid #0078D4', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <>
+                    <Send size={13} color="#0078D4" />
+                    <span>Send</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Desktop Window Controls */}
+            <div className="desktop-window-controls" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-icon" 
@@ -468,69 +874,38 @@ export default function OutlookEmailComposer({
           </div>
 
           {/* Email Composer Body / Preview */}
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             
             {/* View Mode: Normal Edit Mode */}
             {!isPreviewMode ? (
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 {/* Header Fields (From, To, CC, Subject) */}
-                <div style={{ 
-                  background: 'var(--bg-surface-subtle)', 
-                  borderBottom: '1px solid var(--border-color)', 
-                  padding: '8px 16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px'
-                }}>
+                <div className="outlook-composer-fields">
                   {/* From Row */}
-                  <div style={{ display: 'flex', alignItems: 'center', minHeight: '30px', fontSize: '12px' }}>
-                    <span style={{ width: '65px', color: 'var(--text-muted)', fontWeight: 600 }}>From:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="mono" style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                  <div className="outlook-field-row">
+                    <span className="outlook-field-label">From:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                      <span className="mono" style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '12px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                         {fromAddress}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span className="desktop-only-inline" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         (General Precision Spindles Sales Desk)
                       </span>
                     </div>
                   </div>
 
                   {/* To Row */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '32px', fontSize: '12px' }}>
-                    <span style={{ width: '65px', color: 'var(--text-muted)', fontWeight: 600, paddingTop: '6px' }}>To:</span>
-                    <div style={{ 
-                      flex: 1, 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      alignItems: 'center', 
-                      gap: '6px', 
-                      background: '#ffffff', 
-                      border: '1px solid var(--border-color)', 
-                      borderRadius: 'var(--radius-sm)', 
-                      padding: '3px 8px',
-                      minHeight: '32px'
-                    }}>
+                  <div className="outlook-field-row" style={{ alignItems: 'flex-start' }}>
+                    <span className="outlook-field-label" style={{ paddingTop: '6px' }}>To:</span>
+                    <div className="outlook-field-input-box">
                       {toRecipients.map((email, idx) => (
-                        <span 
-                          key={idx} 
-                          style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '5px', 
-                            background: 'var(--primary-light)', 
-                            color: 'var(--primary)', 
-                            border: '1px solid rgba(122, 31, 61, 0.20)', 
-                            padding: '2px 8px', 
-                            borderRadius: '12px', 
-                            fontSize: '11.5px',
-                            fontWeight: 500
-                          }}
-                        >
-                          <span>{email}</span>
+                        <span key={idx} className="outlook-recipient-badge">
+                          <span className="outlook-recipient-badge-text">{email}</span>
                           <button 
                             type="button" 
+                            className="outlook-recipient-badge-remove"
                             onClick={() => handleRemoveToRecipient(idx)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--primary)' }}
+                            title="Remove recipient"
                           >
                             <X size={12} />
                           </button>
@@ -539,7 +914,7 @@ export default function OutlookEmailComposer({
 
                       <input 
                         type="email" 
-                        placeholder={toRecipients.length === 0 ? "Enter recipient email and press Enter..." : "Add another email..."}
+                        placeholder={toRecipients.length === 0 ? "Recipient email (Enter)..." : "Add email..."}
                         value={toInput}
                         onChange={(e) => setToInput(e.target.value)}
                         onKeyDown={handleAddToRecipient}
@@ -547,9 +922,8 @@ export default function OutlookEmailComposer({
                         style={{ 
                           border: 'none', 
                           outline: 'none', 
-                          fontSize: '12px', 
                           flex: 1, 
-                          minWidth: '160px', 
+                          minWidth: '70px', 
                           height: '24px',
                           background: 'transparent' 
                         }}
@@ -566,10 +940,11 @@ export default function OutlookEmailComposer({
                             fontSize: '11px', 
                             fontWeight: 600, 
                             cursor: 'pointer',
-                            padding: '2px 4px'
+                            padding: '2px 4px',
+                            marginLeft: 'auto'
                           }}
                         >
-                          + Add CC
+                          + CC
                         </button>
                       )}
                     </div>
@@ -577,41 +952,17 @@ export default function OutlookEmailComposer({
 
                   {/* CC Row (Expandable) */}
                   {isCcVisible && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '32px', fontSize: '12px' }}>
-                      <span style={{ width: '65px', color: 'var(--text-muted)', fontWeight: 600, paddingTop: '6px' }}>CC:</span>
-                      <div style={{ 
-                        flex: 1, 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        alignItems: 'center', 
-                        gap: '6px', 
-                        background: '#ffffff', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: 'var(--radius-sm)', 
-                        padding: '3px 8px',
-                        minHeight: '32px'
-                      }}>
+                    <div className="outlook-field-row" style={{ alignItems: 'flex-start' }}>
+                      <span className="outlook-field-label" style={{ paddingTop: '6px' }}>CC:</span>
+                      <div className="outlook-field-input-box">
                         {ccRecipients.map((email, idx) => (
-                          <span 
-                            key={idx} 
-                            style={{ 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '5px', 
-                              background: 'var(--status-neutral-bg)', 
-                              color: 'var(--text-secondary)', 
-                              border: '1px solid var(--border-color)', 
-                              padding: '2px 8px', 
-                              borderRadius: '12px', 
-                              fontSize: '11.5px',
-                              fontWeight: 500
-                            }}
-                          >
-                            <span>{email}</span>
+                          <span key={idx} className="outlook-recipient-badge cc-badge">
+                            <span className="outlook-recipient-badge-text">{email}</span>
                             <button 
                               type="button" 
+                              className="outlook-recipient-badge-remove"
                               onClick={() => handleRemoveCcRecipient(idx)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                              title="Remove CC"
                             >
                               <X size={12} />
                             </button>
@@ -620,7 +971,7 @@ export default function OutlookEmailComposer({
 
                         <input 
                           type="email" 
-                          placeholder={ccRecipients.length === 0 ? "Add CC recipients (press Enter)..." : "Add another CC..."}
+                          placeholder={ccRecipients.length === 0 ? "Add CC recipients..." : "Add another CC..."}
                           value={ccInput}
                           onChange={(e) => setCcInput(e.target.value)}
                           onKeyDown={handleAddCcRecipient}
@@ -628,9 +979,8 @@ export default function OutlookEmailComposer({
                           style={{ 
                             border: 'none', 
                             outline: 'none', 
-                            fontSize: '12px', 
                             flex: 1, 
-                            minWidth: '160px', 
+                            minWidth: '70px', 
                             height: '24px',
                             background: 'transparent' 
                           }}
@@ -646,7 +996,8 @@ export default function OutlookEmailComposer({
                               color: 'var(--text-muted)', 
                               fontSize: '11px', 
                               cursor: 'pointer',
-                              padding: '2px 4px'
+                              padding: '2px 4px',
+                              marginLeft: 'auto'
                             }}
                           >
                             Hide CC
@@ -657,39 +1008,44 @@ export default function OutlookEmailComposer({
                   )}
 
                   {/* Subject Row */}
-                  <div style={{ display: 'flex', alignItems: 'center', minHeight: '32px', fontSize: '12px' }}>
-                    <span style={{ width: '65px', color: 'var(--text-muted)', fontWeight: 600 }}>Subject:</span>
+                  <div className="outlook-field-row">
+                    <span className="outlook-field-label">Subject:</span>
                     <input 
                       type="text" 
+                      className="outlook-subject-input"
                       value={subject}
+                      placeholder="Subject line..."
                       onChange={(e) => { setSubject(e.target.value); setHasUserEdited(true); }}
                       style={{ 
                         flex: 1, 
                         height: '32px', 
-                        border: '1px solid var(--border-color)', 
+                        border: '1px solid #cbd5e1', 
                         borderRadius: 'var(--radius-sm)', 
                         padding: '0 10px', 
                         fontSize: '12.5px',
                         fontWeight: 600,
                         color: 'var(--text-main)',
                         background: '#ffffff',
-                        outline: 'none'
+                        outline: 'none',
+                        minWidth: 0,
+                        boxSizing: 'border-box'
                       }}
                     />
                   </div>
                 </div>
 
                 {/* Email Body Editor */}
-                <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column' }}>
+                <div className="outlook-composer-body-area">
                   <textarea 
                     value={body}
                     onChange={(e) => { setBody(e.target.value); setHasUserEdited(true); }}
                     rows={12}
                     placeholder="Compose your professional message here..."
+                    className="outlook-body-textarea"
                     style={{ 
                       width: '100%', 
                       flex: 1,
-                      minHeight: '220px', 
+                      minHeight: '160px', 
                       border: 'none', 
                       outline: 'none', 
                       fontSize: '13px', 
@@ -703,50 +1059,48 @@ export default function OutlookEmailComposer({
                 </div>
 
                 {/* Visual Attachment Area */}
-                <div style={{ 
-                  padding: '12px 20px', 
-                  background: 'var(--bg-surface-subtle)', 
-                  borderTop: '1px solid var(--border-color)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="outlook-attachments-section">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Attached Business Documents ({attachments.length})
+                      <span className="desktop-only-inline">Attached Business Documents ({attachments.length})</span>
+                      <span className="mobile-only-inline">Attachments ({attachments.length})</span>
                     </span>
                     <div style={{ position: 'relative' }}>
                       <button 
                         type="button" 
                         className="btn btn-secondary btn-sm"
-                        style={{ height: '26px', fontSize: '11px', padding: '0 8px' }}
+                        style={{ height: '28px', fontSize: '11px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                         onClick={() => setShowAttachMenu(!showAttachMenu)}
                       >
                         <Plus size={12} />
-                        <span>Add Attachment</span>
+                        <span className="desktop-only-inline">Add Attachment</span>
+                        <span className="mobile-only-inline">Add</span>
                       </button>
 
                       {/* Dropdown Menu for Attachment presets */}
                       {showAttachMenu && (
-                        <div style={{ 
-                          position: 'absolute', 
-                          right: 0, 
-                          bottom: '100%', 
-                          marginBottom: '6px', 
-                          background: '#ffffff', 
-                          border: '1px solid var(--border-color)', 
-                          borderRadius: 'var(--radius-sm)', 
-                          boxShadow: 'var(--shadow-md)', 
-                          width: '260px', 
-                          zIndex: 10,
-                          padding: '6px 0'
-                        }}>
+                        <div 
+                          className="outlook-attach-menu-dropdown"
+                          style={{ 
+                            position: 'absolute', 
+                            right: 0, 
+                            bottom: '100%', 
+                            marginBottom: '6px', 
+                            background: '#ffffff', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: 'var(--radius-sm)', 
+                            boxShadow: 'var(--shadow-lg)', 
+                            width: '260px', 
+                            zIndex: 30,
+                            padding: '6px 0'
+                          }}
+                        >
                           <div style={{ padding: '6px 12px', fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                             Attach Document
                           </div>
                           <button 
                             type="button" 
-                            style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => fileInputRef.current?.click()}
                           >
                             <Paperclip size={13} color="var(--primary)" />
@@ -754,7 +1108,7 @@ export default function OutlookEmailComposer({
                           </button>
                           <button 
                             type="button" 
-                            style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('GPS_HSK_Spindle_Datasheet.pdf', 'Technical Specification', '420 KB')}
                           >
                             <FileText size={13} color="var(--primary)" />
@@ -762,7 +1116,7 @@ export default function OutlookEmailComposer({
                           </button>
                           <button 
                             type="button" 
-                            style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('Spindle_Runout_Vibration_QC.pdf', 'Calibration Certificate', '310 KB')}
                           >
                             <FileText size={13} color="var(--primary)" />
@@ -770,7 +1124,7 @@ export default function OutlookEmailComposer({
                           </button>
                           <button 
                             type="button" 
-                            style={{ width: '100%', padding: '6px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => handleAddSimulatedAttachment('GPS_Warranty_and_Installation_Guide.pdf', 'Terms & Guide', '180 KB')}
                           >
                             <FileText size={13} color="var(--primary)" />
@@ -789,7 +1143,7 @@ export default function OutlookEmailComposer({
                   </div>
 
                   {/* Attachment Cards Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                  <div className="outlook-attachments-grid">
                     {attachments.map((att) => (
                       <div 
                         key={att.id}
@@ -801,7 +1155,9 @@ export default function OutlookEmailComposer({
                           border: '1px solid var(--border-color)', 
                           borderRadius: 'var(--radius-sm)', 
                           padding: '8px 12px',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                          minWidth: 0,
+                          gap: '8px'
                         }}
                       >
                         <div 
@@ -822,7 +1178,7 @@ export default function OutlookEmailComposer({
                           }}>
                             <FileText size={16} />
                           </div>
-                          <div style={{ minWidth: 0 }}>
+                          <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {att.name}
                             </div>
@@ -832,11 +1188,11 @@ export default function OutlookEmailComposer({
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                           <button 
                             type="button" 
-                            className="btn btn-secondary btn-icon" 
-                            style={{ padding: '4px', height: '24px', width: '24px' }}
+                            className="btn btn-secondary btn-icon outlook-att-btn" 
+                            style={{ padding: '5px', height: '28px', width: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             onClick={() => handlePreviewAttachment(att)}
                             title="Preview Document"
                           >
@@ -844,8 +1200,8 @@ export default function OutlookEmailComposer({
                           </button>
                           <button 
                             type="button" 
-                            className="btn btn-secondary btn-icon" 
-                            style={{ padding: '4px', height: '24px', width: '24px' }}
+                            className="btn btn-secondary btn-icon outlook-att-btn" 
+                            style={{ padding: '5px', height: '28px', width: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             onClick={() => handleRemoveAttachment(att.id)}
                             title="Remove attachment"
                           >
@@ -859,24 +1215,24 @@ export default function OutlookEmailComposer({
               </div>
             ) : (
               /* View Mode: Recipient Preview */
-              <div style={{ flex: 1, padding: '24px 28px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ 
+              <div className="outlook-preview-wrapper" style={{ flex: 1, padding: '16px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="outlook-preview-card" style={{ 
                   background: '#ffffff', 
                   border: '1px solid var(--border-color)', 
                   borderRadius: 'var(--radius-md)', 
-                  padding: '20px 24px',
+                  padding: '16px 18px',
                   boxShadow: 'var(--shadow-sm)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '16px'
+                  gap: '14px'
                 }}>
                   {/* Recipient Message Meta Header */}
                   <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', wordBreak: 'break-word' }}>
                       {subject || '(No Subject)'}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '4px' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '4px', flexWrap: 'wrap', gap: '4px' }}>
+                      <div style={{ wordBreak: 'break-word' }}>
                         <span style={{ color: 'var(--text-muted)' }}>From: </span>
                         <strong>General Precision Spindles</strong> &lt;{fromAddress}&gt;
                       </div>
@@ -884,12 +1240,12 @@ export default function OutlookEmailComposer({
                         {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
-                    <div style={{ fontSize: '12px' }}>
+                    <div style={{ fontSize: '12px', wordBreak: 'break-word' }}>
                       <span style={{ color: 'var(--text-muted)' }}>To: </span>
                       <strong>{toRecipients.join(', ') || 'No recipients'}</strong>
                     </div>
                     {ccRecipients.length > 0 && (
-                      <div style={{ fontSize: '12px' }}>
+                      <div style={{ fontSize: '12px', wordBreak: 'break-word' }}>
                         <span style={{ color: 'var(--text-muted)' }}>CC: </span>
                         <span>{ccRecipients.join(', ')}</span>
                       </div>
@@ -897,7 +1253,7 @@ export default function OutlookEmailComposer({
                   </div>
 
                   {/* Message Content */}
-                  <div style={{ fontSize: '13px', lineHeight: 1.6, color: '#1e293b', whiteSpace: 'pre-line', padding: '8px 0' }}>
+                  <div style={{ fontSize: '13px', lineHeight: 1.6, color: '#1e293b', whiteSpace: 'pre-line', padding: '4px 0', wordBreak: 'break-word' }}>
                     {body}
                   </div>
 
@@ -920,12 +1276,14 @@ export default function OutlookEmailComposer({
                               border: '1px solid var(--border-color)', 
                               borderRadius: 'var(--radius-sm)', 
                               background: '#F8FAF9',
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              maxWidth: '100%',
+                              overflow: 'hidden'
                             }}
                           >
-                            <FileText size={14} color="var(--primary)" />
-                            <span style={{ fontSize: '12px', fontWeight: 600 }}>{att.name}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({att.size})</span>
+                            <FileText size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>({att.size})</span>
                           </div>
                         ))}
                       </div>
@@ -940,7 +1298,7 @@ export default function OutlookEmailComposer({
           {/* Persistent Send Error Banner — stays visible until next attempt */}
           {sendError && (
             <div style={{
-              margin: '0 18px 0',
+              margin: '0 12px 8px',
               padding: '10px 14px',
               background: '#FEF2F2',
               border: '1px solid #FECACA',
@@ -955,7 +1313,7 @@ export default function OutlookEmailComposer({
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#991B1B', marginBottom: '2px' }}>
                   Email delivery failed
                 </div>
-                <div style={{ fontSize: '11.5px', color: '#7F1D1D', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '11.5px', color: '#7F1D1D', lineHeight: 1.5, wordBreak: 'break-word' }}>
                   {sendError}
                 </div>
               </div>
@@ -971,33 +1329,23 @@ export default function OutlookEmailComposer({
           )}
 
           {/* Bottom Toolbar */}
-          <div style={{ 
-            padding: '10px 18px', 
-            background: 'var(--bg-surface)', 
-            borderTop: '1px solid var(--border-color)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px',
-            flexShrink: 0
-          }}>
+          <div className="outlook-composer-bottom-bar">
             {/* Left Controls: Template & Attachment quick link */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Template:</span>
+            <div className="bottom-left-group">
+              <div className="template-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="desktop-only-inline" style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Template:</span>
                 <CustomSelect 
                   size="sm"
                   value={selectedTemplate}
                   onChange={(e) => handleTemplateSelect(e.target.value)}
-                  style={{ minWidth: '170px' }}
+                  style={{ minWidth: '130px', width: '100%' }}
                   options={EMAIL_TEMPLATES.map(tmpl => ({ value: tmpl.id, label: tmpl.label }))}
                 />
               </div>
 
               <button 
                 type="button" 
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm desktop-only-flex"
                 onClick={() => setShowAttachMenu(!showAttachMenu)}
                 title="Attach files"
               >
@@ -1007,7 +1355,7 @@ export default function OutlookEmailComposer({
             </div>
 
             {/* Right Controls: Preview, Draft, Discard, Send */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="bottom-right-group">
               <button 
                 type="button" 
                 className={`btn btn-sm ${isPreviewMode ? 'btn-primary' : 'btn-secondary'}`}
@@ -1015,17 +1363,17 @@ export default function OutlookEmailComposer({
                 title={isPreviewMode ? "Back to editor" : "Preview recipient view"}
               >
                 <Eye size={13} />
-                <span>{isPreviewMode ? "Back to Edit" : "Preview Email"}</span>
+                <span>{isPreviewMode ? "Edit" : "Preview"}</span>
               </button>
 
               <button 
                 type="button" 
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm desktop-only-flex"
                 onClick={handleSaveDraft}
                 title="Save this email as draft"
               >
                 <FileText size={13} />
-                <span>Save Draft</span>
+                <span>Draft</span>
               </button>
 
               <button 
@@ -1041,10 +1389,10 @@ export default function OutlookEmailComposer({
 
               <button 
                 type="button" 
-                className="btn btn-primary"
+                className="btn btn-primary btn-send-main"
                 onClick={handleSend}
                 disabled={isSending}
-                style={{ minWidth: '100px', fontWeight: 600, gap: '6px' }}
+                style={{ background: '#0078D4', borderColor: '#0078D4', minWidth: '95px', fontWeight: 600, gap: '6px' }}
               >
                 {isSending ? (
                   <>
@@ -1065,21 +1413,22 @@ export default function OutlookEmailComposer({
 
       {/* Discard Confirmation Dialog */}
       {showDiscardDialog && (
-        <div className="modal-backdrop" style={{ zIndex: 1002 }}>
-          <div className="modal-dialog" style={{ maxWidth: '420px', padding: '0', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#FDECEC', color: '#C2413B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="modal-backdrop" style={{ zIndex: 1060, padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-dialog" style={{ maxWidth: '420px', width: '100%', padding: '0', overflow: 'hidden', borderRadius: '12px' }}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#FDECEC', color: '#C2413B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <AlertCircle size={18} />
               </div>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>Discard this message?</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Discard this message?</h3>
             </div>
-            <div style={{ padding: '16px 20px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+            <div style={{ padding: '16px 18px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               Your unsent message changes will be lost. Would you like to save this email as a draft instead?
             </div>
-            <div style={{ padding: '12px 20px', background: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ padding: '12px 16px', background: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm" 
+                style={{ flex: '1 1 auto', minHeight: '34px', justifyContent: 'center' }}
                 onClick={() => setShowDiscardDialog(false)}
               >
                 Cancel
@@ -1087,6 +1436,7 @@ export default function OutlookEmailComposer({
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm" 
+                style={{ flex: '1 1 auto', minHeight: '34px', justifyContent: 'center' }}
                 onClick={handleSaveDraft}
               >
                 Save as Draft
@@ -1094,7 +1444,7 @@ export default function OutlookEmailComposer({
               <button 
                 type="button" 
                 className="btn btn-primary btn-sm" 
-                style={{ backgroundColor: '#C2413B', borderColor: '#C2413B' }}
+                style={{ backgroundColor: '#C2413B', borderColor: '#C2413B', flex: '1 1 auto', minHeight: '34px', justifyContent: 'center' }}
                 onClick={handleConfirmDiscard}
               >
                 Discard

@@ -251,8 +251,35 @@ export const authService = {
           };
         }
 
-        // If remote Supabase sign-in fails but user matches local generated credentials, allow local access
+        // If remote Supabase sign-in fails but user matches local generated credentials, attempt auto-signup or allow local access
         if (demoMatch) {
+          try {
+            const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+              email: trimmedEmail,
+              password,
+              options: {
+                data: {
+                  full_name: demoMatch.name,
+                  role: demoMatch.role
+                }
+              }
+            });
+
+            if (!signUpErr && signUpData?.session && signUpData?.user) {
+              const profile = await this.resolveProfile(signUpData.user);
+              return {
+                data: {
+                  user: signUpData.user,
+                  session: signUpData.session,
+                  profile: profile || demoMatch,
+                  employee: profile?.employee || demoMatch,
+                  role: profile?.role || demoMatch.role
+                },
+                error: null
+              };
+            }
+          } catch (_e) {}
+
           return {
             data: {
               user: { id: demoMatch.id, email: demoMatch.email },

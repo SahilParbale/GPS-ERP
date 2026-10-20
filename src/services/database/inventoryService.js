@@ -323,16 +323,6 @@ export const inventoryService = {
       console.warn('[inventoryService] Stock movements live query fallback:', e);
     }
 
-    // Default movements if none from database
-    if (movements.length === 0) {
-      movements = [
-        { id: 'mov-1', movementNumber: 'MOV-2026-9021', time: '04 Sep, 16:30', type: 'Inward GRN', rawType: 'RECEIPT_GRN', sku: '120TAC20FME2DBCP5P01-NSK', name: 'NSK 120TAC20 Super Precision Bearings', qty: '4 Nos', quantity: 4, bay: 'Clean Room Stores', user: 'Stores Officer', ref: 'PO/2025-26/00106', notes: 'Received against Premier Industrial PO' },
-        { id: 'mov-2', movementNumber: 'MOV-2026-9018', time: '03 Sep, 11:15', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'MAT-18CR-80', name: '18CrNiMo7-6 Forged Round Bar Ø80mm', qty: '6 Meters', quantity: 6, bay: 'Machining Station (CNC Lathe)', user: 'Suresh Sawant', ref: 'WO-2026-104', notes: 'Issued for Tata Advanced Spindle Shaft' },
-        { id: 'mov-3', movementNumber: 'MOV-2026-9015', time: '02 Sep, 14:00', type: 'Inward GRN', rawType: 'RECEIPT_GRN', sku: 'LUB-KLUB-NBU15', name: 'Klüber ISOFLEX NBU 15 High-Speed Grease', qty: '5 Tins', quantity: 5, bay: 'Lubricant Room L-02', user: 'Milind Joshi', ref: 'GRN-2026-088', notes: 'Inspection Certificate 3.1 Attached' },
-        { id: 'mov-4', movementNumber: 'MOV-2026-9012', time: '01 Sep, 09:45', type: 'Store Issue', rawType: 'ISSUE_PRODUCTION', sku: 'BRG-HC7008', name: 'FAG HC7008 Ceramic Hybrid Bearings', qty: '2 Pairs', quantity: 2, bay: 'Assembly Station', user: 'V. Shinde', ref: 'WO-2026-103', notes: 'Bearing Preload Match Verified' }
-      ];
-    }
-
     // Prepend user-custom movements from localStorage
     const customMovs = getStoredCustomMovements();
     return {

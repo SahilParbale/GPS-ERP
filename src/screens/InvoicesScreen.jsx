@@ -6,75 +6,29 @@ import { invoiceService, DEFAULT_PS_MAINTENANCE_INVOICE } from '../services/data
 import { proformaInvoiceService } from '../services/database/proformaInvoiceService';
 import { salesService } from '../services/database/salesService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
-import { 
-  exportTaxInvoicePdf, 
-  exportGstr1ReportPdf, 
-  numberToIndianWords 
+import {
+  exportTaxInvoicePdf,
+  exportGstr1ReportPdf,
+  numberToIndianWords
 } from '../utils/pdfGenerator';
 import UpiQrCode from '../components/common/UpiQrCode';
 import { getActiveUpiId } from '../utils/upiQrGenerator';
-import { 
-  Search, FileText, Download, Printer, 
+import {
+  Search, FileText, Download, Printer,
   CheckCircle2, Plus, AlertCircle, Mail, Eye, RefreshCw,
-  Edit3, Trash2, Maximize2, Minimize2, Sparkles, FileCheck, 
-  CreditCard, DollarSign, ZoomIn, ZoomOut, Building2, ShieldCheck, Phone
+  Edit3, Trash2, Maximize2, Minimize2, Sparkles, FileCheck,
+  CreditCard, DollarSign, ZoomIn, ZoomOut, Building2, ShieldCheck, Phone,
+  ChevronLeft, ChevronUp, ChevronDown, X
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 
-const PRESET_CUSTOMERS = [
-  {
-    name: 'PS MAINTENANCE SERVICE',
-    fullName: 'PS MAINTENANCE SERVICE',
-    contact: '8600280084',
-    email: 'service@psmaintenance.in',
-    billingAddress: 'PLOT NO 64 FLAT NO 6 PURVA APARTMENT CDC SHAHU NAGAR CHINCHWAD\nPune, Maharashtra-411019\nIndia',
-    gstin: '27AIBPB6756H1ZB',
-    state: '27-Maharashtra',
-    defaultSO: 'VERBAL'
-  },
-  {
-    name: 'T T B TOOLING',
-    fullName: 'T T B TOOLING',
-    contact: '9975108709',
-    email: 'purchase@ttbtooling.com',
-    billingAddress: 'PLOT NO. A-29-A PHASE-II, KHALUMBRE Chakan\nPune, Maharashtra-410501\nIndia',
-    gstin: '27AAKFT2876K1ZI',
-    state: '27-Maharashtra',
-    defaultSO: 'SO-2026-027'
-  },
-  {
-    name: 'LINAMAR INDIA PRIVATE LIMITED',
-    fullName: 'LINAMAR INDIA PRIVATE LIMITED',
-    contact: '7773877714',
-    email: 'purchase@linamar.com',
-    billingAddress: 'Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas\nDewas, Madhya Pradesh-455001\nIndia',
-    gstin: '23AACCL5351J1ZM',
-    state: '23-Madhya Pradesh',
-    defaultSO: 'SO-2026-294'
-  },
-  {
-    name: 'Tata Advanced Systems',
-    fullName: 'Tata Advanced Systems Ltd',
-    contact: 'Mr. Tanmay Sharma (DGM - Procurement)',
-    email: 'tanmay@tataadvanced.com',
-    billingAddress: 'Aerospace Special Economic Zone, Hardware Park, Adibatla, Hyderabad, Telangana - 501510',
-    gstin: '36AAACT2718E1ZQ',
-    state: '36-Telangana',
-    defaultSO: 'SO-2026-041'
-  },
-  {
-    name: 'Bharat Forge',
-    fullName: 'Bharat Forge Ltd',
-    contact: 'Mr. Sunil Kadam (DGM - Maintenance & Tooling)',
-    email: 'procurement@bharatforge.com',
-    billingAddress: 'Mundhwa, Pune Cantonment, Pune - 411036, Maharashtra, India',
-    gstin: '27AAACB1829D1Z2',
-    state: '27-Maharashtra',
-    defaultSO: 'SO-2026-045'
-  }
-];
+const PRESET_CUSTOMERS = [];
 
 export default function InvoicesScreen({ onNotify, onNavigate }) {
+  // Mobile master-detail view switching & actions tray
+  const [mobileTab, setMobileTab] = useState('list'); // 'list' | 'preview'
+  const [isMobilePreviewActionsOpen, setIsMobilePreviewActionsOpen] = useState(false);
+
   // Invoices & Selection
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -170,7 +124,7 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
         return;
       }
 
-      const invData = invRes.data || [DEFAULT_PS_MAINTENANCE_INVOICE];
+      const invData = invRes.data || [];
       setInvoices(invData);
 
       if (qRes && qRes.data) {
@@ -252,7 +206,7 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
     return invoices.filter((inv) => {
       const isInter = !String(inv.placeOfSupply || inv.state || '27-Maharashtra').startsWith('27');
       const filter = statusFilter.toLowerCase();
-      
+
       let matchesSupply = true;
       if (filter === 'intra') {
         matchesSupply = !isInter;
@@ -587,19 +541,19 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
   if (error) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Tax Invoices & Billing" 
+        <PageHeader
+          title="Tax Invoices & Billing"
           subtitle="Commercial tax invoices, GST billing (HSN 8466), and sales order billing"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="content-body">
           <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
             <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+              {error.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {error.message || 'Unable to retrieve tax invoices from PostgreSQL database.'}
+              {error.message || 'Unable to retrieve tax invoices. Please check your connection.'}
             </p>
             <button type="button" className="btn btn-secondary" onClick={() => loadInvoices()}>
               <RefreshCw size={14} />
@@ -614,10 +568,10 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
   // Selected Invoice Calculations for Right Panel Preview
   const selectedCalculations = (() => {
     if (!selectedInvoice) return null;
-    const items = selectedInvoice.items && selectedInvoice.items.length > 0 
-      ? selectedInvoice.items 
+    const items = selectedInvoice.items && selectedInvoice.items.length > 0
+      ? selectedInvoice.items
       : [{ id: 1, name: 'Precision Spindle Service', hsn: '84669390', qty: 1, unitPrice: 50000, total: 50000 }];
-    
+
     const computedSubtotal = items.reduce((s, it) => {
       const q = Number(it.qty != null ? it.qty : (it.quantity || 1));
       const r = Number(it.unitPrice != null ? it.unitPrice : (it.rate || it.price || 0));
@@ -655,13 +609,13 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
   return (
     <div className="content-area">
       {/* Page Header */}
-      <PageHeader 
-        title="Tax Invoices & Billing" 
+      <PageHeader
+        title="Tax Invoices & Billing"
         subtitle="Commercial GST tax invoices (HSN 8466), sales order billing, and GSTR-1 outward registers"
         badge={`${invoices.length} Registered Invoices`}
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             try {
@@ -675,28 +629,31 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
           title="Export GSTR-1 Outward Supplies Register PDF"
         >
           <Download size={14} />
-          <span>GSTR-1 Export (PDF)</span>
+          <span className="desktop-only-inline">GSTR-1 Export (PDF)</span>
+          <span className="mobile-only-inline">GSTR-1</span>
         </button>
 
         {onNavigate && (
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn btn-secondary"
             onClick={() => onNavigate('payments')}
             title="Manage Client Payments, Overdue Aging & Automated Reminders"
           >
             <CreditCard size={14} />
-            <span>Client Payments & Receivables</span>
+            <span className="desktop-only-inline">Client Payments & Receivables</span>
+            <span className="mobile-only-inline">Payments</span>
           </button>
         )}
 
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={handleOpenCreateModal}
         >
           <Plus size={14} />
-          <span>+ Create Tax Invoice</span>
+          <span className="desktop-only-inline">Create Tax Invoice</span>
+          <span className="mobile-only-inline">New Inv</span>
         </button>
       </PageHeader>
 
@@ -740,35 +697,68 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
           </div>
         </div>
 
+        {/* Mobile View Switcher (Tax Invoices List vs Document Preview) */}
+        <div className="mobile-only-flex sales-mobile-tabs">
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
+            onClick={() => setMobileTab('list')}
+          >
+            <FileText size={14} />
+            <span>Tax Invoices ({filteredInvoices.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+            onClick={() => {
+              if (!selectedInvoice && filteredInvoices.length > 0) {
+                setSelectedInvoice(filteredInvoices[0]);
+              }
+              setMobileTab('preview');
+            }}
+          >
+            <Eye size={14} />
+            <span>Document Preview</span>
+          </button>
+        </div>
+
         {/* Master-Detail Split Layout */}
-        <div 
-          className="doc-split-layout"
-          style={{ 
-            display: 'grid', 
-            gridTemplateColumns: isDocExpanded ? '1fr' : '360px 1fr', 
-            gap: '16px', 
-            alignItems: 'start'
+        <div
+          className="doc-split-layout grid-2col-sales"
+          style={{
+            gridTemplateColumns: isDocExpanded ? '1fr' : undefined,
+            gap: '12px'
           }}
         >
           {/* Left Column: Compact Invoice Cards List */}
           {!isDocExpanded && (
-            <div className="section-card" style={{ padding: '0', overflow: 'hidden' }}>
+            <div className={`section-card sales-col-list ${mobileTab !== 'list' ? 'mobile-hidden' : ''}`} style={{ padding: '0', overflow: 'hidden' }}>
               {/* Search & Filter Bar */}
               <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div className="search-input-wrap">
                   <Search size={14} className="search-icon" />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Search Invoice #, Customer, Serial, PO..." 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search Invoice #, Customer, Serial, PO..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <CustomSelect 
-                    value={statusFilter} 
+                  <CustomSelect
+                    value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     style={{ width: '100%', fontSize: '11.5px', height: '30px' }}
                     options={[
@@ -790,9 +780,13 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                   filteredInvoices.map((inv) => {
                     const isSelected = selectedInvoice && (selectedInvoice.id === inv.id || selectedInvoice.invoiceNumber === inv.invoiceNumber || selectedInvoice.dbId === inv.dbId);
                     return (
-                      <div 
+                      <div
                         key={inv.id || inv.dbId}
-                        onClick={() => setSelectedInvoice(inv)}
+                        onClick={() => {
+                          setSelectedInvoice(inv);
+                          setMobileTab('preview');
+                          setIsMobilePreviewActionsOpen(false);
+                        }}
                         style={{
                           padding: '12px 14px',
                           borderBottom: '1px solid var(--border-color)',
@@ -832,7 +826,11 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                               type="button"
                               className="btn btn-secondary btn-sm"
                               style={{ height: '22px', fontSize: '10px', padding: '0 6px' }}
-                              onClick={() => setSelectedInvoice(inv)}
+                              onClick={() => {
+                                setSelectedInvoice(inv);
+                                setMobileTab('preview');
+                                setIsMobilePreviewActionsOpen(false);
+                              }}
                               title="View Document"
                             >
                               <Eye size={10} />
@@ -893,59 +891,119 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
           )}
 
           {/* Right Column: High-Fidelity Tax Invoice Visual Document */}
-          <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className={`section-card sales-col-preview ${mobileTab !== 'preview' ? 'mobile-hidden' : ''}`} style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {selectedInvoice && selectedCalculations ? (
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                 {/* Document Action Bar Header */}
-                <div style={{ 
-                  padding: '10px 14px', 
-                  background: 'var(--bg-surface-subtle)', 
-                  borderBottom: '1px solid var(--border-color)', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>
-                      {selectedInvoice.invoiceNumber || selectedInvoice.id}
-                    </span>
-                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '12px', background: '#f1f5f9', color: '#334155', fontWeight: 600, border: '1px solid #cbd5e1' }}>
-                      Tax Invoice
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedInvoice.customer}</span>
+                <div className="sales-preview-toolbar">
+                  {/* Top Row: Navigation, ID, Customer and Mobile Actions Toggle */}
+                  <div className="sales-preview-top-row">
+                    <div className="sales-preview-id-group">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm mobile-only-inline sales-mobile-back-btn"
+                        onClick={() => setMobileTab('list')}
+                        style={{ height: '26px', fontSize: '11px', padding: '0 7px', gap: '4px', flexShrink: 0 }}
+                        title="Back to Tax Invoices List"
+                      >
+                        <ChevronLeft size={13} />
+                        <span>List</span>
+                      </button>
+
+                      <span className="mono sales-preview-quote-id" style={{ fontWeight: 700, fontSize: '12.5px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {selectedInvoice.invoiceNumber || selectedInvoice.id}
+                      </span>
+
+                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 600, border: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                        Tax Invoice
+                      </span>
+                    </div>
+
+                    <div className="sales-preview-status-customer-wrap">
+                      <span className="sales-preview-customer-label">
+                        <span className="desktop-only-inline">• </span>
+                        <span className="mobile-only-inline" style={{ color: 'var(--text-muted)' }}>Customer: </span>
+                        <strong style={{ color: 'var(--text-main)' }}>{selectedInvoice.customer}</strong>
+                      </span>
+                    </div>
+
+                    {/* Actions button for mobile screens */}
+                    <button
+                      type="button"
+                      className="sales-preview-actions-toggle-mobile"
+                      onClick={() => setIsMobilePreviewActionsOpen(prev => !prev)}
+                      aria-expanded={isMobilePreviewActionsOpen}
+                      title={isMobilePreviewActionsOpen ? 'Hide action buttons' : 'Show action buttons'}
+                    >
+                      <span>Actions</span>
+                      {isMobilePreviewActionsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Action Buttons Group */}
+                  <div className={`sales-preview-actions-group ${isMobilePreviewActionsOpen ? 'is-open' : 'is-collapsed'}`}>
                     {/* Send Email */}
-                    <button 
-                      type="button" 
-                      className="btn btn-primary btn-sm"
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-email"
                       onClick={() => handleOpenEmail(selectedInvoice)}
                       title="Send Tax Invoice to customer via email"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 10px', gap: '5px' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
-                      <Mail size={12} />
-                      <span>Send Email</span>
+                      <Mail size={12} color="var(--primary)" />
+                      <span className="desktop-only-inline">Send Email</span>
+                      <span className="mobile-only-inline">Email</span>
                     </button>
 
+                    {/* Record Payment */}
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        className="btn btn-sm sales-btn-pi"
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            window.__TARGET_PAYMENT_INVOICE_ID__ = selectedInvoice.dbId || selectedInvoice.id || selectedInvoice.invoiceNumber;
+                          }
+                          onNavigate('payments');
+                        }}
+                        title="Record Payment or view ledger for this Tax Invoice"
+                        style={{
+                          height: '28px',
+                          fontSize: '11px',
+                          padding: '0 10px',
+                          gap: '5px',
+                          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <CreditCard size={12} />
+                        <span className="desktop-only-inline">Record Payment</span>
+                        <span className="mobile-only-inline">Payment</span>
+                      </button>
+                    )}
+
+                    <div className="sales-preview-divider" style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+
                     {/* Download PDF */}
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-download"
                       onClick={handleDownloadPdf}
                       title="Download authentic PDF replica"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                     >
                       <Download size={12} />
-                      <span>Download PDF</span>
+                      <span className="desktop-only-inline">Download PDF</span>
+                      <span className="mobile-only-inline">PDF</span>
                     </button>
 
                     {/* Print PDF */}
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-print"
                       onClick={handlePrint}
                       title="Print official Tax Invoice"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -954,65 +1012,63 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                       <span>Print</span>
                     </button>
 
-                    {/* Record Payment Direct Link */}
-                    {onNavigate && (
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            window.__TARGET_PAYMENT_INVOICE_ID__ = selectedInvoice.dbId || selectedInvoice.id || selectedInvoice.invoiceNumber;
-                          }
-                          onNavigate('payments');
-                        }}
-                        title="Record Payment or view ledger for this Tax Invoice"
-                        style={{ height: '28px', fontSize: '11px', padding: '0 9px', gap: '4px', color: '#0284c7', borderColor: '#bae6fd', background: '#f0f9ff' }}
-                      >
-                        <CreditCard size={12} />
-                        <span>Record Payment</span>
-                      </button>
-                    )}
-
                     {/* Zoom & Fit Controls */}
-                    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
-                        title="Zoom Out"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                      >
-                        <ZoomOut size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(1)}
-                        title="Reset to 100%"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
-                      >
-                        {Math.round(zoomScale * 100)}%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
-                        title="Zoom In"
-                        style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                      >
-                        <ZoomIn size={12} />
-                      </button>
+                    <div
+                      className="sales-preview-zoom-controls"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        height: '28px',
+                        padding: '0 2px'
+                      }}
+                    >
+                      {/* Left Side: Zoom in/out */}
+                      <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                          title="Zoom Out"
+                          style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '26px', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                        >
+                          <ZoomOut size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(1)}
+                          title="Reset to 100%"
+                          style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '26px', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
+                        >
+                          {Math.round(zoomScale * 100)}%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                          title="Zoom In"
+                          style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '26px', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
+                        >
+                          <ZoomIn size={12} />
+                        </button>
+                      </div>
+
+                      {/* Right Side: Fit Button */}
                       <button
                         type="button"
                         onClick={handleFitWidth}
-                        title="Auto-fit invoice to screen width"
-                        style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                        title="Auto-fit Tax Invoice to screen width"
+                        style={{ background: 'transparent', border: 'none', padding: '0 7px', cursor: 'pointer', height: '26px', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
                       >
                         Fit
                       </button>
                     </div>
 
-                    {/* Full Screen Toggle */}
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
+                    {/* Full Screen Toggle (desktop) */}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-expand desktop-only-flex"
                       onClick={() => setIsDocExpanded(!isDocExpanded)}
                       title={isDocExpanded ? 'Collapse to split view' : 'Expand full screen'}
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1022,9 +1078,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                     </button>
 
                     {/* Edit Tax Invoice */}
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary btn-sm"
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm sales-btn-edit"
                       onClick={() => handleOpenEdit(selectedInvoice)}
                       title="Edit Tax Invoice details, line items, and terms"
                       style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1034,15 +1090,15 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                     </button>
 
                     {/* Delete Invoice */}
-                    <button 
-                      type="button" 
-                      className="btn btn-sm"
+                    <button
+                      type="button"
+                      className="btn btn-sm sales-preview-delete-btn"
                       onClick={() => confirmDeleteInvoice(selectedInvoice)}
                       title="Delete Tax Invoice"
-                      style={{ 
-                        height: '28px', 
-                        fontSize: '11px', 
-                        padding: '0 8px', 
+                      style={{
+                        height: '28px',
+                        fontSize: '11px',
+                        padding: '0 8px',
                         gap: '4px',
                         background: '#fee2e2',
                         border: '1px solid #fca5a5',
@@ -1057,15 +1113,16 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                 </div>
 
                 {/* Printable Document Paper Sheet Container with Standard A4 Dimensions */}
-                <div 
+                <div
                   ref={previewContainerRef}
-                  style={{ 
-                    padding: '16px 0', 
-                    background: 'transparent', 
+                  style={{
+                    padding: '16px 0',
+                    background: 'transparent',
                     overflowY: 'auto',
-                    overflowX: 'auto', 
-                    flex: 1, 
-                    minHeight: 0, 
+                    overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    flex: 1,
+                    minHeight: 0,
                     width: '100%',
                     boxSizing: 'border-box'
                   }}
@@ -1082,411 +1139,411 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                     transformOrigin: 'top center',
                     transition: 'transform 0.15s ease-out'
                   }}>
-                    <div 
+                    <div
                       id="printable-tax-invoice"
-                    style={{
-                      width: '794px',
-                      minWidth: '794px',
-                      maxWidth: '794px',
-                      height: '1123px',
-                      minHeight: '1123px',
-                      maxHeight: '1123px',
-                      margin: '0 auto',
-                      background: '#ffffff',
-                      boxShadow: 'none',
-                      border: '1px solid var(--border-color)',
-                      fontFamily: 'Arial, Helvetica, sans-serif',
-                      color: '#000000',
-                      padding: '24px 28px',
-                      boxSizing: 'border-box',
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
-                  >
-                    {/* Top Header: Centered "Tax Invoice" & Right "ORIGINAL FOR RECIPIENT" */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
-                      <div style={{ width: '120px' }}></div>
-                      <div style={{ fontSize: '16px', fontWeight: 800, textTransform: 'none', textAlign: 'center', flex: 1, letterSpacing: '0.2px' }}>
-                        Tax Invoice
-                      </div>
-                      <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#4b5563', width: '140px', textAlign: 'right' }}>
-                        ORIGINAL FOR RECIPIENT
-                      </div>
-                    </div>
-
-                    {/* Main Outer Box with Crisp Borders */}
-                    <div style={{
-                      border: '1px solid #b8b8b8',
-                      background: '#ffffff',
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      flex: 1,
-                      minHeight: 0
-                    }}>
-                      
-                      {/* 1. Company Header Grid (Left Company Details + Right Metadata 2x2) */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', minHeight: '105px' }}>
-                        
-                        {/* Left: Company Details with Logo */}
-                        <div style={{ padding: '8px 10px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                          <img 
-                            src="/logo.jpg" 
-                            alt="General Precision Spindles" 
-                            style={{ width: '85px', height: 'auto', objectFit: 'contain', flexShrink: 0, marginTop: '4px' }} 
-                          />
-                          <div style={{ fontSize: '7.8px', lineHeight: '1.38', color: '#000000' }}>
-                            <div style={{ fontWeight: 800, fontSize: '10.5px', lineHeight: '1.2', letterSpacing: '0.3px', marginBottom: '3px' }}>
-                              GENERAL PRECISION<br />SPINDLES
-                            </div>
-                            <div>SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI</div>
-                            <div>DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,</div>
-                            <div><Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929</div>
-                            <div>Email: process@gpsspindles.net</div>
-                            <div>GSTIN: 27AATFG1527D1ZF</div>
-                            <div>State: 27-Maharashtra</div>
-                          </div>
+                      style={{
+                        width: '794px',
+                        minWidth: '794px',
+                        maxWidth: '794px',
+                        height: '1123px',
+                        minHeight: '1123px',
+                        maxHeight: '1123px',
+                        margin: '0 auto',
+                        background: '#ffffff',
+                        boxShadow: 'none',
+                        border: '1px solid var(--border-color)',
+                        fontFamily: 'Arial, Helvetica, sans-serif',
+                        color: '#000000',
+                        padding: '24px 28px',
+                        boxSizing: 'border-box',
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      {/* Top Header: Centered "Tax Invoice" & Right "ORIGINAL FOR RECIPIENT" */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
+                        <div style={{ width: '120px' }}></div>
+                        <div style={{ fontSize: '16px', fontWeight: 800, textTransform: 'none', textAlign: 'center', flex: 1, letterSpacing: '0.2px' }}>
+                          Tax Invoice
                         </div>
-
-                        {/* Right: Metadata Grid (3 rows: Row 1 = Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
-                          {/* Row 1: Invoice No. & Date */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
-                            <div style={{ padding: '3.5px 6px' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Invoice No.</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedInvoice.invoiceNumber || selectedInvoice.id}
-                              </div>
-                            </div>
-                            <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedInvoice.date || selectedInvoice.invoiceDate || '30-09-2026'}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Row 2: Place of supply & empty right corner */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
-                            <div style={{ padding: '3.5px 6px' }}>
-                              <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
-                              <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
-                                {selectedInvoice.placeOfSupply || selectedInvoice.state || '27-Maharashtra'}
-                              </div>
-                            </div>
-                            <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
-                          </div>
-
-                          {/* Row 3: Empty bottom column space */}
-                          <div style={{ flex: 1, minHeight: '34px' }}></div>
+                        <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#4b5563', width: '140px', textAlign: 'right' }}>
+                          ORIGINAL FOR RECIPIENT
                         </div>
-
                       </div>
 
-                      {/* 2. Bill To Box */}
-                      <div style={{ padding: '7px 10px', borderBottom: '1px solid #b8b8b8', fontSize: '8px', lineHeight: '1.4' }}>
-                        <div style={{ fontSize: '7.5px', color: '#000000', marginBottom: '2px' }}>Bill To</div>
-                        <div style={{ fontWeight: 800, fontSize: '9.5px', color: '#000000', marginBottom: '2px' }}>
-                          {selectedInvoice.customer}
-                        </div>
-                        <div style={{ whiteSpace: 'pre-line', color: '#000000', marginBottom: '2px' }}>
-                          {selectedInvoice.billingAddress || selectedInvoice.customerAddress}
-                        </div>
-                        <div>Contact No. : {selectedInvoice.contactNo || selectedInvoice.customerContact || '8600280084'}</div>
-                        <div>GSTIN : {selectedInvoice.gstin || selectedInvoice.customerGstin || '27AIBPB6756H1ZB'}</div>
-                        <div>State: {selectedInvoice.placeOfSupply || selectedInvoice.state || '27-Maharashtra'}</div>
-                        {(selectedInvoice.poNumber || selectedInvoice.purchaseOrderNo) && (
-                          <div>Purchase Order No : {selectedInvoice.poNumber || selectedInvoice.purchaseOrderNo}</div>
-                        )}
-                      </div>
+                      {/* Main Outer Box with Crisp Borders */}
+                      <div style={{
+                        border: '1px solid #b8b8b8',
+                        background: '#ffffff',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                        minHeight: 0
+                      }}>
 
-                      {/* 3. Line Items Table (6 columns: #, Item name, HSN/ SAC, Quantity, Price/ Unit, Amount) */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.8px', textAlign: 'left' }}>
-                        <thead>
-                          <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
-                            <th style={{ width: '30px', borderRight: '1px solid #b8b8b8', padding: '4px', textAlign: 'left', fontWeight: 700 }}>#</th>
-                            <th style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>Item name</th>
-                            <th style={{ width: '90px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>HSN/ SAC</th>
-                            <th style={{ width: '60px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Quantity</th>
-                            <th style={{ width: '90px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Price/ Unit</th>
-                            <th style={{ width: '90px', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedCalculations.items.map((item, idx) => {
-                            const q = Number(item.qty != null ? item.qty : (item.quantity || 1));
-                            const r = Number(item.unitPrice != null ? item.unitPrice : (item.rate || item.price || 0));
-                            const itemTotal = (q > 0 && r > 0) ? (q * r) : Number(item.total != null ? item.total : 0);
-                            return (
-                              <tr key={idx}>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px', textAlign: 'left' }}>
-                                  {idx + 1}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>
-                                  {item.name || item.product || item.desc}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}>
-                                  {item.hsn || item.hsn_sac || ''}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
-                                  {q}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
-                                  ₹ {r.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
-                                  ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* Table Total Row */}
-                          <tr style={{ fontWeight: 700 }}>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px' }}></td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'left' }}>Total</td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}></td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
-                              {selectedCalculations.totalQty}
-                            </td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}></td>
-                            <td style={{ padding: '4px 6px', textAlign: 'right' }}>
-                              ₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                        {/* 1. Company Header Grid (Left Company Details + Right Metadata 2x2) */}
+                        <div className="preview-header-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', minHeight: '105px' }}>
 
-                      {/* 4. Middle Section: Words & Description on left, Amounts on right */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderTop: '1px solid #b8b8b8', borderBottom: '1px solid #b8b8b8' }}>
-                        
-                        {/* Left: Invoice Amount in Words & Scope */}
-                        <div>
-                          {/* Invoice Amount in Words */}
-                          <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
-                            <div style={{ fontSize: '7.5px', color: '#000000' }}>Invoice Amount in Words</div>
-                            <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
-                              {numberToIndianWords(selectedCalculations.grandTotal)}
-                            </div>
-                          </div>
-
-                          {/* Description */}
-                          <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
-                            <div style={{ color: '#000000' }}>Description</div>
-                            {selectedInvoice.spindleSerial && (
-                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                                SERIAL NO. {selectedInvoice.spindleSerial}
-                              </div>
-                            )}
-                            <div style={{ fontWeight: 700, marginTop: '2px' }}>
-                              SCOPE OF WORK :-
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.45', fontWeight: 700 }}>
-                              {(() => {
-                                const rawScope = Array.isArray(selectedInvoice.scopeOfWork)
-                                  ? selectedInvoice.scopeOfWork
-                                  : (selectedInvoice.scopeOfWork || `1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. SHAFT SLEEVING\n6. STATIC TEST\n7. ASSEMBLY\n8. DYNAMIC TEST`).split('\n');
-                                return rawScope.map((line, idx) => (
-                                  <div key={idx}>{line.trim()}</div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right: Amounts Box matching Tax Invoice_INV2026-27 265_PS MAINTENANCE.pdf */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0' }}>
-                            <span>Sub Total</span>
-                            <span>₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0' }}>
-                            <span>Tax (18%)</span>
-                            <span>₹ {selectedCalculations.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }}></div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 800, padding: '3px 0' }}>
-                            <span>Total</span>
-                            <span>₹ {selectedCalculations.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0', color: '#000000' }}>
-                            <span>Received</span>
-                            <span>₹ {selectedCalculations.received.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }}></div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0', color: '#000000' }}>
-                            <span>Balance</span>
-                            <span>₹ {selectedCalculations.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* 5. GST Tax Summary Table */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.4px', textAlign: 'left', borderBottom: '1px solid #b8b8b8' }}>
-                        <thead>
-                          <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
-                            <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>HSN/ SAC</th>
-                            <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>Taxable amount</th>
-                            {!selectedCalculations.isInterState ? (
-                              <>
-                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>CGST</th>
-                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>SGST</th>
-                              </>
-                            ) : (
-                              <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>IGST</th>
-                            )}
-                            <th rowSpan={2} style={{ padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>Total Tax Amount</th>
-                          </tr>
-                          <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
-                            {!selectedCalculations.isInterState ? (
-                              <>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
-                              </>
-                            ) : (
-                              <>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
-                                <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
-                              </>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedCalculations.hsnList.map((h, idx) => {
-                            const cgstAmt = Math.round(h.taxable * 0.09);
-                            const sgstAmt = Math.round(h.taxable * 0.09);
-                            const totalTax = cgstAmt + sgstAmt;
-                            return (
-                              <tr key={idx}>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'left' }}>
-                                  {h.hsn}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
-                                  ₹ {h.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                {!selectedCalculations.isInterState ? (
-                                  <>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>9%</td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                      ₹ {cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>9%</td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                      ₹ {sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </>
-                                ) : (
-                                  <>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>18%</td>
-                                    <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                      ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </>
-                                )}
-                                <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
-                                  ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* Tax Total Row */}
-                          <tr style={{ fontWeight: 700 }}>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
-                            <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
-                              ₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            {!selectedCalculations.isInterState ? (
-                              <>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                  ₹ {selectedCalculations.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                  ₹ {selectedCalculations.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
-                                <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
-                                  ₹ {selectedCalculations.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </>
-                            )}
-                            <td style={{ padding: '3px 6px', textAlign: 'right' }}>
-                              ₹ {selectedCalculations.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {/* 6. Bottom 3-Column Footer Box matching Proforma & Quotation exact layout */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
-                        
-                        {/* Col 1: Bank Details with UPI QR code */}
-                        <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontWeight: 800, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
-                          
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                            {/* Dynamic Amount-Wise UPI QR Code */}
-                            <UpiQrCode 
-                              amount={selectedCalculations.balance > 0 ? selectedCalculations.balance : selectedCalculations.grandTotal}
-                              quoteNo={selectedInvoice.invoiceNo || selectedInvoice.id}
-                              upiId={selectedInvoice.bankDetails?.upiId || getActiveUpiId()}
-                              payeeName={selectedInvoice.bankDetails?.accountHolder || 'GENERAL PRECISION SPINDLES'}
-                              size={48}
-                              onNotify={onNotify}
+                          {/* Left: Company Details with Logo */}
+                          <div style={{ padding: '8px 10px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            <img
+                              src="/logo.jpg"
+                              alt="General Precision Spindles"
+                              style={{ width: '85px', height: 'auto', objectFit: 'contain', flexShrink: 0, marginTop: '4px' }}
                             />
-
-                            <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
-                              <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
-                              <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
-                              <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
-                              <div style={{ marginBottom: '4px' }}>
-                                UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{selectedInvoice.bankDetails?.upiId || getActiveUpiId()}</span>
+                            <div style={{ fontSize: '7.8px', lineHeight: '1.38', color: '#000000' }}>
+                              <div style={{ fontWeight: 800, fontSize: '10.5px', lineHeight: '1.2', letterSpacing: '0.3px', marginBottom: '3px' }}>
+                                GENERAL PRECISION<br />SPINDLES
                               </div>
-                              <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
+                              <div>SR NO 15/A/2 GKD INDUSTRIAL ESTATE, NEAR SAVLI</div>
+                              <div>DHABA,NANDED PHATA SINHAGAD ROAD PUNE-411041 ,</div>
+                              <div><Phone size={8} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} />+919764252188 / 9764032929</div>
+                              <div>Email: process@gpsspindles.net</div>
+                              <div>GSTIN: 27AATFG1527D1ZF</div>
+                              <div>State: 27-Maharashtra</div>
                             </div>
                           </div>
+
+                          {/* Right: Metadata Grid (3 rows: Row 1 = Invoice No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
+                            {/* Row 1: Invoice No. & Date */}
+                            <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                              <div style={{ padding: '3.5px 6px' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Invoice No.</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedInvoice.invoiceNumber || selectedInvoice.id}
+                                </div>
+                              </div>
+                              <div style={{ padding: '3.5px 6px', borderLeft: '1px solid #b8b8b8' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Date</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedInvoice.date || selectedInvoice.invoiceDate || '30-09-2026'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Row 2: Place of supply & empty right corner */}
+                            <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                              <div style={{ padding: '3.5px 6px' }}>
+                                <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
+                                <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
+                                  {selectedInvoice.placeOfSupply || selectedInvoice.state || '27-Maharashtra'}
+                                </div>
+                              </div>
+                              <div style={{ borderLeft: '1px solid #b8b8b8' }}></div>
+                            </div>
+
+                            {/* Row 3: Empty bottom column space */}
+                            <div style={{ flex: 1, minHeight: '34px' }}></div>
+                          </div>
+
                         </div>
 
-                        {/* Col 2: Terms and conditions with MSME declaration */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
-                          <div style={{ fontWeight: 800, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
-                          <div style={{ fontSize: '7px', lineHeight: '1.5', color: '#000000', whiteSpace: 'pre-line' }}>
-                            {String(selectedInvoice.terms || `We declare that this invoice shows the actual price of the goods\ndescribed and that all particulars are true and correct.\nBank Details:\nICICI Bank Ltd(Nanded City Branch)\nA/c No : 349105000701\nIFSC Code: ICIC0003491\nMSME (UDYAM ADHAR) NO-MH26A0189736\nTYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING\nMAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE REPAIRING ,SPINDLE MANUFACTURING.`).replace('the goods described', 'the goods\ndescribed')}
+                        {/* 2. Bill To Box */}
+                        <div style={{ padding: '7px 10px', borderBottom: '1px solid #b8b8b8', fontSize: '8px', lineHeight: '1.4' }}>
+                          <div style={{ fontSize: '7.5px', color: '#000000', marginBottom: '2px' }}>Bill To</div>
+                          <div style={{ fontWeight: 800, fontSize: '9.5px', color: '#000000', marginBottom: '2px' }}>
+                            {selectedInvoice.customer}
                           </div>
+                          <div style={{ whiteSpace: 'pre-line', color: '#000000', marginBottom: '2px' }}>
+                            {selectedInvoice.billingAddress || selectedInvoice.customerAddress}
+                          </div>
+                          <div>Contact No. : {selectedInvoice.contactNo || selectedInvoice.customerContact || '8600280084'}</div>
+                          <div>GSTIN : {selectedInvoice.gstin || selectedInvoice.customerGstin || '27AIBPB6756H1ZB'}</div>
+                          <div>State: {selectedInvoice.placeOfSupply || selectedInvoice.state || '27-Maharashtra'}</div>
+                          {(selectedInvoice.poNumber || selectedInvoice.purchaseOrderNo) && (
+                            <div>Purchase Order No : {selectedInvoice.poNumber || selectedInvoice.purchaseOrderNo}</div>
+                          )}
                         </div>
 
-                        {/* Col 3: Authorized Signatory */}
-                        <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
-                          <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
-                            For : GENERAL PRECISION SPINDLES
+                        {/* 3. Line Items Table (6 columns: #, Item name, HSN/ SAC, Quantity, Price/ Unit, Amount) */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.8px', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
+                              <th style={{ width: '30px', borderRight: '1px solid #b8b8b8', padding: '4px', textAlign: 'left', fontWeight: 700 }}>#</th>
+                              <th style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>Item name</th>
+                              <th style={{ width: '90px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>HSN/ SAC</th>
+                              <th style={{ width: '60px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Quantity</th>
+                              <th style={{ width: '90px', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Price/ Unit</th>
+                              <th style={{ width: '90px', padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedCalculations.items.map((item, idx) => {
+                              const q = Number(item.qty != null ? item.qty : (item.quantity || 1));
+                              const r = Number(item.unitPrice != null ? item.unitPrice : (item.rate || item.price || 0));
+                              const itemTotal = (q > 0 && r > 0) ? (q * r) : Number(item.total != null ? item.total : 0);
+                              return (
+                                <tr key={idx}>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px', textAlign: 'left' }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', fontWeight: 700 }}>
+                                    {item.name || item.product || item.desc}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}>
+                                    {item.hsn || item.hsn_sac || ''}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
+                                    {q}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
+                                    ₹ {r.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
+                                    ₹ {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Table Total Row */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'left' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}></td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px', textAlign: 'right' }}>
+                                {selectedCalculations.totalQty}
+                              </td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '4px 6px' }}></td>
+                              <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                                ₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* 4. Middle Section: Words & Description on left, Amounts on right */}
+                        <div className="preview-amounts-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderTop: '1px solid #b8b8b8', borderBottom: '1px solid #b8b8b8' }}>
+
+                          {/* Left: Invoice Amount in Words & Scope */}
+                          <div>
+                            {/* Invoice Amount in Words */}
+                            <div style={{ padding: '5px 8px', borderBottom: '1px solid #b8b8b8' }}>
+                              <div style={{ fontSize: '7.5px', color: '#000000' }}>Invoice Amount in Words</div>
+                              <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#000000', marginTop: '2px' }}>
+                                {numberToIndianWords(selectedCalculations.grandTotal)}
+                              </div>
+                            </div>
+
+                            {/* Description */}
+                            <div style={{ padding: '6px 8px', fontSize: '7.8px', color: '#000000', lineHeight: '1.3' }}>
+                              <div style={{ color: '#000000' }}>Description</div>
+                              {selectedInvoice.spindleSerial && (
+                                <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                  SERIAL NO. {selectedInvoice.spindleSerial}
+                                </div>
+                              )}
+                              <div style={{ fontWeight: 700, marginTop: '2px' }}>
+                                SCOPE OF WORK :-
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', fontSize: '7.4px', lineHeight: '1.45', fontWeight: 700 }}>
+                                {(() => {
+                                  const rawScope = Array.isArray(selectedInvoice.scopeOfWork)
+                                    ? selectedInvoice.scopeOfWork
+                                    : (selectedInvoice.scopeOfWork || `1. DISMANTLE\n2. CLEANING\n3. INSPECTION\n4. BEARING REPLACEMENT\n5. SHAFT SLEEVING\n6. STATIC TEST\n7. ASSEMBLY\n8. DYNAMIC TEST`).split('\n');
+                                  return rawScope.map((line, idx) => (
+                                    <div key={idx}>{line.trim()}</div>
+                                  ));
+                                })()}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '8.5px', paddingBottom: '8px' }}>
-                            Authorized Signatory
+
+                          {/* Right: Amounts Box matching Tax Invoice_INV2026-27 265_PS MAINTENANCE.pdf */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '6px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '8px', color: '#000000', marginBottom: '4px', fontWeight: 600 }}>Amounts</div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0' }}>
+                              <span>Sub Total</span>
+                              <span>₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0' }}>
+                              <span>Tax (18%)</span>
+                              <span>₹ {selectedCalculations.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }}></div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.8px', fontWeight: 800, padding: '3px 0' }}>
+                              <span>Total</span>
+                              <span>₹ {selectedCalculations.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0', color: '#000000' }}>
+                              <span>Received</span>
+                              <span>₹ {selectedCalculations.received.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #b8b8b8', margin: '4px -10px' }}></div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', padding: '3px 0', color: '#000000' }}>
+                              <span>Balance</span>
+                              <span>₹ {selectedCalculations.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
                           </div>
+
+                        </div>
+
+                        {/* 5. GST Tax Summary Table */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.4px', textAlign: 'left', borderBottom: '1px solid #b8b8b8' }}>
+                          <thead>
+                            <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
+                              <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>HSN/ SAC</th>
+                              <th rowSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>Taxable amount</th>
+                              {!selectedCalculations.isInterState ? (
+                                <>
+                                  <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>CGST</th>
+                                  <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>SGST</th>
+                                </>
+                              ) : (
+                                <th colSpan={2} style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>IGST</th>
+                              )}
+                              <th rowSpan={2} style={{ padding: '3px 6px', textAlign: 'center', fontWeight: 700 }}>Total Tax Amount</th>
+                            </tr>
+                            <tr style={{ background: '#ffffff', borderBottom: '1px solid #b8b8b8' }}>
+                              {!selectedCalculations.isInterState ? (
+                                <>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
+                                </>
+                              ) : (
+                                <>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Rate</th>
+                                  <th style={{ borderRight: '1px solid #b8b8b8', padding: '2px 4px', textAlign: 'center', fontWeight: 700 }}>Amount</th>
+                                </>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedCalculations.hsnList.map((h, idx) => {
+                              const cgstAmt = Math.round(h.taxable * 0.09);
+                              const sgstAmt = Math.round(h.taxable * 0.09);
+                              const totalTax = cgstAmt + sgstAmt;
+                              return (
+                                <tr key={idx}>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'left' }}>
+                                    {h.hsn}
+                                  </td>
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                                    ₹ {h.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  {!selectedCalculations.isInterState ? (
+                                    <>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>9%</td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                        ₹ {cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>9%</td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                        ₹ {sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>18%</td>
+                                      <td style={{ borderBottom: '1px solid #b8b8b8', borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                        ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </>
+                                  )}
+                                  <td style={{ borderBottom: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right', fontWeight: 700 }}>
+                                    ₹ {totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Tax Total Row */}
+                            <tr style={{ fontWeight: 700 }}>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {selectedCalculations.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              {!selectedCalculations.isInterState ? (
+                                <>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                    ₹ {selectedCalculations.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                    ₹ {selectedCalculations.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px' }}></td>
+                                  <td style={{ borderRight: '1px solid #b8b8b8', padding: '3px 4px', textAlign: 'right' }}>
+                                    ₹ {selectedCalculations.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </>
+                              )}
+                              <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                                ₹ {selectedCalculations.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* 6. Bottom 3-Column Footer Box matching Proforma & Quotation exact layout */}
+                        <div className="preview-footer-grid" style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
+
+                          {/* Col 1: Bank Details with UPI QR code */}
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontWeight: 800, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
+
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              {/* Dynamic Amount-Wise UPI QR Code */}
+                              <UpiQrCode
+                                amount={selectedCalculations.balance > 0 ? selectedCalculations.balance : selectedCalculations.grandTotal}
+                                quoteNo={selectedInvoice.invoiceNo || selectedInvoice.id}
+                                upiId={selectedInvoice.bankDetails?.upiId || getActiveUpiId()}
+                                payeeName={selectedInvoice.bankDetails?.accountHolder || 'GENERAL PRECISION SPINDLES'}
+                                size={48}
+                                onNotify={onNotify}
+                              />
+
+                              <div style={{ fontSize: '7.4px', lineHeight: '1.45' }}>
+                                <div style={{ marginBottom: '4px' }}>Name : ICICI BANK LIMITED, PUNE<br />NANDED CITY</div>
+                                <div style={{ marginBottom: '4px' }}>Account No. : 349105000701</div>
+                                <div style={{ marginBottom: '4px' }}>IFSC code : ICIC0003491</div>
+                                <div style={{ marginBottom: '4px' }}>
+                                  UPI ID : <span className="mono" style={{ color: '#7A1F3D', fontWeight: 600 }}>{selectedInvoice.bankDetails?.upiId || getActiveUpiId()}</span>
+                                </div>
+                                <div>Account holder's name : GENERAL<br />PRECISION SPINDLES</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Col 2: Terms and conditions with MSME declaration */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px' }}>
+                            <div style={{ fontWeight: 800, fontSize: '8.5px', marginBottom: '6px' }}>Terms and conditions</div>
+                            <div style={{ fontSize: '7px', lineHeight: '1.5', color: '#000000', whiteSpace: 'pre-line' }}>
+                              {String(selectedInvoice.terms || `We declare that this invoice shows the actual price of the goods\ndescribed and that all particulars are true and correct.\nBank Details:\nICICI Bank Ltd(Nanded City Branch)\nA/c No : 349105000701\nIFSC Code: ICIC0003491\nMSME (UDYAM ADHAR) NO-MH26A0189736\nTYPE OF ENTERPRISES: SPINDLE MANUFACTURING AND REPAIRING\nMAJOR ACTIVITIES IN OUR INVOICE: ALL TYPES OF CNC,VMC,HMC,BELT DRIVEN,DIRECT DRIVEN,INTEGRATED,SPINDLE REPAIRING ,SPINDLE MANUFACTURING.`).replace('the goods described', 'the goods\ndescribed')}
+                            </div>
+                          </div>
+
+                          {/* Col 3: Authorized Signatory */}
+                          <div style={{ borderLeft: '1px solid #b8b8b8', padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', boxSizing: 'border-box' }}>
+                            <div style={{ fontSize: '8px', fontWeight: 400, textAlign: 'center' }}>
+                              For : GENERAL PRECISION SPINDLES
+                            </div>
+                            <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '8.5px', paddingBottom: '8px' }}>
+                              Authorized Signatory
+                            </div>
+                          </div>
+
                         </div>
 
                       </div>
-
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
             ) : (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Select a tax invoice from the list or create a new one to view details.
@@ -1501,8 +1558,8 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         title={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px' }}>
-            <span>{editingInvoiceId ? `Edit Tax Invoice: ${formState.invoiceNumber || editingInvoiceId}` : "+ Create Tax Invoice"}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '20px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px' }}>{editingInvoiceId ? `Edit Tax Invoice: ${formState.invoiceNumber || editingInvoiceId}` : "+ Create Tax Invoice"}</span>
             {!editingInvoiceId && (
               <button
                 type="button"
@@ -1533,21 +1590,21 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
         }
         maxWidth="860px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Total: <strong className="mono" style={{ color: '#7A1F3D', fontSize: '14px' }}>₹{formCalculations.grandTotal.toLocaleString('en-IN')}</strong> (Incl. 18% GST)
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsCreateModalOpen(false)}
               >
                 Discard
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={() => handleSaveInvoice(false)}
                 title="Generate and save Tax Invoice"
                 style={{ fontWeight: 600, background: 'linear-gradient(135deg, #7A1F3D 0%, #5B132B 100%)', border: 'none', color: '#fff', gap: '6px' }}
@@ -1560,10 +1617,10 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
         }
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSaveInvoice(false); }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          
+
           {/* Dual Import Sources (Only shown in creation mode) */}
           {!editingInvoiceId && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
               {/* Source 1: Import from Proforma Invoice */}
               <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -1631,17 +1688,17 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
               <span>Customer Information & Invoice Details</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Customer Name (Preset or Custom) *</label>
-                <input 
+                <input
                   list="tax-customer-presets"
-                  className="form-control" 
+                  className="form-control"
                   value={formState.customer}
                   onChange={(e) => handleCustomerSelect(e.target.value)}
                   placeholder="e.g. PS MAINTENANCE SERVICE"
                   style={{ width: '100%', boxSizing: 'border-box' }}
-                  required 
+                  required
                 />
                 <datalist id="tax-customer-presets">
                   {PRESET_CUSTOMERS.map(c => <option key={c.name} value={c.name} />)}
@@ -1650,9 +1707,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Customer Email</label>
-                <input 
-                  type="email" 
-                  className="form-control" 
+                <input
+                  type="email"
+                  className="form-control"
                   placeholder="service@psmaintenance.in"
                   value={formState.customerEmail}
                   onChange={(e) => setFormState(prev => ({ ...prev, customerEmail: e.target.value }))}
@@ -1662,9 +1719,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Contact Phone</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   placeholder="8600280084"
                   value={formState.customerContact}
                   onChange={(e) => setFormState(prev => ({ ...prev, customerContact: e.target.value }))}
@@ -1673,12 +1730,12 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '10px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Customer Address / Billing Address</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   value={formState.billingAddress}
                   onChange={(e) => setFormState(prev => ({ ...prev, billingAddress: e.target.value }))}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -1687,9 +1744,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Customer GSTIN</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   placeholder="27AIBPB6756H1ZB"
                   value={formState.gstin}
                   onChange={(e) => setFormState(prev => ({ ...prev, gstin: e.target.value.toUpperCase() }))}
@@ -1719,44 +1776,44 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                     '33-Tamil Nadu',
                     '36-Telangana'
                   ].includes(formState.placeOfSupply) && formState.placeOfSupply && (
-                    <option value={formState.placeOfSupply}>{formState.placeOfSupply}</option>
-                  )}
+                      <option value={formState.placeOfSupply}>{formState.placeOfSupply}</option>
+                    )}
                 </select>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1.2fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Invoice Number *</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   value={formState.invoiceNumber}
                   onChange={(e) => setFormState(prev => ({ ...prev, invoiceNumber: e.target.value }))}
                   placeholder="INV2026-27/265"
                   style={{ width: '100%', boxSizing: 'border-box' }}
-                  required 
+                  required
                 />
               </div>
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Invoice Date *</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   placeholder="DD-MM-YYYY"
                   value={formState.invoiceDate}
                   onChange={(e) => setFormState(prev => ({ ...prev, invoiceDate: e.target.value }))}
                   style={{ width: '100%', boxSizing: 'border-box' }}
-                  required 
+                  required
                 />
               </div>
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Payment Due Date</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   placeholder="DD-MM-YYYY"
                   value={formState.dueDate}
                   onChange={(e) => setFormState(prev => ({ ...prev, dueDate: e.target.value }))}
@@ -1766,9 +1823,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
               <div>
                 <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Purchase Order No.</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   placeholder="e.g. VERBAL or PO-2026-081"
                   value={formState.poNumber}
                   onChange={(e) => setFormState(prev => ({ ...prev, poNumber: e.target.value }))}
@@ -1787,9 +1844,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
             <div style={{ marginBottom: '12px' }}>
               <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Spindle Serial No.</label>
-              <input 
-                type="text" 
-                className="form-control mono" 
+              <input
+                type="text"
+                className="form-control mono"
                 placeholder="e.g. IMMXXVI (M77-002)"
                 value={formState.spindleSerial}
                 onChange={(e) => setFormState(prev => ({ ...prev, spindleSerial: e.target.value }))}
@@ -1802,8 +1859,8 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
             <div>
               <label className="form-label" style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Scope of Work (Numbered Technical Description)</label>
-              <textarea 
-                className="form-control" 
+              <textarea
+                className="form-control"
                 rows={4}
                 value={formState.scopeOfWork}
                 onChange={(e) => setFormState(prev => ({ ...prev, scopeOfWork: e.target.value }))}
@@ -1815,10 +1872,13 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
           {/* Section 3: Line Items (Tax Invoice Breakdown) */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items (Tax Invoice Breakdown)</span>
-              <button 
-                type="button" 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#7A1F3D' }}>Line Items (Tax Invoice Breakdown)</span>
+                <span className="mobile-only-inline" style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>(Swipe to edit items →)</span>
+              </div>
+              <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={handleAddItem}
                 style={{ height: '26px', fontSize: '11.5px', padding: '0 10px', gap: '4px' }}
@@ -1828,8 +1888,8 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
               </button>
             </div>
 
-            <div className="table-responsive" style={{ overflowX: 'auto', width: '100%' }}>
-              <table style={{ width: '100%', minWidth: '700px', fontSize: '11.5px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <div className="table-responsive sales-items-table-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+              <table style={{ width: '100%', minWidth: '580px', fontSize: '11.5px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '6px 8px', width: '32px', textAlign: 'center' }}>#</th>
@@ -1852,9 +1912,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                           {idx + 1}
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="text" 
-                            className="form-control" 
+                          <input
+                            type="text"
+                            className="form-control"
                             placeholder="Item description"
                             value={item.name}
                             onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
@@ -1863,9 +1923,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="text" 
-                            className="form-control mono" 
+                          <input
+                            type="text"
+                            className="form-control mono"
                             placeholder="84669390"
                             value={item.hsn}
                             onChange={(e) => handleItemChange(item.id, 'hsn', e.target.value)}
@@ -1873,9 +1933,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="number" 
-                            className="form-control mono" 
+                          <input
+                            type="number"
+                            className="form-control mono"
                             placeholder="1"
                             value={item.qty}
                             onChange={(e) => handleItemChange(item.id, 'qty', e.target.value)}
@@ -1884,9 +1944,9 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                           />
                         </td>
                         <td style={{ padding: '6px 4px' }}>
-                          <input 
-                            type="number" 
-                            className="form-control mono" 
+                          <input
+                            type="number"
+                            className="form-control mono"
                             placeholder="0"
                             value={item.unitPrice}
                             onChange={(e) => handleItemChange(item.id, 'unitPrice', e.target.value)}
@@ -1898,8 +1958,8 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
                           ₹{lineTotal.toLocaleString('en-IN')}
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => handleRemoveItem(item.id)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
                             title="Remove row"
@@ -1916,7 +1976,7 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
             {/* Clean Live Calculations Summary (No payment/advance clutter) */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <div style={{ width: '280px', background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
+              <div style={{ width: 'min(100%, 280px)', background: '#F8FAF9', padding: '10px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Sub Total (Taxable):</span>
                   <span className="mono">₹{formCalculations.subtotal.toLocaleString('en-IN')}</span>
@@ -1939,8 +1999,8 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
               <FileText size={15} />
               <span>Terms & Conditions and Bank Declarations (Footer Box)</span>
             </div>
-            <textarea 
-              className="form-control" 
+            <textarea
+              className="form-control"
               rows={4}
               value={formState.terms}
               onChange={(e) => setFormState(prev => ({ ...prev, terms: e.target.value }))}
@@ -1960,16 +2020,16 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
           title="Delete Tax Invoice"
           maxWidth="440px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsDeleteModalOpen(false)}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-danger"
                 onClick={handleDeleteInvoice}
                 disabled={isDeleting}
@@ -1999,7 +2059,7 @@ export default function InvoicesScreen({ onNotify, onNavigate }) {
 
       {/* Outlook-Style Email Composer */}
       {isEmailComposerOpen && emailDoc && (
-        <OutlookEmailComposer 
+        <OutlookEmailComposer
           isOpen={isEmailComposerOpen}
           onClose={() => setIsEmailComposerOpen(false)}
           documentData={emailDoc}

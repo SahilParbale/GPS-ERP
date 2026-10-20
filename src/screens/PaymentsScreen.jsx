@@ -9,7 +9,7 @@ import {
   Send, RefreshCw, Plus, Search, Filter, 
   Building2, Calendar, FileText, ArrowUpRight, 
   CreditCard, Download, Mail, ExternalLink, 
-  ChevronRight, AlertCircle, Check, Eye, Info
+  ChevronRight, AlertCircle, Check, Eye, Info, X
 } from 'lucide-react';
 
 // Date parsing helper
@@ -521,7 +521,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           title="Refresh payment records"
         >
           <RefreshCw size={14} />
-          <span>Refresh</span>
+          <span className="desktop-only-inline">Refresh</span>
         </button>
 
         {onNavigate && (
@@ -532,7 +532,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
             title="Open official Tax Invoices Register"
           >
             <FileText size={14} />
-            <span>Tax Invoices Register</span>
+            <span className="desktop-only-inline">Tax Invoices Register</span>
+            <span className="mobile-only-inline">Invoices</span>
           </button>
         )}
 
@@ -542,7 +543,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           onClick={() => handleOpenRecordPayment(null)}
         >
           <Plus size={14} />
-          <span>+ Record Payment</span>
+          <span className="desktop-only-inline">Record Payment</span>
+          <span className="mobile-only-inline">New Payment</span>
         </button>
       </PageHeader>
 
@@ -643,12 +645,12 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
             gap: '12px',
             flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 260px', minWidth: 0 }}>
+              <div style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 <AlertCircle size={20} />
               </div>
-              <div>
-                <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)', display: 'block', wordBreak: 'break-word' }}>
                   Action Needed: {kpis.overdueInvoicesCount} client invoices totalling ₹{Number(kpis.overdueAmount).toLocaleString('en-IN')} are currently overdue!
                 </span>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -656,7 +658,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm"
@@ -680,17 +682,19 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
             justifyContent: 'space-between',
             borderBottom: '1px solid var(--border-color)',
             background: 'var(--bg-subtle)',
-            padding: '4px 16px',
-            flexWrap: 'wrap',
+            padding: '4px 8px',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            maxWidth: '100%',
             gap: '8px'
           }}>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '4px', minWidth: 'max-content' }}>
               <button
                 type="button"
                 className={`tab-btn ${activeTab === 'invoices' ? 'active' : ''}`}
                 onClick={() => setActiveTab('invoices')}
                 style={{
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   background: 'none',
                   border: 'none',
                   borderBottom: activeTab === 'invoices' ? '2px solid var(--primary)' : '2px solid transparent',
@@ -700,7 +704,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <FileText size={15} />
@@ -721,7 +726,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 className={`tab-btn ${activeTab === 'clients' ? 'active' : ''}`}
                 onClick={() => setActiveTab('clients')}
                 style={{
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   background: 'none',
                   border: 'none',
                   borderBottom: activeTab === 'clients' ? '2px solid var(--primary)' : '2px solid transparent',
@@ -731,7 +736,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <Building2 size={15} />
@@ -752,7 +758,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 className={`tab-btn ${activeTab === 'receipts' ? 'active' : ''}`}
                 onClick={() => setActiveTab('receipts')}
                 style={{
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   background: 'none',
                   border: 'none',
                   borderBottom: activeTab === 'receipts' ? '2px solid var(--primary)' : '2px solid transparent',
@@ -762,7 +768,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <CreditCard size={15} />
@@ -792,8 +799,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
             background: 'var(--card-bg)'
           }}>
             {/* Search Input */}
-            <div style={{ position: 'relative', minWidth: '260px', flex: '1 1 260px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+            <div className="search-input-wrap">
+              <Search size={14} className="search-icon" />
               <input
                 type="text"
                 placeholder={
@@ -804,14 +811,32 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="form-control"
-                style={{ paddingLeft: '32px', height: '34px', fontSize: '13px' }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
             {/* Invoices Specific Filter Pills */}
             {activeTab === 'invoices' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-subtle)', padding: '3px', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '4px', 
+                  background: 'var(--bg-subtle)', 
+                  padding: '3px', 
+                  borderRadius: '6px',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  maxWidth: '100%'
+                }}>
                   {[
                     { id: 'ALL', label: 'All Invoices' },
                     { id: 'OVERDUE', label: `Overdue (${kpis.overdueInvoicesCount})` },
@@ -832,6 +857,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                         padding: '4px 10px',
                         borderRadius: '4px',
                         cursor: 'pointer',
+                        whiteSpace: 'nowrap',
                         boxShadow: statusFilter === pill.id ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
                       }}
                     >
@@ -845,7 +871,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   value={selectedClientFilter}
                   onChange={(e) => setSelectedClientFilter(e.target.value)}
                   className="form-control"
-                  style={{ height: '34px', fontSize: '12px', minWidth: '160px' }}
+                  style={{ height: '34px', fontSize: '12px', minWidth: '150px', flex: '1 1 150px', maxWidth: '100%' }}
                 >
                   <option value="ALL">All Clients ({distinctClientNames.length})</option>
                   {distinctClientNames.map(name => (
@@ -858,7 +884,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="form-control"
-                  style={{ height: '34px', fontSize: '12px' }}
+                  style={{ height: '34px', fontSize: '12px', minWidth: '150px', flex: '1 1 150px', maxWidth: '100%' }}
                 >
                   <option value="overdue">Sort: Overdue & Priority First</option>
                   <option value="balance_desc">Sort: Highest Balance First</option>
@@ -882,7 +908,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               flexWrap: 'wrap'
             }}>
               {/* Period & Aging Selectors */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: '1 1 auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)', fontWeight: 600 }}>
                   <Calendar size={13} color="var(--primary)" />
                   <span>Period:</span>
@@ -891,7 +917,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   value={periodFilter}
                   onChange={(e) => setPeriodFilter(e.target.value)}
                   className="form-control"
-                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '135px' }}
+                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '130px', flex: '0 1 auto' }}
                 >
                   <option value="ALL">All Time</option>
                   <option value="THIS_MONTH">This Month</option>
@@ -902,13 +928,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 </select>
 
                 {periodFilter === 'CUSTOM' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <input
                       type="date"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
                       className="form-control"
-                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '130px' }}
+                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '125px' }}
                       title="From Date"
                     />
                     <span style={{ color: 'var(--text-muted)' }}>to</span>
@@ -917,13 +943,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
                       className="form-control"
-                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '130px' }}
+                      style={{ height: '30px', fontSize: '11px', padding: '0 6px', width: '125px' }}
                       title="To Date"
                     />
                   </div>
                 )}
 
-                <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+                <div className="desktop-only-inline" style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)', fontWeight: 600 }}>
                   <Clock size={13} color="var(--warning)" />
@@ -933,7 +959,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   value={agingFilter}
                   onChange={(e) => setAgingFilter(e.target.value)}
                   className="form-control"
-                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '145px' }}
+                  style={{ height: '30px', fontSize: '12px', padding: '0 8px', minWidth: '140px', flex: '0 1 auto' }}
                 >
                   <option value="ALL">All Aging Buckets</option>
                   <option value="CURRENT">Current (Not Due)</option>
@@ -945,7 +971,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
 
               {/* Status & Reset */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                   Showing <strong>{filteredInvoices.length}</strong> of {invoices.length} Tax Invoices
                 </span>
@@ -981,24 +1007,27 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
 
           {/* TAB 1: INVOICES & RECEIVABLES LEDGER */}
           {activeTab === 'invoices' && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ margin: 0, width: '100%', fontSize: '13px' }}>
+            <>
+              <div className="table-responsive desktop-table-view" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '1380px' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bg-subtle)' }}>
-                    <th style={{ padding: '10px 14px', width: '130px' }}>Invoice & Date</th>
-                    <th style={{ padding: '10px 14px' }}>Client Organization</th>
-                    <th style={{ padding: '10px 14px', width: '150px' }}>Due Date & Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '110px' }}>Total Billed</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '110px' }}>Amount Paid</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Pending Balance</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '110px' }}>Reminder Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '220px' }}>Actions</th>
+                  <tr>
+                    <th style={{ minWidth: '150px' }}>Invoice # & PO</th>
+                    <th style={{ minWidth: '110px' }}>Invoice Date</th>
+                    <th style={{ minWidth: '220px' }}>Client Organization</th>
+                    <th style={{ minWidth: '135px' }}>Due Date</th>
+                    <th style={{ minWidth: '130px', textAlign: 'center' }}>Payment Status</th>
+                    <th style={{ minWidth: '125px', textAlign: 'right' }}>Total Billed</th>
+                    <th style={{ minWidth: '125px', textAlign: 'right' }}>Amount Paid</th>
+                    <th style={{ minWidth: '135px', textAlign: 'right' }}>Pending Balance</th>
+                    <th style={{ minWidth: '110px', textAlign: 'center' }}>Reminder</th>
+                    <th style={{ minWidth: '240px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
+                      <td colSpan="10" style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <CheckCircle2 size={32} style={{ color: 'var(--success)' }} />
                           <span style={{ fontSize: '14px', fontWeight: 500 }}>No invoices matching the selected filters</span>
@@ -1019,8 +1048,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             borderBottom: '1px solid var(--border-color)'
                           }}
                         >
-                          {/* Invoice & Date */}
-                          <td style={{ padding: '12px 14px' }}>
+                          {/* 1. Invoice Number & PO */}
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <div 
                               style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               onClick={() => handleViewTaxInvoice(inv)}
@@ -1029,36 +1058,42 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                               <span>{inv.invoiceNumber || inv.id}</span>
                               <ArrowUpRight size={11} style={{ opacity: 0.8 }} />
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                              <Calendar size={11} />
-                              <span>{inv.invoiceDate || inv.date}</span>
-                            </div>
                             {inv.poNumber && inv.poNumber !== 'VERBAL' && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                 PO: {inv.poNumber}
                               </div>
                             )}
                           </td>
 
-                          {/* Client Organization */}
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                          {/* 2. Invoice Date */}
+                          <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Calendar size={11} style={{ color: 'var(--text-muted)' }} />
+                              <span>{inv.invoiceDate || inv.date || '—'}</span>
+                            </div>
+                          </td>
+
+                          {/* 3. Client Organization */}
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
                               {inv.customer || inv.customerFullName}
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                               <Mail size={11} />
-                              <span>{inv.customerEmail || 'accounts@client.com'}</span>
+                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                                {inv.customerEmail || 'accounts@client.com'}
+                              </span>
                             </div>
                             {inv.customerGstin && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '1px' }}>
                                 GST: {inv.customerGstin}
                               </div>
                             )}
                           </td>
 
-                          {/* Due Date & Aging Status */}
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '4px' }}>
+                          {/* 4. Due Date */}
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
                                 {inv.dueDate || 'Immediate'}
                               </span>
@@ -1072,7 +1107,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                     border: '1px solid var(--border-color)',
                                     borderRadius: '4px',
                                     padding: '2px 6px',
-                                    fontSize: '10.5px',
+                                    fontSize: '10px',
                                     fontWeight: 600,
                                     color: 'var(--primary)',
                                     cursor: 'pointer',
@@ -1086,6 +1121,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                 </button>
                               )}
                             </div>
+                          </td>
+
+                          {/* 5. Payment & Aging Status */}
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {isZeroBalance ? (
                               <span className="badge badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                                 <Check size={11} /> Fully Settled
@@ -1093,6 +1132,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             ) : inv.isOverdue ? (
                               <span className="badge badge-danger" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
                                 <AlertTriangle size={11} /> Overdue ({inv.overdueDays}d)
+                              </span>
+                            ) : hasPartial ? (
+                              <span className="badge badge-warning" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <Clock size={11} /> Partially Paid
                               </span>
                             ) : inv.dueStatus === 'DUE_SOON' ? (
                               <span className="badge badge-warning" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
@@ -1105,19 +1148,20 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             )}
                           </td>
 
-                          {/* Total Billed */}
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 500 }}>
+                          {/* 6. Total Billed */}
+                          <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
                             ₹{Number(inv.totalNum).toLocaleString('en-IN')}
                           </td>
 
-                          {/* Amount Paid */}
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          {/* 7. Amount Paid */}
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <div style={{ color: inv.paidNum > 0 ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
                               ₹{Number(inv.paidNum).toLocaleString('en-IN')}
                             </div>
                             {inv.totalNum > 0 && (
                               <div style={{
                                 width: '100%',
+                                minWidth: '80px',
                                 height: '4px',
                                 background: 'var(--border-color)',
                                 borderRadius: '2px',
@@ -1133,8 +1177,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             )}
                           </td>
 
-                          {/* Pending Balance */}
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          {/* 8. Pending Balance */}
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <div style={{ 
                               fontWeight: 700, 
                               fontSize: '13px',
@@ -1149,8 +1193,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             )}
                           </td>
 
-                          {/* Reminder Status */}
-                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                          {/* 9. Reminder Status */}
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {inv.lastReminderSent ? (
                               <div title={`Last reminder dispatched on ${new Date(inv.lastReminderSent).toLocaleString()}`}>
                                 <span className="badge badge-info" style={{ fontSize: '10px' }}>
@@ -1167,16 +1211,16 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                             )}
                           </td>
 
-                          {/* Action Buttons */}
-                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          {/* 10. Action Buttons */}
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                               {/* View Tax Invoice Button */}
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => handleViewTaxInvoice(inv)}
                                 title="Open official Tax Invoice in Billing screen"
-                                style={{ gap: '4px', fontSize: '11px', height: '26px', padding: '0 8px' }}
+                                style={{ gap: '4px', fontSize: '11px', height: '28px', padding: '0 8px', whiteSpace: 'nowrap' }}
                               >
                                 <FileText size={12} color="var(--primary)" />
                                 <span>Tax Invoice</span>
@@ -1192,8 +1236,10 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                     borderColor: inv.isOverdue ? 'rgba(239, 68, 68, 0.4)' : undefined,
                                     color: inv.isOverdue ? 'var(--danger)' : undefined,
                                     fontSize: '11px',
-                                    height: '26px',
-                                    padding: '0 8px'
+                                    height: '28px',
+                                    padding: '0 8px',
+                                    whiteSpace: 'nowrap',
+                                    gap: '4px'
                                   }}
                                   title="Draft & send automated reminder email with ICICI bank details"
                                 >
@@ -1209,7 +1255,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                   className="btn btn-primary btn-sm"
                                   onClick={() => handleOpenRecordPayment(inv)}
                                   title="Record incoming payment receipt against this invoice"
-                                  style={{ fontSize: '11px', height: '26px', padding: '0 8px', gap: '4px' }}
+                                  style={{ fontSize: '11px', height: '28px', padding: '0 8px', gap: '4px', whiteSpace: 'nowrap' }}
                                 >
                                   <Plus size={12} />
                                   <span>Pay Receipt</span>
@@ -1223,7 +1269,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                     setIsDetailModalOpen(true);
                                   }}
                                   title="View payment receipt details"
-                                  style={{ fontSize: '11px', height: '26px', padding: '0 8px', gap: '4px' }}
+                                  style={{ fontSize: '11px', height: '28px', padding: '0 8px', gap: '4px', whiteSpace: 'nowrap' }}
                                 >
                                   <Eye size={12} />
                                   <span>History</span>
@@ -1238,23 +1284,240 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {filteredInvoices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  <CheckCircle2 size={32} style={{ color: 'var(--success)', margin: '0 auto 8px' }} />
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+                    No matching invoices found
+                  </div>
+                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                    Try switching filters or clearing your search.
+                  </div>
+                </div>
+              ) : (
+                filteredInvoices.map((inv) => {
+                  const isZeroBalance = inv.balanceNum === 0;
+                  const hasPartial = inv.paidNum > 0 && !isZeroBalance;
+
+                  return (
+                    <div
+                      key={`mob-${inv.id}`}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border: inv.isOverdue ? '1.5px solid #fca5a5' : '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '12px 14px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                      }}
+                    >
+                      {/* Top Header Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          <div 
+                            style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => handleViewTaxInvoice(inv)}
+                          >
+                            <span>{inv.invoiceNumber || inv.id}</span>
+                            <ArrowUpRight size={12} style={{ opacity: 0.8 }} />
+                          </div>
+                          {inv.poNumber && inv.poNumber !== 'VERBAL' && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                              PO: {inv.poNumber}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          {isZeroBalance ? (
+                            <span className="badge badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Check size={11} /> Fully Settled
+                            </span>
+                          ) : inv.isOverdue ? (
+                            <span className="badge badge-danger" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                              <AlertTriangle size={11} /> Overdue ({inv.overdueDays}d)
+                            </span>
+                          ) : hasPartial ? (
+                            <span className="badge badge-warning" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Clock size={11} /> Partially Paid
+                            </span>
+                          ) : inv.dueStatus === 'DUE_SOON' ? (
+                            <span className="badge badge-warning" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Clock size={11} /> Due in {inv.daysRemaining}d
+                            </span>
+                          ) : (
+                            <span className="badge badge-info" style={{ fontSize: '11px' }}>
+                              Current ({inv.daysRemaining}d)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Client Info */}
+                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                          {inv.customer || inv.customerFullName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                          <Mail size={11} />
+                          <span>{inv.customerEmail || 'accounts@client.com'}</span>
+                          {inv.customerGstin && (
+                            <>
+                              <span>•</span>
+                              <span style={{ fontFamily: 'monospace' }}>GST: {inv.customerGstin}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Financial Amounts Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '6px',
+                        background: 'var(--bg-surface-subtle)',
+                        padding: '8px 10px',
+                        borderRadius: '6px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Total Billed</div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                            ₹{Number(inv.totalNum).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Amount Paid</div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: inv.paidNum > 0 ? 'var(--success)' : 'var(--text-muted)', marginTop: '2px' }}>
+                            ₹{Number(inv.paidNum).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Balance Due</div>
+                          <div style={{ 
+                            fontSize: '12px', 
+                            fontWeight: 700, 
+                            color: isZeroBalance ? 'var(--text-muted)' : (inv.isOverdue ? 'var(--danger)' : 'var(--warning)'),
+                            marginTop: '2px'
+                          }}>
+                            ₹{Number(inv.balanceNum).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dates Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar size={11} style={{ color: 'var(--text-muted)' }} />
+                          <span>Date: {inv.invoiceDate || inv.date || '—'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>Due: <strong>{inv.dueDate || 'Immediate'}</strong></span>
+                          {!isZeroBalance && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenManageDueDate(inv)}
+                              style={{
+                                background: 'var(--bg-surface)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '4px',
+                                padding: '1px 5px',
+                                fontSize: '9.5px',
+                                fontWeight: 600,
+                                color: 'var(--primary)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Reschedule
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '6px', paddingTop: '6px', borderTop: '1px solid var(--border-subtle)' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleViewTaxInvoice(inv)}
+                          style={{ flex: 1, fontSize: '11px', height: '32px', padding: '0 6px', justifyContent: 'center' }}
+                        >
+                          <FileText size={12} color="var(--primary)" />
+                          <span>Tax Invoice</span>
+                        </button>
+
+                        {!isZeroBalance && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleOpenInvoiceReminder(inv)}
+                            style={{
+                              flex: 1,
+                              borderColor: inv.isOverdue ? 'rgba(239, 68, 68, 0.4)' : undefined,
+                              color: inv.isOverdue ? 'var(--danger)' : undefined,
+                              fontSize: '11px',
+                              height: '32px',
+                              padding: '0 6px',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Send size={12} />
+                            <span>Reminder</span>
+                          </button>
+                        )}
+
+                        {!isZeroBalance ? (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpenRecordPayment(inv)}
+                            style={{ flex: 1, fontSize: '11px', height: '32px', padding: '0 6px', justifyContent: 'center' }}
+                          >
+                            <Plus size={12} />
+                            <span>Pay Receipt</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setSelectedInvoice(inv);
+                              setIsDetailModalOpen(true);
+                            }}
+                            style={{ flex: 1, fontSize: '11px', height: '32px', padding: '0 6px', justifyContent: 'center' }}
+                          >
+                            <Eye size={12} />
+                            <span>History</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            </>
           )}
 
           {/* TAB 2: OUTSTANDING BY CLIENT */}
           {activeTab === 'clients' && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ margin: 0, width: '100%', fontSize: '13px' }}>
+            <>
+              <div className="table-responsive desktop-table-view" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '1180px' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bg-subtle)' }}>
-                    <th style={{ padding: '10px 14px' }}>Client Organization</th>
-                    <th style={{ padding: '10px 14px' }}>Primary Contact & Email</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '90px' }}>Invoices</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Total Invoiced</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Total Collected</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '130px' }}>Outstanding Balance</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Overdue Amount</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', width: '110px' }}>Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '180px' }}>Quick Actions</th>
+                  <tr>
+                    <th style={{ minWidth: '220px' }}>Client Organization</th>
+                    <th style={{ minWidth: '200px' }}>Primary Contact & Email</th>
+                    <th style={{ minWidth: '95px', textAlign: 'center' }}>Invoices</th>
+                    <th style={{ minWidth: '130px', textAlign: 'right' }}>Total Invoiced</th>
+                    <th style={{ minWidth: '130px', textAlign: 'right' }}>Total Collected</th>
+                    <th style={{ minWidth: '140px', textAlign: 'right' }}>Outstanding Balance</th>
+                    <th style={{ minWidth: '130px', textAlign: 'right' }}>Overdue Amount</th>
+                    <th style={{ minWidth: '120px', textAlign: 'center' }}>Status</th>
+                    <th style={{ minWidth: '180px', textAlign: 'right' }}>Quick Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1344,19 +1607,20 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
 
                           {/* Quick Actions */}
                           <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                            <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'nowrap' }}>
                               {hasPending ? (
                                 <button
                                   type="button"
                                   className="btn btn-secondary btn-sm"
                                   onClick={() => handleOpenClientConsolidatedReminder(client)}
                                   title="Generate and send consolidated statement of accounts reminder email"
+                                  style={{ whiteSpace: 'nowrap', gap: '4px' }}
                                 >
                                   <Send size={12} />
                                   <span>Send Statement</span>
                                 </button>
                               ) : (
-                                <span className="badge badge-success" style={{ fontSize: '11px' }}>
+                                <span className="badge badge-success" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                                   All Settled
                                 </span>
                               )}
@@ -1369,6 +1633,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                                   setActiveTab('invoices');
                                 }}
                                 title="View this client's invoices in ledger"
+                                style={{ whiteSpace: 'nowrap', gap: '4px' }}
                               >
                                 <ArrowUpRight size={12} />
                                 <span>Invoices</span>
@@ -1382,29 +1647,135 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {filteredClients.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  No clients found matching the search query.
+                </div>
+              ) : (
+                filteredClients.map((client) => {
+                  const hasPending = client.totalOutstanding > 0;
+
+                  return (
+                    <div
+                      key={`mob-cli-${client.clientName}`}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '12px 14px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>
+                            {client.clientName}
+                          </div>
+                          {client.gstin && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '1px' }}>
+                              GST: {client.gstin}
+                            </div>
+                          )}
+                        </div>
+                        <span className={`badge ${client.clientBadgeClass}`} style={{ fontSize: '11px' }}>
+                          {client.clientStatus}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                        <div>{client.contactEmail}</div>
+                        {client.contactPhone && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tel: {client.contactPhone}</div>}
+                      </div>
+
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '6px',
+                        background: 'var(--bg-surface-subtle)',
+                        padding: '8px 10px',
+                        borderRadius: '6px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Invoiced</div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                            ₹{client.totalInvoiced.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Collected</div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--success)', marginTop: '2px' }}>
+                            ₹{client.totalPaid.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '9.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Outstanding</div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: hasPending ? 'var(--warning)' : 'var(--text-muted)', marginTop: '2px' }}>
+                            ₹{client.totalOutstanding.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px', paddingTop: '6px', borderTop: '1px solid var(--border-subtle)' }}>
+                        {hasPending && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleOpenClientConsolidatedReminder(client)}
+                            style={{ flex: 1, fontSize: '11px', height: '32px', justifyContent: 'center' }}
+                          >
+                            <Send size={12} />
+                            <span>Statement</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setSelectedClientFilter(client.clientName);
+                            setActiveTab('invoices');
+                          }}
+                          style={{ flex: 1, fontSize: '11px', height: '32px', justifyContent: 'center' }}
+                        >
+                          <ArrowUpRight size={12} />
+                          <span>View Invoices ({client.invoicesCount})</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            </>
           )}
 
           {/* TAB 3: PAYMENT TRANSACTION RECEIPTS LOG */}
           {activeTab === 'receipts' && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ margin: 0, width: '100%', fontSize: '13px' }}>
+            <>
+              <div className="table-responsive desktop-table-view" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '1150px' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bg-subtle)' }}>
-                    <th style={{ padding: '10px 14px', width: '130px' }}>Receipt #</th>
-                    <th style={{ padding: '10px 14px', width: '110px' }}>Payment Date</th>
-                    <th style={{ padding: '10px 14px' }}>Client Organization</th>
-                    <th style={{ padding: '10px 14px', width: '130px' }}>Against Invoice</th>
-                    <th style={{ padding: '10px 14px', width: '120px' }}>Mode</th>
-                    <th style={{ padding: '10px 14px', width: '160px' }}>Reference / UTR #</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', width: '120px' }}>Amount Received</th>
-                    <th style={{ padding: '10px 14px' }}>Notes / Remarks</th>
+                  <tr>
+                    <th style={{ minWidth: '140px' }}>Receipt #</th>
+                    <th style={{ minWidth: '120px' }}>Payment Date</th>
+                    <th style={{ minWidth: '200px' }}>Client Organization</th>
+                    <th style={{ minWidth: '150px' }}>Against Invoice</th>
+                    <th style={{ minWidth: '120px' }}>Payment Mode</th>
+                    <th style={{ minWidth: '170px' }}>Reference / UTR #</th>
+                    <th style={{ minWidth: '140px', textAlign: 'right' }}>Amount Received</th>
+                    <th style={{ minWidth: '180px' }}>Notes / Remarks</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredReceipts.length === 0 ? (
                     <tr>
                       <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                        No payment receipt records found. Click "+ Record Payment" to log an incoming payment.
+                        No payment receipt records found. Click "Record Payment" to log an incoming payment.
                       </td>
                     </tr>
                   ) : (
@@ -1454,6 +1825,53 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card Feed View (≤ 768px) */}
+            <div className="mobile-card-view">
+              {filteredReceipts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  No payment receipt records found.
+                </div>
+              ) : (
+                filteredReceipts.map((rcp) => (
+                  <div
+                    key={`mob-rcp-${rcp.id}`}
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '12px 14px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '13px' }}>
+                        {rcp.id}
+                      </span>
+                      <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '13.5px' }}>
+                        ₹{Number(rcp.amount).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                      {rcp.customerName}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                      <div>Date: {rcp.paymentDate}</div>
+                      <span className="badge badge-info" style={{ fontSize: '10px' }}>{rcp.paymentMode}</span>
+                    </div>
+                    {rcp.referenceNumber && (
+                      <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                        Ref: {rcp.referenceNumber}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            </>
           )}
         </div>
       </div>
@@ -1464,7 +1882,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           isOpen={isRecordModalOpen}
           onClose={() => setIsRecordModalOpen(false)}
           title="Record Client Payment Receipt"
-          width="580px"
+          maxWidth="580px"
         >
           <form onSubmit={handleConfirmPayment}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1497,7 +1915,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   borderRadius: '6px',
                   padding: '12px',
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: '8px',
                   fontSize: '12px'
                 }}>
@@ -1525,7 +1943,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               )}
 
               {/* Amount & Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>
                     Payment Amount (₹) *
@@ -1579,7 +1997,9 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                       fontSize: '11.5px',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '6px 12px'
                     }}>
                       <span>
                         New Paid: <strong>₹{(selectedInvoice.paidNum + Number(formAmount)).toLocaleString('en-IN')}</strong>
@@ -1648,13 +2068,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
 
                 {isUpdatingDueDateInPayment && (
                   <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                       <input
                         type="date"
                         value={formDueDate}
                         onChange={(e) => setFormDueDate(e.target.value)}
                         className="form-control"
-                        style={{ height: '34px', fontSize: '12.5px' }}
+                        style={{ height: '34px', fontSize: '12.5px', flex: '1 1 180px', minWidth: '150px' }}
                         required={isUpdatingDueDateInPayment}
                       />
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -1705,7 +2125,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
 
               {/* Payment Mode & Deposited Bank */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>
                     Payment Remittance Mode *
@@ -1767,12 +2187,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
 
               {/* Modal Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setIsRecordModalOpen(false)}
                   disabled={isSubmittingPayment}
+                  style={{ flex: '1 1 auto', minWidth: '70px' }}
                 >
                   Cancel
                 </button>
@@ -1780,9 +2201,17 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                   type="submit"
                   className="btn btn-primary"
                   disabled={isSubmittingPayment}
+                  style={{ flex: '1 1 auto', justifyContent: 'center' }}
                 >
                   <Check size={14} />
-                  <span>{isSubmittingPayment ? 'Recording...' : 'Record Payment & Update Invoice'}</span>
+                  {isSubmittingPayment ? (
+                    <span>Recording...</span>
+                  ) : (
+                    <>
+                      <span className="desktop-only-inline">Record Payment & Update Invoice</span>
+                      <span className="mobile-only-inline">Record Payment</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1796,7 +2225,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           title={`Payment History — ${selectedInvoice.invoiceNumber || selectedInvoice.id}`}
-          width="640px"
+          maxWidth="640px"
         >
           <div>
             <div style={{
@@ -1809,7 +2238,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-main)', marginBottom: '4px' }}>
                 {selectedInvoice.customer || selectedInvoice.customerFullName}
               </div>
-              <div style={{ display: 'flex', gap: '16px', color: 'var(--text-muted)', fontSize: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px 16px', color: 'var(--text-muted)', fontSize: '12px', flexWrap: 'wrap' }}>
                 <span>Total: <strong>₹{selectedInvoice.totalNum.toLocaleString('en-IN')}</strong></span>
                 <span>Paid: <strong style={{ color: 'var(--success)' }}>₹{selectedInvoice.paidNum.toLocaleString('en-IN')}</strong></span>
                 <span>Balance: <strong style={{ color: selectedInvoice.balanceNum > 0 ? 'var(--danger)' : 'var(--success)' }}>₹{selectedInvoice.balanceNum.toLocaleString('en-IN')}</strong></span>
@@ -1826,7 +2255,9 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                     borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
                   }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--primary)' }}>
@@ -1853,7 +2284,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '8px' }}>
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
@@ -1884,6 +2315,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
           isOpen={isDueDateModalOpen}
           onClose={() => setIsDueDateModalOpen(false)}
           title={`Manage Client Due Date: ${dueDateInvoice.invoiceNumber || dueDateInvoice.id}`}
+          maxWidth="580px"
         >
           <form onSubmit={handleConfirmDueDateUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{
@@ -1892,7 +2324,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               borderRadius: '8px',
               padding: '12px',
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
               gap: '8px',
               fontSize: '12px'
             }}>
@@ -1922,13 +2354,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
                 New Payment Due Date *
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="date"
                   value={modalNewDueDate}
                   onChange={(e) => setModalNewDueDate(e.target.value)}
                   className="form-control"
-                  style={{ height: '36px', fontSize: '13px' }}
+                  style={{ height: '36px', fontSize: '13px', flex: '1 1 180px', minWidth: '150px' }}
                   required
                 />
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -1994,7 +2426,8 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                flexWrap: 'wrap'
               }}>
                 <Clock size={14} color="#0284c7" />
                 <span>
@@ -2031,12 +2464,13 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setIsDueDateModalOpen(false)}
                 disabled={isSavingDueDate}
+                style={{ flex: '1 1 auto', minWidth: '70px' }}
               >
                 Cancel
               </button>
@@ -2044,7 +2478,7 @@ export default function PaymentsScreen({ onNavigate, onNotify }) {
                 type="submit"
                 className="btn btn-primary"
                 disabled={isSavingDueDate}
-                style={{ gap: '6px' }}
+                style={{ gap: '6px', flex: '1 1 auto', justifyContent: 'center' }}
               >
                 {isSavingDueDate ? (
                   <>

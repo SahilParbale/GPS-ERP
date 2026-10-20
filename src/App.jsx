@@ -64,8 +64,8 @@ function AppContent() {
   const { isAuthenticated, isLoading, isLoggingIn, isLoggingOut, canAccessScreen, role } = useAuth();
 
   const [currentScreen, setCurrentScreen] = useState(getInitialScreen);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState(WORK_ORDERS[0]);
-  const [selectedSpindle, setSelectedSpindle] = useState(SPINDLES[0]);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
+  const [selectedSpindle, setSelectedSpindle] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [toasts, setToasts] = useState([]);

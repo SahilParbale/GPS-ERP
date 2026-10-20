@@ -8,10 +8,10 @@ import { customerService } from '../services/database/customerService';
 import { TablePageSkeleton } from '../components/common/Skeleton';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Search, Filter, Plus, Eye, Wrench, Download, 
+import {
+  Search, Filter, Plus, Eye, Wrench, Download,
   Disc, CheckCircle2, Shield, QrCode, RefreshCw, AlertCircle,
-  ShieldAlert, Trash2, Edit3, Layers, Settings, Activity, 
+  ShieldAlert, Trash2, Edit3, Layers, Settings, Activity,
   Clock, Box, Cpu, FileText, ChevronRight, X, Sparkles, Building2
 } from 'lucide-react';
 
@@ -386,7 +386,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
     // Search query
     const query = searchQuery.trim().toLowerCase();
     if (query) {
-      const matchSearch = 
+      const matchSearch =
         (sp.serialNumber || '').toLowerCase().includes(query) ||
         (sp.model || '').toLowerCase().includes(query) ||
         (sp.make || '').toLowerCase().includes(query) ||
@@ -429,8 +429,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
   if (error) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Spindle Fleet & Asset Registry" 
+        <PageHeader
+          title="Spindle Fleet & Asset Registry"
           subtitle="Unified master registry for precision spindles manufactured by GPS, customer units under repair, and cataloged OEM fleet models"
           badge="Database Notice"
         />
@@ -455,13 +455,13 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
   return (
     <div className="content-area">
-      <PageHeader 
-        title="Spindle Fleet & Asset Registry" 
+      <PageHeader
+        title="Spindle Fleet & Asset Registry"
         subtitle="Dedicated master registry of all spindles: GPS manufactured models, customer overhaul & repair jobs, and known OEM fleet specifications"
         badge={`${spindles.length} Total Master Assets`}
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             setPreviewDoc({
@@ -489,308 +489,196 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
           }}
         >
           <Download size={14} />
-          <span>Export Master Registry (PDF)</span>
+          <span className="desktop-only-inline">Export Master Registry (PDF)</span>
+          <span className="mobile-only-inline">Export PDF</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={() => handleOpenRegister(activeTab === 'all' ? 'manufactured' : activeTab)}
           title={canRegister ? "Register Spindle Asset" : "Registration restricted to Production, QA, Service, or Admin"}
           disabled={!canRegister}
         >
           <Plus size={14} />
-          <span>+ Register Spindle Asset</span>
+          <span className="desktop-only-inline">Register Spindle Asset</span>
+          <span className="mobile-only-inline">+ Register</span>
         </button>
       </PageHeader>
 
       <div className="content-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
         {/* Top Operational Category Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: '2px',
-          alignItems: 'center'
-        }}>
-          <button
-            type="button"
+
+
+        {/* KPI Summary Metrics Grid (Standard GPS ERP .metrics-grid) */}
+        <div className="metrics-grid">
+          {/* Card 1: Total Fleet Assets */}
+          <div
             onClick={() => setActiveTab('all')}
+            className={`metric-card interactive ${activeTab === 'all' ? 'active' : ''}`}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'all' ? 600 : 500,
-              color: activeTab === 'all' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'all' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'none',
-              borderTop: 'none',
-              borderLeft: 'none',
-              borderRight: 'none',
-              cursor: 'pointer',
+              border: activeTab === 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+              background: activeTab === 'all' ? 'var(--primary-light, #fdf2f8)' : 'var(--bg-surface)',
+              boxShadow: activeTab === 'all' ? '0 2px 8px rgba(122, 31, 61, 0.08)' : 'none',
               transition: 'all 0.15s ease'
             }}
           >
-            <Layers size={15} />
-            <span>All Fleet Assets</span>
-            <span style={{
-              background: activeTab === 'all' ? '#fdf2f8' : '#f1f5f9',
-              color: activeTab === 'all' ? 'var(--primary)' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '12px'
-            }}>
+            <div className="metric-top">
+              <span className="metric-label">Total Fleet Assets</span>
+              <div
+                className="metric-icon-wrap"
+                style={{
+                  color: 'var(--primary)',
+                  background: activeTab === 'all' ? '#ffffff' : 'var(--primary-light)'
+                }}
+              >
+                <Layers size={15} />
+              </div>
+            </div>
+            <div className="metric-value" style={{ color: activeTab === 'all' ? 'var(--primary)' : 'var(--text-main)' }}>
               {spindles.length}
-            </span>
-          </button>
+            </div>
+            <div className="metric-footer" style={{ color: 'var(--primary)' }}>
+              {spindles.length > 0 ? `Across ${distinctMakes.length} manufacturer${distinctMakes.length === 1 ? '' : 's'}` : 'No spindle assets logged'}
+            </div>
+          </div>
 
-          <button
-            type="button"
+          {/* Card 2: Manufactured by GPS */}
+          <div
             onClick={() => setActiveTab('manufactured')}
+            className={`metric-card interactive ${activeTab === 'manufactured' ? 'active' : ''}`}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'manufactured' ? 600 : 500,
-              color: activeTab === 'manufactured' ? '#7A1F3D' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'manufactured' ? '2px solid #7A1F3D' : '2px solid transparent',
-              background: 'none',
-              borderTop: 'none',
-              borderLeft: 'none',
-              borderRight: 'none',
-              cursor: 'pointer',
+              border: activeTab === 'manufactured' ? '1.5px solid #7A1F3D' : '1px solid var(--border-color)',
+              background: activeTab === 'manufactured' ? '#fdf2f8' : 'var(--bg-surface)',
+              boxShadow: activeTab === 'manufactured' ? '0 2px 8px rgba(122, 31, 61, 0.08)' : 'none',
               transition: 'all 0.15s ease'
             }}
           >
-            <Cpu size={15} />
-            <span>Manufactured by GPS</span>
-            <span style={{
-              background: activeTab === 'manufactured' ? '#fdf2f8' : '#f1f5f9',
-              color: activeTab === 'manufactured' ? '#7A1F3D' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '12px'
-            }}>
+            <div className="metric-top">
+              <span className="metric-label">Manufactured by GPS</span>
+              <div
+                className="metric-icon-wrap"
+                style={{
+                  color: '#7A1F3D',
+                  background: activeTab === 'manufactured' ? '#ffffff' : '#fdf2f8'
+                }}
+              >
+                <Cpu size={15} />
+              </div>
+            </div>
+            <div className="metric-value" style={{ color: '#7A1F3D' }}>
               {manufacturedSpindles.length}
-            </span>
-          </button>
+            </div>
+            <div
+              className="metric-footer"
+              style={{ color: manufacturedSpindles.length > 0 ? '#059669' : 'var(--text-muted)' }}
+            >
+              {manufacturedSpindles.length > 0
+                ? `${manufacturedSpindles.filter(s => s.status === 'Ready' || s.status === 'Operational' || s.status === 'QC Passed').length} Passed QC / Active`
+                : 'No GPS units logged'}
+            </div>
+          </div>
 
-          <button
-            type="button"
+          {/* Card 3: Repairs & Overhauls */}
+          <div
             onClick={() => setActiveTab('repair')}
+            className={`metric-card interactive ${activeTab === 'repair' ? 'active' : ''}`}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'repair' ? 600 : 500,
-              color: activeTab === 'repair' ? '#c2410c' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'repair' ? '2px solid #c2410c' : '2px solid transparent',
-              background: 'none',
-              borderTop: 'none',
-              borderLeft: 'none',
-              borderRight: 'none',
-              cursor: 'pointer',
+              border: activeTab === 'repair' ? '1.5px solid #c2410c' : '1px solid var(--border-color)',
+              background: activeTab === 'repair' ? '#fff7ed' : 'var(--bg-surface)',
+              boxShadow: activeTab === 'repair' ? '0 2px 8px rgba(194, 65, 12, 0.08)' : 'none',
               transition: 'all 0.15s ease'
             }}
           >
-            <Wrench size={15} />
-            <span>Repaired & Serviced Spindles</span>
-            <span style={{
-              background: activeTab === 'repair' ? '#fff7ed' : '#f1f5f9',
-              color: activeTab === 'repair' ? '#c2410c' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '12px'
-            }}>
+            <div className="metric-top">
+              <span className="metric-label">Repairs & Overhauls</span>
+              <div
+                className="metric-icon-wrap"
+                style={{
+                  color: '#c2410c',
+                  background: activeTab === 'repair' ? '#ffffff' : '#fff7ed'
+                }}
+              >
+                <Wrench size={15} />
+              </div>
+            </div>
+            <div className="metric-value" style={{ color: '#c2410c' }}>
               {repairSpindles.length}
-            </span>
-          </button>
+            </div>
+            <div
+              className="metric-footer"
+              style={{ color: repairSpindles.length > 0 ? '#c2410c' : 'var(--text-muted)' }}
+            >
+              {repairSpindles.length > 0
+                ? `${repairSpindles.filter(s => s.status === 'Under Service').length} in workshop`
+                : 'Workshop clear'}
+            </div>
+          </div>
 
-          <button
-            type="button"
+          {/* Card 4: Cataloged & Known Fleet */}
+          <div
             onClick={() => setActiveTab('catalog')}
+            className={`metric-card interactive ${activeTab === 'catalog' ? 'active' : ''}`}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'catalog' ? 600 : 500,
-              color: activeTab === 'catalog' ? '#1d4ed8' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'catalog' ? '2px solid #1d4ed8' : '2px solid transparent',
-              background: 'none',
-              borderTop: 'none',
-              borderLeft: 'none',
-              borderRight: 'none',
-              cursor: 'pointer',
+              border: activeTab === 'catalog' ? '1.5px solid #1d4ed8' : '1px solid var(--border-color)',
+              background: activeTab === 'catalog' ? '#eff6ff' : 'var(--bg-surface)',
+              boxShadow: activeTab === 'catalog' ? '0 2px 8px rgba(29, 78, 216, 0.08)' : 'none',
               transition: 'all 0.15s ease'
             }}
           >
-            <Box size={15} />
-            <span>Cataloged & Known Fleet</span>
-            <span style={{
-              background: activeTab === 'catalog' ? '#eff6ff' : '#f1f5f9',
-              color: activeTab === 'catalog' ? '#1d4ed8' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '12px'
-            }}>
+            <div className="metric-top">
+              <span className="metric-label">Cataloged & Known Fleet</span>
+              <div
+                className="metric-icon-wrap"
+                style={{
+                  color: '#1d4ed8',
+                  background: activeTab === 'catalog' ? '#ffffff' : '#eff6ff'
+                }}
+              >
+                <Box size={15} />
+              </div>
+            </div>
+            <div className="metric-value" style={{ color: '#1d4ed8' }}>
               {catalogSpindles.length}
-            </span>
-          </button>
-        </div>
-
-        {/* 4 KPI Summary Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '12px'
-        }}>
-          <div className="section-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#fdf2f8',
-              color: '#7A1F3D',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Layers size={22} />
             </div>
-            <div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Total Fleet Assets
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                {spindles.length}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Across {distinctMakes.length} spindle manufacturers
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#fdf2f8',
-              color: '#9d174d',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Cpu size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Manufactured by GPS
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: '#9d174d', lineHeight: 1.2 }}>
-                {manufacturedSpindles.length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#059669', fontWeight: 500 }}>
-                {manufacturedSpindles.filter(s => s.status === 'Ready' || s.status === 'Operational' || s.status === 'QC Passed').length} Passed QC / Active
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#fff7ed',
-              color: '#c2410c',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Wrench size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Repairs & Overhauls
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: '#c2410c', lineHeight: 1.2 }}>
-                {repairSpindles.length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 500 }}>
-                {repairSpindles.filter(s => s.status === 'Under Service').length} Currently in workshop
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#eff6ff',
-              color: '#1d4ed8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Box size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Cataloged & Known Fleet
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: '#1d4ed8', lineHeight: 1.2 }}>
-                {catalogSpindles.length}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                OEM models with full tech clearance
-              </div>
+            <div className="metric-footer" style={{ color: '#1d4ed8' }}>
+              {catalogSpindles.length > 0 ? 'OEM Benchmark Models' : 'No OEM benchmarks cataloged'}
             </div>
           </div>
         </div>
 
         {/* Main Table Card */}
         <div className="section-card">
-          {/* Single-line Filter Bar */}
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-color)',
-            background: 'var(--bg-light, #fafafa)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            flexWrap: 'nowrap',
-            width: '100%',
-            overflowX: 'auto'
-          }}>
-            {/* Search Input */}
-            <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '220px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input 
-                type="text" 
-                className="form-control"
-                placeholder="Search serial, make, model, customer, job #..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: '32px', height: '36px', fontSize: '13px' }}
-              />
-            </div>
+          {/* Responsive Fluid Filter Bar */}
+          <div className="filter-bar">
+            <div className="filter-group" style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Search Input */}
+              <div className="search-input-wrap" style={{ flex: '1 1 240px', minWidth: '220px', maxWidth: '340px' }}>
+                <Search size={14} className="search-icon" />
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ width: '100%', height: '32px' }}
+                  placeholder="Search serial, make, model, customer..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
 
-            {/* Make / OEM Filter */}
-            <div style={{ flex: '0 0 170px', minWidth: '150px' }}>
-              <CustomSelect 
+              {/* Make / OEM Filter */}
+              <CustomSelect
+                style={{ minWidth: '170px', width: 'auto' }}
+                triggerStyle={{ height: '32px' }}
                 value={makeFilter}
                 onChange={(e) => setMakeFilter(e.target.value)}
                 placeholder="All Spindle Makes"
@@ -799,11 +687,11 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   ...distinctMakes.map(m => ({ value: m, label: m }))
                 ]}
               />
-            </div>
 
-            {/* Operational Status Filter */}
-            <div style={{ flex: '0 0 180px', minWidth: '160px' }}>
-              <CustomSelect 
+              {/* Operational Status Filter */}
+              <CustomSelect
+                style={{ minWidth: '160px', width: 'auto' }}
+                triggerStyle={{ height: '32px' }}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 placeholder="All Statuses"
@@ -818,11 +706,11 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   { value: 'cataloged asset', label: 'Cataloged Asset' }
                 ]}
               />
-            </div>
 
-            {/* Spindle Type Filter */}
-            <div style={{ flex: '0 0 170px', minWidth: '150px' }}>
-              <CustomSelect 
+              {/* Spindle Type Filter */}
+              <CustomSelect
+                style={{ minWidth: '180px', width: 'auto' }}
+                triggerStyle={{ height: '32px' }}
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 placeholder="All Spindle Types"
@@ -835,30 +723,29 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   { value: 'grinding', label: 'Internal Grinding' }
                 ]}
               />
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={resetFilters}
+                  style={{ height: '32px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  title="Reset all filters"
+                >
+                  <X size={12} />
+                  <span>Reset</span>
+                </button>
+              )}
             </div>
 
-            {/* Clear Filters Button */}
-            {hasActiveFilters && (
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-sm"
-                onClick={resetFilters}
-                style={{ flex: '0 0 auto', height: '36px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-                title="Reset all filters"
-              >
-                <X size={13} />
-                <span>Reset</span>
-              </button>
-            )}
-
-            {/* Total Results Count */}
-            <div style={{ flex: '0 0 auto', fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
-              Showing <strong>{filteredSpindles.length}</strong> of {spindles.length}
+            <div className="filter-summary-count" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+              Showing <strong>{filteredSpindles.length}</strong> of {spindles.length} assets
             </div>
           </div>
 
-          {/* Table */}
-          <div className="table-responsive">
+          {/* Desktop Table View */}
+          <div className="table-responsive desktop-table-view">
             <table className="data-table">
               <thead>
                 <tr>
@@ -1029,8 +916,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm"
                             onClick={() => {
                               if (onSelectSpindle) onSelectSpindle(sp);
@@ -1043,8 +930,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                             <span>Twin</span>
                           </button>
 
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm btn-icon"
                             onClick={() => setSelectedSpindleForHistory(sp)}
                             title="View Technical Specifications & Overhaul Details"
@@ -1053,8 +940,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                             <FileText size={12} />
                           </button>
 
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm btn-icon"
                             onClick={() => handleOpenUpdateModal(sp)}
                             title="Quick Status & Stage Update"
@@ -1063,8 +950,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                             <Edit3 size={12} />
                           </button>
 
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm btn-icon"
                             onClick={() => setDeleteConfirmSpindle(sp)}
                             title="Delete Asset from Registry"
@@ -1080,25 +967,425 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 {filteredSpindles.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                      <AlertCircle size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>No spindle assets match your active filters</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                        Try clearing filters or search term, or register a new spindle asset.
-                      </div>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm"
-                        onClick={resetFilters}
-                        style={{ marginTop: '12px' }}
-                      >
-                        Reset All Filters
-                      </button>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
+                      {hasActiveFilters ? (
+                        /* Case 1: Search query or filter dropdowns actively filtered out results */
+                        <div>
+                          <AlertCircle size={32} style={{ margin: '0 auto 10px', color: '#94a3b8' }} />
+                          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>
+                            No spindle assets match your active filters
+                          </div>
+                          <div style={{ fontSize: '13px', marginTop: '6px', color: 'var(--text-secondary)', maxWidth: '440px', margin: '6px auto 14px', lineHeight: 1.5 }}>
+                            {searchQuery ? `No assets matched "${searchQuery}". ` : ''}Try adjusting or resetting your filter criteria to view available spindle assets.
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={resetFilters}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <X size={13} />
+                            <span>Reset All Filters</span>
+                          </button>
+                        </div>
+                      ) : spindles.length === 0 ? (
+                        /* Case 2: Entire fleet registry is empty (0 total spindles) */
+                        <div>
+                          <div style={{
+                            width: '52px',
+                            height: '52px',
+                            borderRadius: '50%',
+                            background: '#fdf2f8',
+                            color: '#7A1F3D',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 12px'
+                          }}>
+                            <Disc size={26} />
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                            No Spindle Assets Registered in Fleet
+                          </div>
+                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '460px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+                            Your master fleet registry is clean with no registered units. Register your first precision spindle, inward customer repair job, or OEM benchmark asset to begin tracking digital twins.
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpenRegister(activeTab === 'all' ? 'manufactured' : activeTab)}
+                            disabled={!canRegister}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
+                          >
+                            <Plus size={14} />
+                            <span>Register First Spindle Asset</span>
+                          </button>
+                        </div>
+                      ) : (
+                        /* Case 3: Overall registry has assets, but selected tab has 0 */
+                        <div>
+                          <div style={{
+                            width: '52px',
+                            height: '52px',
+                            borderRadius: '50%',
+                            background: activeTab === 'manufactured' ? '#fdf2f8' : (activeTab === 'repair' ? '#fff7ed' : '#eff6ff'),
+                            color: activeTab === 'manufactured' ? '#7A1F3D' : (activeTab === 'repair' ? '#c2410c' : '#1d4ed8'),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 12px'
+                          }}>
+                            {activeTab === 'manufactured' ? <Cpu size={26} /> : (activeTab === 'repair' ? <Wrench size={26} /> : <Box size={26} />)}
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                            {activeTab === 'manufactured' && 'No GPS Manufactured Spindles'}
+                            {activeTab === 'repair' && 'No Customer Service / Repair Spindles'}
+                            {activeTab === 'catalog' && 'No Cataloged Fleet Assets'}
+                          </div>
+                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '460px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+                            {activeTab === 'manufactured' && 'No motorized or mechanical spindles built by GPS are currently logged in the registry.'}
+                            {activeTab === 'repair' && 'There are currently no inward customer spindle overhaul or repair jobs in the service workshop.'}
+                            {activeTab === 'catalog' && 'No external OEM spindle benchmark models have been added to the master fleet registry.'}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpenRegister(activeTab)}
+                            disabled={!canRegister}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
+                          >
+                            <Plus size={14} />
+                            <span>
+                              {activeTab === 'manufactured' && 'Register GPS Spindle'}
+                              {activeTab === 'repair' && 'Inward Repair Spindle'}
+                              {activeTab === 'catalog' && 'Register Catalog Asset'}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card Feed View (≤ 768px) */}
+          <div className="mobile-card-view">
+            {filteredSpindles.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                {hasActiveFilters ? (
+                  <div>
+                    <AlertCircle size={28} style={{ margin: '0 auto 8px', color: '#94a3b8' }} />
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+                      No matching spindle assets found
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '12px' }}>
+                      Try resetting your active filters or search terms.
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={resetFilters}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '0 auto' }}
+                    >
+                      <X size={12} />
+                      <span>Reset Filters</span>
+                    </button>
+                  </div>
+                ) : spindles.length === 0 ? (
+                  <div>
+                    <Disc size={28} style={{ margin: '0 auto 8px', color: 'var(--primary)' }} />
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+                      No spindle assets registered in fleet
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleOpenRegister(activeTab === 'all' ? 'manufactured' : activeTab)}
+                      disabled={!canRegister}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '10px auto 0' }}
+                    >
+                      <Plus size={12} />
+                      <span>Register First Spindle</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: activeTab === 'manufactured' ? '#fdf2f8' : (activeTab === 'repair' ? '#fff7ed' : '#eff6ff'),
+                      color: activeTab === 'manufactured' ? '#7A1F3D' : (activeTab === 'repair' ? '#c2410c' : '#1d4ed8'),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 10px'
+                    }}>
+                      {activeTab === 'manufactured' ? <Cpu size={22} /> : (activeTab === 'repair' ? <Wrench size={22} /> : <Box size={22} />)}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                      {activeTab === 'manufactured' && 'No GPS Manufactured Spindles'}
+                      {activeTab === 'repair' && 'No Customer Repair Spindles'}
+                      {activeTab === 'catalog' && 'No Cataloged Fleet Assets'}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleOpenRegister(activeTab)}
+                      disabled={!canRegister}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '8px auto 0' }}
+                    >
+                      <Plus size={12} />
+                      <span>
+                        {activeTab === 'manufactured' && 'Register GPS Spindle'}
+                        {activeTab === 'repair' && 'Inward Repair Spindle'}
+                        {activeTab === 'catalog' && 'Register Catalog Asset'}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              filteredSpindles.map((sp) => {
+                const isMfg = sp.category === 'manufactured';
+                const isRepair = sp.category === 'repair';
+                const isCat = sp.category === 'catalog';
+
+                return (
+                  <div
+                    key={sp.serialNumber || sp.id}
+                    className="spindle-mobile-card"
+                    onClick={() => {
+                      if (onSelectSpindle) onSelectSpindle(sp);
+                      onNavigate('spindle-detail');
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}
+                  >
+                    {/* Top Row: Serial/Job + Category Pill + Status */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '13px' }}>
+                            {sp.serialNumber}
+                          </span>
+                          {isMfg && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              background: '#fdf2f8',
+                              color: '#7A1F3D',
+                              border: '1px solid #fbcfe8'
+                            }}>
+                              <Cpu size={10} />
+                              GPS Built
+                            </span>
+                          )}
+                          {isRepair && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              background: '#fff7ed',
+                              color: '#c2410c',
+                              border: '1px solid #fed7aa'
+                            }}>
+                              <Wrench size={10} />
+                              Repair Job
+                            </span>
+                          )}
+                          {isCat && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              <Box size={10} />
+                              Catalog
+                            </span>
+                          )}
+                        </div>
+                        {sp.inwardJobNumber ? (
+                          <div className="mono" style={{ fontSize: '11px', color: '#c2410c', fontWeight: 600 }}>
+                            Job: {sp.inwardJobNumber}
+                          </div>
+                        ) : (
+                          <div className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            {sp.qrCode || sp.serialNumber}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flexShrink: 0 }}>
+                        <StatusBadge status={sp.status} size="sm" />
+                      </div>
+                    </div>
+
+                    {/* Model & Make Row */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                        <span style={{
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: '#f1f5f9',
+                          color: '#334155',
+                          border: '1px solid #cbd5e1'
+                        }}>
+                          {sp.make || 'GPS Spindle'}
+                        </span>
+                      </div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+                        {sp.model}
+                      </div>
+                      {sp.machineTool && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Tool: {sp.machineTool}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Customer & Location */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      padding: '6px 10px',
+                      background: 'var(--bg-light, #f8fafc)',
+                      borderRadius: '6px',
+                      fontSize: '11.5px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, overflow: 'hidden' }}>
+                        <Building2 size={12} color="var(--primary)" style={{ flexShrink: 0 }} />
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {sp.customer || 'Internal GPS Inventory'}
+                        </span>
+                      </div>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', flexShrink: 0 }}>
+                        {sp.plantLocation || sp.currentLocation || 'Pune Plant 1'}
+                      </span>
+                    </div>
+
+                    {/* Technical Specs Pill Strip */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '6px',
+                      fontSize: '11px'
+                    }}>
+                      <div style={{ padding: '4px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Taper & RPM: </span>
+                        <strong style={{ color: 'var(--primary)' }}>{sp.taper || sp.interface || 'HSK-A63'}</strong> • {sp.rpm}
+                      </div>
+                      <div style={{ padding: '4px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Power: </span>
+                        <strong>{sp.power}</strong> • {sp.torque || '32 Nm'}
+                      </div>
+                      <div style={{ padding: '4px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Runout: </span>
+                        <strong className="mono" style={{ color: parseFloat(sp.runout || '0.6') <= 1.0 ? '#059669' : '#d97706' }}>
+                          {sp.runout || '0.6 µm'}
+                        </strong>
+                      </div>
+                      <div style={{ padding: '4px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #f1f5f9' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Vib: </span>
+                        <strong className="mono" style={{ color: 'var(--text-secondary)' }}>
+                          {sp.vibration || '0.27 mm/s'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Current Stage if present */}
+                    {sp.stage && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Activity size={11} color="var(--primary)" />
+                        <span>Current Stage: <strong style={{ color: 'var(--text-primary)' }}>{sp.stage}</strong></span>
+                      </div>
+                    )}
+
+                    {/* Action Buttons Row */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '6px',
+                        paddingTop: '8px',
+                        borderTop: '1px solid var(--border-color, #e2e8f0)',
+                        marginTop: '2px'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          if (onSelectSpindle) onSelectSpindle(sp);
+                          onNavigate('spindle-detail');
+                        }}
+                        style={{ flex: 1, padding: '4px 8px', fontSize: '11px', justifyContent: 'center' }}
+                      >
+                        <Eye size={12} />
+                        <span>Digital Twin</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSelectedSpindleForHistory(sp)}
+                        title="Technical Specs & Scope"
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        <FileText size={12} />
+                        <span className="desktop-only-inline">Specs</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenUpdateModal(sp)}
+                        title="Quick Update"
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        <Edit3 size={12} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setDeleteConfirmSpindle(sp)}
+                        title="Delete Spindle"
+                        style={{ padding: '4px 8px', fontSize: '11px', color: '#dc2626' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -1108,20 +1395,22 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
           onClose={() => !isRegistering && setIsRegisterOpen(false)}
           title="Register Spindle Asset into Master Registry"
           footer={
-            <>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsRegisterOpen(false)}
                 disabled={isRegistering}
+                style={{ flex: '1 1 auto', minWidth: '90px' }}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={handleRegisterSubmit}
                 disabled={isRegistering || !canRegister || !formData.serialNumber.trim()}
+                style={{ flex: '1 1 auto', minWidth: '160px' }}
               >
                 {isRegistering ? (
                   <>
@@ -1135,7 +1424,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   </>
                 )}
               </button>
-            </>
+            </div>
           }
         >
           <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1180,7 +1469,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
               borderRadius: '8px',
               padding: '4px',
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
               gap: '4px'
             }}>
               <button
@@ -1279,9 +1568,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                       </button>
                     )}
                   </label>
-                  <input 
-                    type="text" 
-                    className="form-control mono" 
+                  <input
+                    type="text"
+                    className="form-control mono"
                     value={formData.serialNumber}
                     onChange={(e) => setFormData(p => ({ ...p, serialNumber: e.target.value.toUpperCase() }))}
                     placeholder={registerCategory === 'manufactured' ? 'e.g. GPS-2026-0850' : (registerCategory === 'repair' ? 'e.g. KES-2024-9102' : 'e.g. CAT-IBAG-170')}
@@ -1293,17 +1582,17 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 <div className="form-group">
                   <label className="form-label">Spindle Make / OEM *</label>
                   {registerCategory === 'manufactured' ? (
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      value="GPS Spindle" 
-                      disabled 
+                    <input
+                      type="text"
+                      className="form-control"
+                      value="GPS Spindle"
+                      disabled
                       style={{ background: '#f1f5f9' }}
                     />
                   ) : (
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       value={formData.make}
                       onChange={(e) => setFormData(p => ({ ...p, make: e.target.value }))}
                       placeholder="e.g. Franz Kessler, Weiss, Fischer, Setco, IBAG..."
@@ -1314,9 +1603,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 {/* Field 3: Model */}
                 {registerCategory === 'manufactured' ? (
-                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label className="form-label">Spindle Engineering Model Master *</label>
-                    <CustomSelect 
+                    <CustomSelect
                       value={formData.modelId}
                       onChange={(e) => handleModelSelect(e.target.value)}
                       placeholder="-- Select GPS Engineering Model --"
@@ -1329,11 +1618,11 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                     />
                   </div>
                 ) : (
-                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label className="form-label">Model Designation / Code *</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       value={formData.model}
                       onChange={(e) => setFormData(p => ({ ...p, model: e.target.value }))}
                       placeholder="e.g. DMS 112.AL.4.FOS or HSC 170-40/12"
@@ -1348,7 +1637,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                     {registerCategory === 'catalog' ? 'Benchmark Reference' : 'Customer Account / Client'}
                   </label>
                   {customers.length > 0 ? (
-                    <CustomSelect 
+                    <CustomSelect
                       value={formData.customerId}
                       onChange={(e) => {
                         const cust = customers.find(c => c.id === e.target.value);
@@ -1369,9 +1658,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                       ]}
                     />
                   ) : (
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       value={formData.customer}
                       onChange={(e) => setFormData(p => ({ ...p, customer: e.target.value }))}
                       placeholder="Customer Company Name"
@@ -1381,9 +1670,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group">
                   <label className="form-label">Machine Tool / Application</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
+                  <input
+                    type="text"
+                    className="form-control"
                     value={formData.machineTool}
                     onChange={(e) => setFormData(p => ({ ...p, machineTool: e.target.value }))}
                     placeholder="e.g. Makino A51nx, DMG Mori NHX 4000, Fanuc Robodrill..."
@@ -1395,9 +1684,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   <>
                     <div className="form-group">
                       <label className="form-label">Inward Service Job Number</label>
-                      <input 
-                        type="text" 
-                        className="form-control mono" 
+                      <input
+                        type="text"
+                        className="form-control mono"
                         value={formData.inwardJobNumber}
                         onChange={(e) => setFormData(p => ({ ...p, inwardJobNumber: e.target.value }))}
                         placeholder="e.g. JOB-2026-9102"
@@ -1406,18 +1695,18 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                     <div className="form-group">
                       <label className="form-label">Target Dispatch / Delivery Date</label>
-                      <input 
-                        type="date" 
-                        className="form-control" 
+                      <input
+                        type="date"
+                        className="form-control"
                         value={formData.targetDispatchDate}
                         onChange={(e) => setFormData(p => ({ ...p, targetDispatchDate: e.target.value }))}
                       />
                     </div>
 
-                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                       <label className="form-label">Reported Defect & Failure Symptoms</label>
-                      <textarea 
-                        className="form-control" 
+                      <textarea
+                        className="form-control"
                         rows={2}
                         value={formData.defectReason}
                         onChange={(e) => setFormData(p => ({ ...p, defectReason: e.target.value }))}
@@ -1430,7 +1719,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 {/* Technical Specs: Taper, RPM, Power, Lubrication */}
                 <div className="form-group">
                   <label className="form-label">Taper Interface</label>
-                  <CustomSelect 
+                  <CustomSelect
                     value={formData.taper}
                     onChange={(e) => setFormData(p => ({ ...p, taper: e.target.value }))}
                     options={[
@@ -1447,9 +1736,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group">
                   <label className="form-label">Max Operating RPM</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
+                  <input
+                    type="number"
+                    className="form-control"
                     value={formData.maxRpm}
                     onChange={(e) => {
                       const val = Number(e.target.value);
@@ -1462,17 +1751,17 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 <div className="form-group">
                   <label className="form-label">Rated Power & Torque</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       value={formData.power}
                       onChange={(e) => setFormData(p => ({ ...p, power: e.target.value }))}
                       placeholder="e.g. 15 kW"
                       style={{ flex: 1 }}
                     />
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       value={formData.torque}
                       onChange={(e) => setFormData(p => ({ ...p, torque: e.target.value }))}
                       placeholder="e.g. 32 Nm"
@@ -1483,7 +1772,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group">
                   <label className="form-label">Operational Status</label>
-                  <CustomSelect 
+                  <CustomSelect
                     value={formData.status}
                     onChange={(e) => setFormData(p => ({ ...p, status: e.target.value }))}
                     options={[
@@ -1498,9 +1787,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   />
                 </div>
 
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label className="form-label">Workshop Location / Facility</label>
-                  <CustomSelect 
+                  <CustomSelect
                     value={formData.currentLocation}
                     onChange={(e) => setFormData(p => ({ ...p, currentLocation: e.target.value }))}
                     options={[
@@ -1512,10 +1801,10 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                   />
                 </div>
 
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label className="form-label">Technical Notes & Overhaul Scope</label>
-                  <textarea 
-                    className="form-control" 
+                  <textarea
+                    className="form-control"
                     rows={2}
                     value={formData.notes}
                     onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
@@ -1534,9 +1823,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
             onClose={() => setSelectedSpindleForHistory(null)}
             title={`Spindle Asset Details: ${selectedSpindleForHistory.serialNumber}`}
             footer={
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setSelectedSpindleForHistory(null)}
               >
                 Close
@@ -1552,7 +1841,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 border: `1px solid ${selectedSpindleForHistory.category === 'repair' ? '#ffedd5' : '#e2e8f0'}`,
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px'
               }}>
                 <div>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -1601,7 +1892,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 </div>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                   gap: '8px 16px',
                   background: '#f8fafc',
                   padding: '12px',
@@ -1627,7 +1918,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 </div>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
                   gap: '8px',
                   textAlign: 'center'
                 }}>
@@ -1680,20 +1971,22 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
             onClose={() => !isUpdating && setSelectedSpindleForUpdate(null)}
             title={`Update Spindle Asset: ${selectedSpindleForUpdate.serialNumber}`}
             footer={
-              <>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => setSelectedSpindleForUpdate(null)}
                   disabled={isUpdating}
+                  style={{ flex: '1 1 auto', minWidth: '90px' }}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   onClick={handleUpdateSubmit}
                   disabled={isUpdating}
+                  style={{ flex: '1 1 auto', minWidth: '130px' }}
                 >
                   {isUpdating ? (
                     <>
@@ -1707,7 +2000,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                     </>
                   )}
                 </button>
-              </>
+              </div>
             }
           >
             <form onSubmit={handleUpdateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1725,7 +2018,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
               <div className="form-group">
                 <label className="form-label">Operational Status</label>
-                <CustomSelect 
+                <CustomSelect
                   value={updateFormData.status}
                   onChange={(e) => setUpdateFormData(p => ({ ...p, status: e.target.value }))}
                   options={[
@@ -1742,7 +2035,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
               <div className="form-group">
                 <label className="form-label">Current Workshop Stage</label>
-                <CustomSelect 
+                <CustomSelect
                   value={updateFormData.stage}
                   onChange={(e) => setUpdateFormData(p => ({ ...p, stage: e.target.value }))}
                   options={[
@@ -1759,12 +2052,12 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">Runout Measured (µm)</label>
-                  <input 
-                    type="text" 
-                    className="form-control mono" 
+                  <input
+                    type="text"
+                    className="form-control mono"
                     value={updateFormData.runout}
                     onChange={(e) => setUpdateFormData(p => ({ ...p, runout: e.target.value }))}
                     placeholder="e.g. 0.6 µm"
@@ -1773,9 +2066,9 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
                 <div className="form-group">
                   <label className="form-label">Vibration RMS (mm/s)</label>
-                  <input 
-                    type="text" 
-                    className="form-control mono" 
+                  <input
+                    type="text"
+                    className="form-control mono"
                     value={updateFormData.vibration}
                     onChange={(e) => setUpdateFormData(p => ({ ...p, vibration: e.target.value }))}
                     placeholder="e.g. 0.27 mm/s"
@@ -1785,8 +2078,8 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
 
               <div className="form-group">
                 <label className="form-label">Workshop Progress Log & Notes</label>
-                <textarea 
-                  className="form-control" 
+                <textarea
+                  className="form-control"
                   rows={2}
                   value={updateFormData.notes}
                   onChange={(e) => setUpdateFormData(p => ({ ...p, notes: e.target.value }))}
@@ -1804,25 +2097,26 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
             onClose={() => !isDeleting && setDeleteConfirmSpindle(null)}
             title="Confirm Spindle Deletion"
             footer={
-              <>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => setDeleteConfirmSpindle(null)}
                   disabled={isDeleting}
+                  style={{ flex: '1 1 auto', minWidth: '90px' }}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-danger" 
+                <button
+                  type="button"
+                  className="btn btn-danger"
                   onClick={handleDeleteSpindle}
                   disabled={isDeleting}
-                  style={{ background: '#dc2626', borderColor: '#dc2626', color: '#fff' }}
+                  style={{ background: '#dc2626', borderColor: '#dc2626', color: '#fff', flex: '1 1 auto', minWidth: '120px' }}
                 >
                   {isDeleting ? 'Deleting...' : 'Delete Spindle'}
                 </button>
-              </>
+              </div>
             }
           >
             <div style={{ padding: '12px 0' }}>
@@ -1837,7 +2131,7 @@ export default function SpindleRegistryScreen({ onNavigate, onSelectSpindle, onN
         )}
 
         {/* Spindle Registry Pop-up PDF Preview Modal */}
-        <DocumentPreviewModal 
+        <DocumentPreviewModal
           isOpen={isPreviewOpen}
           onClose={() => setIsPreviewOpen(false)}
           doc={previewDoc}

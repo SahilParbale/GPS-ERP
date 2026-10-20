@@ -837,10 +837,170 @@ export function LoginScreenSkeleton({ message = 'Securely signing out of plant s
  */
 export function AppShellSkeleton({ message = 'Authenticating & Initializing Precision ERP...' }) {
   return (
-    <div className="app-container skeleton-fade-in" style={{ height: '100vh', display: 'flex', overflow: 'hidden' }}>
-      {/* Sidebar Shimmer */}
+    <div className="app-container skeleton-fade-in" style={{ height: '100vh', height: '100dvh', width: '100vw', display: 'flex', position: 'relative', overflow: 'hidden' }}>
+      {/* Centered Workspace Restoration Splash (Perfect Center on Mobile & Desktop) */}
+      {message && (
+        <div 
+          className="app-shell-skeleton-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px 16px',
+            background: 'linear-gradient(145deg, #FAF4F6 0%, #FFFFFF 50%, #F5ECF0 100%)',
+            boxSizing: 'border-box'
+          }}
+        >
+          <div 
+            className="app-shell-skeleton-card"
+            style={{
+              width: '100%',
+              maxWidth: '390px',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1px solid rgba(122, 31, 61, 0.15)',
+              boxShadow: '0 20px 45px -10px rgba(122, 31, 61, 0.15), 0 4px 16px rgba(0, 0, 0, 0.04)',
+              padding: '36px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              margin: 'auto'
+            }}
+          >
+            {/* Brand Logo Container */}
+            <div 
+              style={{
+                background: '#FFFFFF',
+                padding: '10px 18px',
+                borderRadius: '12px',
+                border: '1px solid #F0D9E0',
+                boxShadow: '0 2px 10px rgba(122, 31, 61, 0.06)',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <img 
+                src="/logo.jpg" 
+                alt="General Precision Spindles" 
+                style={{ 
+                  height: '48px', 
+                  maxWidth: '220px', 
+                  display: 'block', 
+                  objectFit: 'contain' 
+                }} 
+              />
+            </div>
+
+            {/* Spinner Pulse */}
+            <div 
+              style={{
+                position: 'relative',
+                width: '38px',
+                height: '38px',
+                marginBottom: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <div 
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  border: '3px solid #F5E6EC',
+                }} 
+              />
+              <div 
+                className="spin"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  border: '3px solid transparent',
+                  borderTopColor: '#7A1F3D',
+                  borderRightColor: '#7A1F3D'
+                }} 
+              />
+            </div>
+
+            {/* Message / Title */}
+            <div 
+              style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#2A0E17',
+                letterSpacing: '-0.2px',
+                lineHeight: '1.4',
+                marginBottom: '8px'
+              }}
+            >
+              {message}
+            </div>
+
+            {/* Subtitle Telemetry */}
+            <div 
+              style={{
+                fontSize: '12.5px',
+                color: '#7A1F3D',
+                fontWeight: 500,
+                opacity: 0.85,
+                lineHeight: '1.5',
+                marginBottom: '22px',
+                maxWidth: '290px'
+              }}
+            >
+              Synchronizing plant operations, live telemetry & secure session...
+            </div>
+
+            {/* Animated Indeterminate Progress Bar */}
+            <div 
+              style={{
+                width: '200px',
+                maxWidth: '85%',
+                height: '4px',
+                backgroundColor: '#F5E6EC',
+                borderRadius: '9999px',
+                overflow: 'hidden',
+                position: 'relative',
+                marginBottom: '22px'
+              }}
+            >
+              <div className="skeleton-shimmer-bar" />
+            </div>
+
+            {/* Security Safeguard Tag */}
+            <div 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 12px',
+                borderRadius: '9999px',
+                background: '#FAF0F3',
+                border: '1px solid #E8D0D8',
+                fontSize: '11px',
+                color: '#7A1F3D',
+                fontWeight: 600
+              }}
+            >
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
+              <span>ISO 9001:2015 Manufacturing System Active</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Background Sidebar Shimmer (Hidden on mobile via CSS) */}
       <div 
-        className="app-sidebar" 
+        className="app-sidebar skeleton-sidebar-desktop" 
         style={{ 
           width: '240px', 
           flexShrink: 0, 
@@ -895,31 +1055,22 @@ export function AppShellSkeleton({ message = 'Authenticating & Initializing Prec
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'space-between', 
-            padding: '0 24px' 
+            padding: '0 20px' 
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Skeleton width="28px" height="28px" borderRadius="6px" />
-            <Skeleton width="240px" height="32px" borderRadius="6px" />
+            <Skeleton width="180px" height="32px" borderRadius="6px" />
           </div>
 
-          {/* Active Status Badge if message */}
-          {message && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'var(--bg-surface-subtle)', borderRadius: '9999px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--primary)', fontWeight: 600 }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-              <span>{message}</span>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Skeleton width="110px" height="30px" borderRadius="6px" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Skeleton width="32px" height="32px" variant="circle" />
             <Skeleton width="32px" height="32px" variant="circle" />
           </div>
         </div>
 
         {/* Main Dashboard Shimmer Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <DashboardSkeleton />
         </div>
       </div>

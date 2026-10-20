@@ -11,62 +11,22 @@ import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import { isCleanSlateMode, toggleCleanSlateMode } from '../utils/dataMode';
-import { 
-  purchaseOrderService, 
-  saveRaisedMaterial, 
-  isMaterialPoRaised 
+import {
+  purchaseOrderService,
+  saveRaisedMaterial,
+  isMaterialPoRaised
 } from '../services/database/purchaseOrderService';
-import { 
-  ArrowUpRight, AlertTriangle, Clock, Eye, 
+import {
+  ArrowUpRight, AlertTriangle, Clock, Eye,
   CheckCircle2, Plus, Download, RefreshCw, Loader2,
   AlertCircle, ShoppingCart, ShieldCheck, Truck,
   Search, X, Factory, FileText, Receipt, Package, Building2, Wrench, ArrowRight,
   Activity, Gauge, Flame, Thermometer, Radio, Check, ChevronRight, Layers,
-  Sparkles, Cog, Cpu, DollarSign, Calendar, Sliders
+  Sparkles, Cog, Cpu, DollarSign, Calendar, Sliders, Users, UserCheck, Briefcase, Mail, Send
 } from 'lucide-react';
+import { fetchEmailActivityLive } from '../services/emailService';
 
-const PRESET_SUPPLIERS = [
-  {
-    name: 'Schaeffler India',
-    contact: 'Mr. Rajesh Nair (Sales Director - Spindle Bearings)',
-    email: 'r.nair@schaeffler.com',
-    phone: '+91 20 6608 4100',
-    gstin: '27AAACS4821M1ZB',
-    address: 'Pune Distribution Centre, Chakan MIDC Phase II, Pune - 410501, Maharashtra'
-  },
-  {
-    name: 'Bharat Special Steel',
-    contact: 'Mr. Manoj Gokhale (Head - Alloy Metallurgy)',
-    email: 'sales@bharatspecialsteel.com',
-    phone: '+91 20 2712 9182',
-    gstin: '27AABCB9182L1ZX',
-    address: 'Plot 42, Bhosari Industrial Area, Pune - 411026, Maharashtra'
-  },
-  {
-    name: 'OTT Jakob',
-    contact: 'Mr. K. S. Raman (Country Applications Manager)',
-    email: 'raman@ottjakob-india.com',
-    phone: '+91 80 4112 0900',
-    gstin: '29AAACJ3918K1Z3',
-    address: 'Bengaluru Technology Centre, 4th Phase, Peenya Industrial Area, Bengaluru - 560058'
-  },
-  {
-    name: 'Heidenhain India',
-    contact: 'Mr. Suresh Babu (Regional Head)',
-    email: 'info@heidenhain.in',
-    phone: '+91 22 2831 4910',
-    gstin: '27AABCH4910D1Z7',
-    address: 'Tech Park, Andheri East, Mumbai - 400069, Maharashtra'
-  },
-  {
-    name: 'Sandvik Coromant India',
-    contact: 'Ms. Priya Sharma (Key Accounts)',
-    email: 'orders@sandvik.com',
-    phone: '+91 20 6734 5000',
-    gstin: '27AAACS1928F1ZG',
-    address: 'Mumbai-Pune Road, Dapodi, Pune - 411012, Maharashtra'
-  }
-];
+const PRESET_SUPPLIERS = [];
 
 const SPINDLE_MODELS = [
   { code: 'GPS-HSK-A63-24K', name: 'GPS-HSK-A63-24K (24,000 RPM Motorized Spindle)' },
@@ -74,6 +34,129 @@ const SPINDLE_MODELS = [
   { code: 'GPS-BT40-12K', name: 'GPS-BT40-12K (12,000 RPM Belt-Driven VMC Spindle)' },
   { code: 'GPS-HF-60K', name: 'GPS-HF-60K (60,000 RPM Ultra-High-Speed Micro Spindle)' },
   { code: 'GPS-HSK-E40-42K', name: 'GPS-HSK-E40-42K (42,000 RPM Graphite/Die Milling)' }
+];
+
+const DEFAULT_WORKING_STAFF = [
+  {
+    id: 'GPS-EMP-104',
+    employeeCode: 'GPS-EMP-104',
+    name: 'Rahul Patil',
+    role: 'Master Machinist & Plant Operations',
+    department: 'Production Machining',
+    designation: 'Master Machinist',
+    status: 'Working',
+    avatarColor: '#7A1F3D',
+    initials: 'RP',
+    bay: 'Station 1 - Machining',
+    machine: 'CNC-01 / Okuma LB3000 Lathe',
+    workOrder: 'WO-2026-104',
+    spindleSerial: 'GPS-2026-0842',
+    currentTask: 'Shaft CNC Turning & Boring',
+    started: '08:30 AM',
+    duration: '2h 15m',
+    progress: 75,
+    stream: 'production'
+  },
+  {
+    id: 'GPS-EMP-105',
+    employeeCode: 'GPS-EMP-105',
+    name: 'Suresh Sawant',
+    role: 'Sr. Precision Machining Lead',
+    department: 'Production Machining',
+    designation: 'Precision Grinder Lead',
+    status: 'Working',
+    avatarColor: '#0284c7',
+    initials: 'SS',
+    bay: 'Station 2 - Grinding',
+    machine: 'GRD-01 / Studer S33 Cylindrical Grinder',
+    workOrder: 'WO-2026-105',
+    spindleSerial: 'GPS-2026-0845',
+    currentTask: 'Bearing Journal Micro-Finish Grinding',
+    started: '07:45 AM',
+    duration: '3h 00m',
+    progress: 85,
+    stream: 'production'
+  },
+  {
+    id: 'GPS-EMP-106',
+    employeeCode: 'GPS-EMP-106',
+    name: 'Ganesh Kadam',
+    role: 'Cleanroom Assembly Specialist',
+    department: 'Cleanroom Assembly',
+    designation: 'Cleanroom Specialist',
+    status: 'Working',
+    avatarColor: '#7c3aed',
+    initials: 'GK',
+    bay: 'Station 4 - Cleanroom Assembly',
+    machine: 'ASM-01 / Class 1000 Laminar Flow Hood',
+    workOrder: 'WO-2026-107',
+    spindleSerial: 'GPS-2026-0847',
+    currentTask: 'Ceramic Bearing Pack Assembly & Pre-load',
+    started: '08:15 AM',
+    duration: '2h 45m',
+    progress: 65,
+    stream: 'production'
+  },
+  {
+    id: 'GPS-EMP-107',
+    employeeCode: 'GPS-EMP-107',
+    name: 'Sachin Jadhav',
+    role: 'Dynamic Balancing Specialist',
+    department: 'Balancing & Testing',
+    designation: 'Balancing Specialist',
+    status: 'Working',
+    avatarColor: '#b45309',
+    initials: 'SJ',
+    bay: 'Station 5 - Dynamic Balancing',
+    machine: 'BAL-01 / Schenck SmartBalancing Rig',
+    workOrder: 'WO-2026-108',
+    spindleSerial: 'GPS-2026-0848',
+    currentTask: 'Dual-Plane High-Speed Balancing (ISO G0.4)',
+    started: '09:30 AM',
+    duration: '1h 00m',
+    progress: 40,
+    stream: 'production'
+  },
+  {
+    id: 'GPS-EMP-109',
+    employeeCode: 'GPS-EMP-109',
+    name: 'Vikram Shinde',
+    role: 'Sr. Spindle Service Overhaul Lead',
+    department: 'Service & Spindle Repair',
+    designation: 'Service Lead',
+    status: 'Working',
+    avatarColor: '#ea580c',
+    initials: 'VS',
+    bay: 'Station 6 - Dynamic Run-in & Testing',
+    machine: 'RUN-01 / Computerized Test Bench',
+    workOrder: 'SRV-2026-0041',
+    spindleSerial: 'GPS-2025-0740',
+    currentTask: '4h High-Speed Run-in & Thermal Equilibrium Test',
+    started: '07:00 AM',
+    duration: '3h 30m',
+    progress: 90,
+    stream: 'service'
+  },
+  {
+    id: 'GPS-EMP-102',
+    employeeCode: 'GPS-EMP-102',
+    name: 'Milind Joshi',
+    role: 'Quality Assurance Lead Inspector',
+    department: 'Quality Assurance',
+    designation: 'QA Metrology Lead',
+    status: 'Working',
+    avatarColor: '#059669',
+    initials: 'MJ',
+    bay: 'Station 6 - QC Metrology',
+    machine: 'Zeiss CMM & Air Gauges',
+    workOrder: 'WO-2026-102',
+    spindleSerial: 'GPS-2026-0840',
+    currentTask: 'Sub-Micron Runout & CMM Final Inspection',
+    started: '08:45 AM',
+    duration: '2h 00m',
+    progress: 95,
+    stream: 'production'
+  }
 ];
 
 export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotify }) {
@@ -88,6 +171,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [upcomingDeliveries, setUpcomingDeliveries] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [operationalSummary, setOperationalSummary] = useState(null);
+  const [workingStaff, setWorkingStaff] = useState([]);
+  const [emailLogs, setEmailLogs] = useState([]);
 
   // Filters & Sub-states
   const [woFilter, setWoFilter] = useState('all');
@@ -105,28 +190,28 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const [isCreatingWo, setIsCreatingWo] = useState(false);
   const [newWoForm, setNewWoForm] = useState({
     spindleModel: 'GPS-HSK-A63-24K',
-    customer: 'Tata Advanced Systems Ltd',
-    serial: `GPS-2026-${Math.floor(850 + Math.random() * 100)}`,
-    priority: 'High',
-    dueDate: new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0],
-    initialStage: 'machining',
-    notes: 'Precision spindle batch for aerospace machining workcell'
+    customer: '',
+    serial: '',
+    priority: 'Normal',
+    dueDate: '',
+    initialStage: 'material',
+    notes: ''
   });
 
   // Raise PO Modal State
   const [selectedMaterialForPo, setSelectedMaterialForPo] = useState(null);
   const [isRaisingPo, setIsRaisingPo] = useState(false);
   const [poForm, setPoForm] = useState({
-    supplierName: 'Schaeffler India',
+    supplierName: '',
     supplierContact: '',
     supplierEmail: '',
     supplierPhone: '',
     supplierGstin: '',
     supplierAddress: '',
-    quantity: 5,
-    unitPrice: 38500,
-    deliveryDays: 14,
-    priority: 'High',
+    quantity: 1,
+    unitPrice: 0,
+    deliveryDays: 7,
+    priority: 'Normal',
     notes: ''
   });
 
@@ -135,7 +220,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   const handleOpenRaisePo = (material) => {
     const itemSku = (material.sku || '').toUpperCase();
     const itemName = (material.name || '').toUpperCase();
-    let defaultSupplier = PRESET_SUPPLIERS[0]; // Schaeffler
+    let defaultSupplier = PRESET_SUPPLIERS[0] || {}; // Schaeffler
     let defaultRate = material.unitCost || 38500;
 
     if (itemSku.includes('STL') || itemName.includes('STEEL') || itemName.includes('SHAFT') || itemName.includes('42CR') || itemName.includes('18CR')) {
@@ -153,12 +238,12 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
     setSelectedMaterialForPo(material);
     setPoForm({
-      supplierName: defaultSupplier.name,
-      supplierContact: defaultSupplier.contact,
-      supplierEmail: defaultSupplier.email,
-      supplierPhone: defaultSupplier.phone,
-      supplierGstin: defaultSupplier.gstin,
-      supplierAddress: defaultSupplier.address,
+      supplierName: defaultSupplier.name || '',
+      supplierContact: defaultSupplier.contact || '',
+      supplierEmail: defaultSupplier.email || '',
+      supplierPhone: defaultSupplier.phone || '',
+      supplierGstin: defaultSupplier.gstin || '',
+      supplierAddress: defaultSupplier.address || '',
       quantity: deficit,
       unitPrice: defaultRate,
       deliveryDays: 14,
@@ -232,7 +317,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       }
 
       const targetMat = selectedMaterialForPo;
-      setCriticalMaterials(prev => prev.filter(m => 
+      setCriticalMaterials(prev => prev.filter(m =>
         m.id !== targetMat.id &&
         (!targetMat.sku || m.sku !== targetMat.sku) &&
         (!targetMat.productId || m.productId !== targetMat.productId)
@@ -301,6 +386,69 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     }
   };
 
+  // Load real-time workforce staff actively working on shop floor
+  const loadWorkingStaff = useCallback(() => {
+    if (isClean) {
+      return [];
+    }
+
+    let localStaff = [];
+    try {
+      localStaff = JSON.parse(localStorage.getItem('gps_local_workforce_staff') || '[]');
+    } catch (e) {
+      localStaff = [];
+    }
+
+    // Merge baseline staff with local storage updates
+    const merged = DEFAULT_WORKING_STAFF.map(base => {
+      const match = localStaff.find(s => s.id === base.id || s.name === base.name || s.employeeCode === base.employeeCode);
+      if (match) {
+        return {
+          ...base,
+          ...match,
+          status: match.status || base.status,
+          currentTask: match.currentTask || match.task || base.currentTask,
+          workOrder: match.workOrder || base.workOrder,
+          machine: match.machine || base.machine,
+          bay: match.bay || base.bay,
+          duration: match.duration || base.duration,
+          progress: match.progress !== undefined ? match.progress : base.progress
+        };
+      }
+      return base;
+    });
+
+    // Also include any other local staff marked as Working
+    localStaff.forEach(s => {
+      if (!merged.some(m => m.id === s.id || m.name === s.name || m.employeeCode === s.id)) {
+        if (s.status === 'Working' || s.status === 'Operating') {
+          merged.push({
+            id: s.id,
+            employeeCode: s.id || 'GPS-EMP',
+            name: s.name || 'Technician',
+            role: s.role || s.designation || 'Specialist',
+            department: s.department || 'Production',
+            designation: s.designation || 'Specialist',
+            status: 'Working',
+            avatarColor: s.avatarColor || '#7A1F3D',
+            initials: s.initials || (s.name ? s.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'OP'),
+            bay: s.bay || 'Station 1 - Machining',
+            machine: s.machine || 'CNC Lathe',
+            workOrder: s.workOrder || 'WO-2026-110',
+            spindleSerial: s.spindleSerial || s.spindle || 'Spindle Unit',
+            currentTask: s.currentTask || s.task || 'Active Operation',
+            started: s.started || '08:30 AM',
+            duration: s.duration || '1h 30m',
+            progress: s.progress || 50,
+            stream: s.stream || (s.workOrder && s.workOrder.startsWith('SR') ? 'service' : 'production')
+          });
+        }
+      }
+    });
+
+    return merged.filter(s => s.status === 'Working' || s.status === 'Operating');
+  }, [isClean]);
+
   // Fetch all live dashboard data in parallel from PostgreSQL
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -319,7 +467,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         materialsRes,
         deliveriesRes,
         activityRes,
-        summaryRes
+        summaryRes,
+        emailsRes
       ] = await Promise.all([
         dashboardService.getDashboardMetrics(),
         dashboardService.getProductionPipelineStages(),
@@ -328,7 +477,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
         dashboardService.getCriticalMaterials(10),
         dashboardService.getUpcomingDeliveries(4),
         dashboardService.getRecentActivityFeed(6),
-        dashboardService.getPlantOperationalSummary()
+        dashboardService.getPlantOperationalSummary(),
+        fetchEmailActivityLive().catch(() => ({ data: [] }))
       ]);
 
       if (metricsRes.error) {
@@ -364,6 +514,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       setUpcomingDeliveries(deliveriesRes.data || []);
       setRecentActivity(activityRes.data || []);
       setOperationalSummary(summaryRes || null);
+      setWorkingStaff(loadWorkingStaff());
+      setEmailLogs(emailsRes?.data || []);
 
       if (isRefresh && onNotify) {
         onNotify('Manufacturing Operations Dashboard updated with live metrics');
@@ -375,7 +527,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [onNotify]);
+  }, [onNotify, loadWorkingStaff]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -384,21 +536,22 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
   // Synchronize dashboard whenever entities change
   useEffect(() => {
     const handleEntityUpdate = (e) => {
-      if (['purchase-orders', 'work-orders', 'spindles', 'invoices'].includes(e?.detail?.entity)) {
+      if (['purchase-orders', 'work-orders', 'spindles', 'invoices', 'workforce', 'production', 'service'].includes(e?.detail?.entity)) {
         fetchDashboardData(false);
+        setWorkingStaff(loadWorkingStaff());
       }
     };
     window.addEventListener('gps_entities_updated', handleEntityUpdate);
     return () => {
       window.removeEventListener('gps_entities_updated', handleEntityUpdate);
     };
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, loadWorkingStaff]);
 
   // Filtered work orders
   const filteredWorkOrders = useMemo(() => {
     return workOrders.filter(wo => {
       const q = woSearch.toLowerCase().trim();
-      const matchesSearch = !q || 
+      const matchesSearch = !q ||
         (wo.id || '').toLowerCase().includes(q) ||
         (wo.spindleSerial || '').toLowerCase().includes(q) ||
         (wo.spindleModel || '').toLowerCase().includes(q) ||
@@ -435,8 +588,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '480px', margin: '0 auto 20px' }}>
             {error}
           </p>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn btn-primary"
             onClick={() => fetchDashboardData(false)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
@@ -453,11 +606,11 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
     <div className="content-area">
       {/* Top Header with Plant Information and Actions */}
       <PageHeader
-        title="Manufacturing Operations Command Center"
+        title="Dashboard"
         subtitle="General Precision Spindles • Nanded City Unit 1 • CNC/VMC/HMC Precision Engineering"
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => fetchDashboardData(true)}
           disabled={isRefreshing}
@@ -467,8 +620,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
         </button>
 
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={() => {
             setPreviewDoc({
@@ -495,7 +648,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           }}
         >
           <Download size={14} />
-          <span>Daily Operations Report (PDF)</span>
+          <span className="desktop-only-inline">Daily Operations Report (PDF)</span>
+          <span className="mobile-only-inline">Daily Report (PDF)</span>
         </button>
 
         <button
@@ -505,723 +659,673 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           title="Launch new work order on shop floor"
         >
           <Plus size={14} />
-          <span>Launch Work Order</span>
+          <span className="desktop-only-inline">Launch Work Order</span>
+          <span className="mobile-only-inline">New WO</span>
         </button>
       </PageHeader>
 
       <div className="content-body">
         {/* Plant Environment & Shop Floor Operations Bar */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-          padding: '10px 16px',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
-          marginBottom: '18px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)' }} />
-              <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>Plant 1 Active</strong>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>• Standard Hours (08:30 - 17:30)</span>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span className="nav-badge" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontWeight: 600 }}>
-                ISO 9001:2015 Certified
-              </span>
-              <span className="nav-badge" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontWeight: 600 }}>
-                Class 1000 Cleanroom
-              </span>
-              <span className="nav-badge" style={{ background: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff', fontWeight: 600 }}>
-                ISO 1940-1 G0.4 Balancing
-              </span>
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Lead Supervisor: <strong style={{ color: 'var(--text-main)' }}>Rameshwar Kulkarni</strong>
-            </span>
-            <button
-              type="button"
-              onClick={() => toggleCleanSlateMode(true)}
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                padding: '3px 8px',
-                borderRadius: '12px',
-                background: isClean ? '#ecfdf5' : '#fef3c7',
-                color: isClean ? '#047857' : '#92400e',
-                border: isClean ? '1px solid #a7f3d0' : '1px solid #fde68a',
-                cursor: 'pointer'
-              }}
-              title="Click to toggle between clean slate and demo dataset"
-            >
-              {isClean ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Sparkles size={12} /> Clean Slate View</span>
-              ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Package size={12} /> Demo Mode Loaded</span>
-              )}
-            </button>
-          </div>
-        </div>
+        {/* Clean Production Launchpad Banner */}
 
-        {/* Clean Slate Onboarding Launchpad Banner (When Zero Data) */}
-        {isClean && (
-          <div style={{
-            background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-            border: '1px solid #a7f3d0',
-            borderRadius: 'var(--radius-md)',
-            padding: '20px 24px',
-            marginBottom: '20px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={18} color="#059669" />
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#065f46', margin: 0 }}>
-                    Fresh Clean Slate Active: All Demonstration Data Hidden
-                  </h3>
-                </div>
-                <p style={{ fontSize: '12.5px', color: '#047857', marginTop: '6px', maxWidth: '680px', lineHeight: '1.5' }}>
-                  Your ERP software is in a clean, production-ready zero-record state without permanently deleting any configuration. Launch shop floor operations below or switch to demo mode anytime.
-                </p>
-              </div>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => setIsNewWoModalOpen(true)}
-                  style={{ background: '#059669', color: '#fff', border: 'none', fontWeight: 600 }}
-                >
-                  <Plus size={13} />
-                  <span>Launch First Work Order</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => onNavigate && onNavigate('sales')}
-                >
-                  <Plus size={13} />
-                  <span>Create Quotation</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => toggleCleanSlateMode(true)}
-                  style={{ background: '#fff', borderColor: '#a7f3d0', color: '#065f46' }}
-                >
-                  <span>Restore Demo Dataset</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Setup Shortcuts */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '12px',
-              marginTop: '16px',
-              paddingTop: '16px',
-              borderTop: '1px solid rgba(16, 185, 129, 0.2)'
-            }}>
-              <div 
-                onClick={() => setIsNewWoModalOpen(true)}
-                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>1. MANUFACTURING</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ New Spindle Job Traveler</div>
-              </div>
-              <div 
-                onClick={() => onNavigate && onNavigate('spindles')}
-                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>2. ASSET REGISTRY</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Register Spindle Serial</div>
-              </div>
-              <div 
-                onClick={() => onNavigate && onNavigate('service')}
-                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>3. RMA SERVICE</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Inward Spindle for Repair</div>
-              </div>
-              <div 
-                onClick={() => onNavigate && onNavigate('inventory')}
-                style={{ background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #d1fae5', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>4. STORES CONTROL</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>+ Add Bearing Stock / Material</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* The 4 Core GPS ERP Operational Pillars Summary */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '14px',
-          marginBottom: '20px'
-        }}>
-          {/* Pillar 1: Manufacturing & Shop Floor */}
-          <div 
-            className="section-card" 
-            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+        {/* Operational Overview: Manufacturing & Service */}
+        <div className="dashboard-overview-grid">
+          {/* Card 1: Manufacturing & Shop Floor */}
+          <div
+            className="section-card dashboard-overview-card"
+            style={{ marginBottom: 0, padding: '18px 20px', cursor: 'pointer', transition: 'all 0.15s ease' }}
             onClick={() => onNavigate && onNavigate('production')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fdf2f8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A1F3D' }}>
-                  <Cog size={18} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#fdf2f8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A1F3D', flexShrink: 0 }}>
+                  <Cog size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 1 · Manufacturing</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Production Rotation</div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Manufacturing</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Production Rotation</div>
                 </div>
               </div>
-              <ArrowUpRight size={14} color="var(--text-muted)" />
+              <ArrowUpRight size={15} color="var(--text-muted)" />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
-              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#7A1F3D' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '16px' }}>
+              <span className="mono" style={{ fontSize: '26px', fontWeight: 800, color: '#7A1F3D' }}>
                 {isClean ? '0' : (workOrders.length || '18')}
               </span>
-              <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>
                 {isClean ? '0 active work orders' : 'Shop floor operating'}
               </span>
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
               CNC Lathes, Studer Grinding & Cleanroom Assembly
             </div>
           </div>
 
-          {/* Pillar 2: RMA Spindle Service & Overhaul */}
-          <div 
-            className="section-card" 
-            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+          {/* Card 2: RMA Spindle Service & Overhaul */}
+          <div
+            className="section-card dashboard-overview-card"
+            style={{ marginBottom: 0, padding: '18px 20px', cursor: 'pointer', transition: 'all 0.15s ease' }}
             onClick={() => onNavigate && onNavigate('service')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c' }}>
-                  <Wrench size={18} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
+                  <Wrench size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 2 · Overhaul & RMA</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Service Workshop</div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Service & Overhaul</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Service Workshop</div>
                 </div>
               </div>
-              <ArrowUpRight size={14} color="var(--text-muted)" />
+              <ArrowUpRight size={15} color="var(--text-muted)" />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
-              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#ea580c' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '16px' }}>
+              <span className="mono" style={{ fontSize: '26px', fontWeight: 800, color: '#ea580c' }}>
                 {isClean ? '0' : '7'}
               </span>
-              <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>
                 {isClean ? '0 repair dockets' : 'Avg TAT: 4.2 Days'}
               </span>
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Teardown diagnosis, ceramic bearing replacement
             </div>
           </div>
-
-          {/* Pillar 3: Metrology & Quality Acceptance */}
-          <div 
-            className="section-card" 
-            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-            onClick={() => onNavigate && onNavigate('quality')}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
-                  <ShieldCheck size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 3 · Quality & Lab</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Metrology Acceptance</div>
-                </div>
-              </div>
-              <ArrowUpRight size={14} color="var(--text-muted)" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
-              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
-                {isClean ? '0' : '98.4%'}
-              </span>
-              <span style={{ fontSize: '11.5px', color: isClean ? 'var(--text-muted)' : '#b45309', fontWeight: 600 }}>
-                {isClean ? '0 pending sign-offs' : '4 Pending Sign-offs'}
-              </span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Taper runout &lt;1.0 µm • ISO 1940-1 G0.4 verified
-            </div>
-          </div>
-
-          {/* Pillar 4: Commercial & Billing Stream */}
-          <div 
-            className="section-card" 
-            style={{ marginBottom: 0, padding: '16px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-            onClick={() => onNavigate && onNavigate('invoices')}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
-                  <DollarSign size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>Pillar 4 · Commercial</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Billing & Receivables</div>
-                </div>
-              </div>
-              <ArrowUpRight size={14} color="var(--text-muted)" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
-              <span className="mono" style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb' }}>
-                {isClean ? '₹0' : '₹18.4L'}
-              </span>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                {isClean ? '0 pending invoices' : '₹48.6L in quotes'}
-              </span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              GST 18% Tax Invoices with UPI QR & ICICI Bank
-            </div>
-          </div>
         </div>
 
-        {/* Standard 7 KPI Cards Grid */}
-        <div className="metrics-grid">
-          {metrics.map((metric) => (
-            <MetricCard 
-              key={metric.id}
-              label={metric.label}
-              value={metric.value}
-              trend={metric.trend}
-              isUp={metric.isUp}
-              alert={metric.alert}
-              icon={metric.icon}
-              onClick={() => {
-                if (!onNavigate) return;
-                if (metric.id === 'pending_qc') onNavigate('quality');
-                else if (metric.id === 'low_stock') onNavigate('inventory');
-                else if (metric.id === 'active_service') onNavigate('service');
-                else if (metric.id === 'receivables') onNavigate('invoices');
-                else onNavigate('production');
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Dual Pipeline Visualizer (Manufacturing vs Service Overhaul) */}
-        <div className="section-card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div className="card-title">
-                <span>Precision Spindle Routing Pipeline</span>
-              </div>
-              <div style={{ display: 'flex', background: 'var(--bg-surface-subtle)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                <button
-                  type="button"
-                  onClick={() => setActivePipelineType('manufacturing')}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: activePipelineType === 'manufacturing' ? '#ffffff' : 'transparent',
-                    color: activePipelineType === 'manufacturing' ? '#7A1F3D' : 'var(--text-muted)',
-                    boxShadow: activePipelineType === 'manufacturing' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
-                >
-                  <Cog size={12} /> OEM Manufacturing (8 Stages)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePipelineType('service')}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: activePipelineType === 'service' ? '#ffffff' : 'transparent',
-                    color: activePipelineType === 'service' ? '#7A1F3D' : 'var(--text-muted)',
-                    boxShadow: activePipelineType === 'service' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
-                >
-                  <Wrench size={12} /> RMA Service Overhaul (9 Stages)
-                </button>
-              </div>
+        {/* Shop Floor Workforce — Staff Working Now Card */}
+        <div className="section-card" style={{ marginTop: '10px' }}>
+          <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <Users size={16} color="#7c3aed" style={{ flexShrink: 0 }} />
+              <span className="desktop-only-inline">Staff Working Now — Live Shop Floor Roster</span>
+              <span className="mobile-only-inline">Staff Working Now</span>
+              {workingStaff.length > 0 && !isClean && (
+                <span className="badge badge-success mono" style={{ fontSize: '11px', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                  {workingStaff.length} On Duty
+                </span>
+              )}
             </div>
-
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => onNavigate && onNavigate(activePipelineType === 'manufacturing' ? 'production' : 'service')}
+              onClick={() => onNavigate && onNavigate('workforce')}
+              style={{ flexShrink: 0 }}
             >
-              <span>View Full {activePipelineType === 'manufacturing' ? 'Production Board' : 'Service Board'}</span>
+              <span className="desktop-only-inline">View Full Workforce Desk</span>
+              <span className="mobile-only-inline">Workforce Desk</span>
               <ArrowUpRight size={13} />
             </button>
           </div>
-          <div style={{ padding: '8px 16px' }}>
-            <PipelineVisualizer 
-              stages={activePipelineType === 'manufacturing' ? pipelineStages : servicePipelineStages} 
-              activeStage={activePipelineType === 'manufacturing' ? 'grinding' : 'balancing'}
-              onSelectStage={() => onNavigate && onNavigate(activePipelineType === 'manufacturing' ? 'production' : 'service')}
-            />
-          </div>
-        </div>
 
-
-        {/* Main Two-Column Layout */}
-        <div className="grid-2col">
-          {/* Left Column: Recent Work Orders & Low Stock Alert */}
-          <div className="grid-col">
-            {/* Active Work Orders in Floor Rotation */}
-            <div className="section-card">
-              <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
-                <div className="card-title">
-                  <Cog size={16} color="#7A1F3D" />
-                  <span>Active Work Orders in Floor Rotation</span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => onNavigate && onNavigate('production')}
-                  >
-                    <span>All Orders ({totalWoCount})</span>
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setIsNewWoModalOpen(true)}
-                  >
-                    <Plus size={13} />
-                    <span>New WO</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Quick Filter Bar */}
-              <div style={{ padding: '8px 16px', background: 'var(--bg-surface-subtle)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {[
-                    { id: 'all', label: 'All Jobs' },
-                    { id: 'machining', label: 'Machining' },
-                    { id: 'grinding', label: 'Grinding' },
-                    { id: 'assembly', label: 'Assembly' },
-                    { id: 'balancing', label: 'Balancing' },
-                    { id: 'qc', label: 'In QC' }
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setWoFilter(f.id)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        borderColor: woFilter === f.id ? 'var(--primary)' : 'var(--border-color)',
-                        background: woFilter === f.id ? '#FAF0F3' : '#ffffff',
-                        color: woFilter === f.id ? 'var(--primary)' : 'var(--text-secondary)'
-                      }}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ position: 'relative', width: '160px' }}>
-                  <input
-                    type="text"
-                    placeholder="Search orders..."
-                    value={woSearch}
-                    onChange={(e) => setWoSearch(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '4px 8px 4px 24px',
-                      fontSize: '11.5px',
-                      borderRadius: '4px',
-                      border: '1px solid var(--border-color)',
-                      background: '#fff'
-                    }}
-                  />
-                  <Search size={12} style={{ position: 'absolute', left: '7px', top: '7px', color: 'var(--text-muted)' }} />
-                </div>
-              </div>
-
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>WO Number</th>
-                      <th>Spindle Model & Serial</th>
-                      <th>Customer</th>
-                      <th>Current Stage / Operation</th>
-                      <th>Due Date</th>
-                      <th>Progress</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredWorkOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                          <Cog size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: 'var(--primary)' }} />
-                          <div style={{ fontWeight: 600, fontSize: '13px' }}>
-                            {isClean ? 'No Active Work Orders in System' : 'No work orders match the filter'}
-                          </div>
-                          <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                            {isClean ? 'Create your first production job traveler using the button below.' : 'Try selecting another stage filter or clearing the search term.'}
-                          </div>
-                          {isClean && (
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              onClick={() => setIsNewWoModalOpen(true)}
-                              style={{ marginTop: '12px' }}
-                            >
-                              <Plus size={13} />
-                              <span>Launch First Work Order</span>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredWorkOrders.map((wo) => (
-                        <tr key={wo.id || wo.workOrderNo}>
-                          <td className="mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                            {wo.id || wo.workOrderNo}
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{wo.spindleModel}</div>
-                            <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                              {wo.spindleSerial || wo.serial || '—'}
-                            </div>
-                          </td>
-                          <td style={{ fontSize: '12px', maxWidth: '140px' }}>
-                            {wo.customer}
-                          </td>
-                          <td style={{ fontSize: '12px' }}>
-                            {wo.currentOperation || wo.currentStage || 'Machining'}
-                          </td>
-                          <td className="mono" style={{ fontSize: '12px' }}>
-                            {wo.dueDate}
-                          </td>
-                          <td>
-                            <div style={{ minWidth: '90px' }}>
-                              <ProgressBar progress={wo.progress} height={6} />
-                            </div>
-                          </td>
-                          <td>
-                            <StatusBadge status={wo.status} size="sm" />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '4px 8px', fontSize: '11px' }}
-                              onClick={() => {
-                                if (onSelectWorkOrder) onSelectWorkOrder(wo);
-                                if (onNavigate) onNavigate('work-order-detail');
+          {/* Desktop & Tablet: Full 8-Column Data Table */}
+          <div className="table-responsive desktop-table-view">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Staff Member</th>
+                  <th>Department & Role</th>
+                  <th>Currently Working On</th>
+                  <th>Work Order / Spindle</th>
+                  <th>Machine / Workstation</th>
+                  <th>Time On Job</th>
+                  <th>Stage Progress</th>
+                  <th style={{ textAlign: 'center' }}>Live Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isClean || workingStaff.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                      <Users size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: '#7c3aed' }} />
+                      <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                        No Staff Currently Working on Floor
+                      </div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                        Assign technicians to CNC lathes, grinding stations, cleanroom assembly, or service teardowns.
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => onNavigate && onNavigate('workforce')}
+                        style={{ marginTop: '12px' }}
+                      >
+                        <UserCheck size={13} />
+                        <span>Open Workforce Desk</span>
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  workingStaff.map((staff) => {
+                    const isService = staff.stream === 'service' || (staff.workOrder && staff.workOrder.startsWith('SR'));
+                    return (
+                      <tr
+                        key={staff.id || staff.employeeCode || staff.name}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onNavigate && onNavigate('workforce')}
+                      >
+                        {/* Staff Avatar + Name */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                background: staff.avatarColor || '#7A1F3D',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: '12px',
+                                flexShrink: 0
                               }}
-                              title="Open Job Traveler"
                             >
-                              <Eye size={12} />
-                              <span>Traveler</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                              {staff.initials || (staff.name ? staff.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'OP')}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                                {staff.name}
+                              </div>
+                              <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {staff.employeeCode || staff.id}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
 
-            {/* Critical Materials & Bearings Alert */}
-            <div className="section-card">
-              <div className="card-header" style={{ borderLeft: '3px solid #f59e0b' }}>
-                <div className="card-title" style={{ color: '#b45309' }}>
-                  <AlertTriangle size={16} />
-                  <span>Critical Materials & Spindle Bearings Shortage Alert</span>
-                </div>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => onNavigate && onNavigate('inventory')}
-                >
-                  <span>Open Stores</span>
-                </button>
-              </div>
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Part Name & SKU</th>
-                      <th>Category</th>
-                      <th>In Stock</th>
-                      <th>Reserved</th>
-                      <th>Min Threshold</th>
-                      <th>Status</th>
-                      <th>Quick Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {criticalMaterials.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                          <CheckCircle2 size={24} style={{ opacity: 0.4, margin: '0 auto 6px', color: '#059669' }} />
-                          <div>All critical bearings, alloy shafts, and sensors meet safety thresholds.</div>
+                        {/* Department & Role */}
+                        <td>
+                          <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {staff.role || staff.designation}
+                          </div>
+                          <span style={{
+                            fontSize: '10.5px',
+                            padding: '1px 7px',
+                            borderRadius: '4px',
+                            background: '#f1f5f9',
+                            color: '#475569',
+                            fontWeight: 600,
+                            display: 'inline-block',
+                            marginTop: '2px'
+                          }}>
+                            {staff.department}
+                          </span>
+                        </td>
+
+                        {/* Currently Working On (Task) */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '3px',
+                              background: isService ? '#ede9fe' : '#dbeafe',
+                              color: isService ? '#6d28d9' : '#1d4ed8',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              {isService ? <Wrench size={9} /> : <Cpu size={9} />}
+                              {isService ? 'SERVICE' : 'MANUFACTURING'}
+                            </span>
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)' }}>
+                            {staff.currentTask || staff.operation || 'Shop Floor Operation'}
+                          </div>
+                        </td>
+
+                        {/* Work Order / Spindle */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span className="badge badge-neutral mono" style={{ fontSize: '11px', fontWeight: 700, width: 'fit-content' }}>
+                              {staff.workOrder || 'WO-2026-104'}
+                            </span>
+                            <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {staff.spindleSerial || 'Spindle Unit'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Machine & Workstation */}
+                        <td>
+                          <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {staff.machine || 'Workcell'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            {staff.bay || 'Station 1'}
+                          </div>
+                        </td>
+
+                        {/* Time On Job */}
+                        <td>
+                          <div className="mono" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {staff.duration || '2h 15m'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            Started {staff.started || '08:30 AM'}
+                          </div>
+                        </td>
+
+                        {/* Stage Progress */}
+                        <td style={{ minWidth: '120px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {staff.progress || 75}%
+                            </span>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                width: `${staff.progress || 75}%`,
+                                height: '100%',
+                                background: (staff.progress || 75) >= 80 ? '#10b981' : (staff.progress || 75) >= 50 ? '#3b82f6' : '#f59e0b',
+                                borderRadius: '3px',
+                                transition: 'width 0.3s ease'
+                              }}
+                            />
+                          </div>
+                        </td>
+
+                        {/* Live Status */}
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '11px',
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #a7f3d0',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              fontWeight: 700
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                            Working
+                          </span>
                         </td>
                       </tr>
-                    ) : (
-                      criticalMaterials.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{item.name}</div>
-                            <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.sku}</div>
-                          </td>
-                          <td style={{ fontSize: '12px' }}>{item.category}</td>
-                          <td className="mono" style={{ fontWeight: 700, color: item.status.includes('Critical') ? '#dc2626' : '#b45309' }}>
-                            {item.availableQty} {item.unit}
-                          </td>
-                          <td className="mono" style={{ color: 'var(--text-secondary)' }}>{item.reservedQty}</td>
-                          <td className="mono">{item.minStock}</td>
-                          <td>
-                            <StatusBadge status={item.status} size="sm" />
-                          </td>
-                          <td>
-                            <button 
-                              type="button" 
-                              className="btn btn-primary btn-sm"
-                              onClick={() => handleOpenRaisePo(item)}
-                              title={`Raise Purchase Order for ${item.sku}`}
-                              style={{ padding: '3px 8px', fontSize: '11px' }}
-                            >
-                              Raise PO
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {/* Right Column: Upcoming Deliveries, Telemetry & Plant Activity */}
-          <div className="grid-col">
-            {/* Upcoming Deliveries & Logistics */}
-            <div className="section-card">
-              <div className="card-header">
-                <div className="card-title">
-                  <Truck size={16} color="#059669" />
-                  <span>Upcoming Dispatch Schedule & Logistics Intimations</span>
+          {/* Mobile & Small Screens: Dedicated Responsive Card Roster */}
+          <div className="staff-mobile-list mobile-card-view">
+            {isClean || workingStaff.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--text-muted)' }}>
+                <Users size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: '#7c3aed' }} />
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                  No Staff Currently Working on Floor
+                </div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                  Assign technicians to CNC lathes, grinding stations, cleanroom assembly, or service teardowns.
                 </div>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={() => onNavigate && onNavigate('e-way-bills')}
+                  onClick={() => onNavigate && onNavigate('workforce')}
+                  style={{ marginTop: '12px' }}
                 >
-                  <span>E-Way Bills</span>
+                  <UserCheck size={13} />
+                  <span>Open Workforce Desk</span>
                 </button>
               </div>
-              <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {upcomingDeliveries.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    No upcoming dispatches scheduled.
-                  </div>
-                ) : (
-                  upcomingDeliveries.map((del) => (
-                    <div 
-                      key={del.id}
-                      style={{
-                        padding: '10px 12px',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-surface-subtle)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '13px' }}>{del.customer}</div>
-                        <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {del.serial} • {del.model}
+            ) : (
+              workingStaff.map((staff) => {
+                const isService = staff.stream === 'service' || (staff.workOrder && staff.workOrder.startsWith('SR'));
+                return (
+                  <div
+                    key={staff.id || staff.employeeCode || staff.name}
+                    className="staff-mobile-item-card"
+                    onClick={() => onNavigate && onNavigate('workforce')}
+                  >
+                    {/* Top Row: Avatar + Name + Employee Code + Working Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          background: staff.avatarColor || '#7A1F3D',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          flexShrink: 0
+                        }}>
+                          {staff.initials || (staff.name ? staff.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'OP')}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: '2px' }}>
-                          Target: {del.date}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)', lineHeight: '1.2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {staff.name}
+                          </div>
+                          <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            {staff.employeeCode || staff.id} • {staff.department}
+                          </div>
                         </div>
                       </div>
-                      <StatusBadge status={del.status} size="sm" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
-            {/* Plant Activity Feed */}
-            <div className="section-card">
-              <div className="card-header">
-                <div className="card-title">
-                  <Clock size={16} />
-                  <span>Real-Time Plant Operations Activity Feed</span>
-                </div>
-              </div>
-              <div style={{ padding: '16px' }}>
-                {recentActivity.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    No recent audit log activity recorded.
-                  </div>
-                ) : (
-                  <div className="timeline">
-                    {recentActivity.map((act) => (
-                      <div key={act.id} className="timeline-item">
-                        <div className="timeline-point active" />
-                        <div className="timeline-content">
-                          <div className="timeline-title" style={{ fontSize: '12px', fontWeight: 500 }}>
-                            {act.text}
-                          </div>
-                          <div className="timeline-meta" style={{ marginTop: '2px' }}>
-                            <span className="mono">{act.time}</span> • {act.user}
-                          </div>
-                        </div>
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: '10.5px',
+                          background: '#ecfdf5',
+                          color: '#059669',
+                          border: '1px solid #a7f3d0',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          flexShrink: 0
+                        }}
+                      >
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                        Working
+                      </span>
+                    </div>
+
+                    {/* Second Row: Role & Stream Pill + Current Task */}
+                    <div style={{
+                      padding: '10px 12px',
+                      background: 'var(--bg-surface-subtle)',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      marginBottom: '10px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
+                        <span style={{
+                          fontSize: '9.5px',
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                          background: isService ? '#ede9fe' : '#dbeafe',
+                          color: isService ? '#6d28d9' : '#1d4ed8',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          {isService ? <Wrench size={9} /> : <Cpu size={9} />}
+                          {isService ? 'SERVICE' : 'MANUFACTURING'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>•</span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {staff.role || staff.designation}
+                        </span>
                       </div>
-                    ))}
+
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                        {staff.currentTask || staff.operation || 'Shop Floor Operation'}
+                      </div>
+                    </div>
+
+                    {/* Third Row: 2-Column Details Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
+                      fontSize: '11.5px',
+                      marginBottom: '10px'
+                    }}>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10.5px' }}>Work Order & Spindle</span>
+                        <span className="mono" style={{ fontWeight: 700, color: '#7A1F3D' }}>
+                          {staff.workOrder || 'WO-2026-104'}
+                        </span>
+                        <span className="mono" style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10.5px' }}>
+                          {staff.spindleSerial || 'Spindle Unit'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10.5px' }}>Machine & Station</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {staff.machine || 'Workcell'}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10.5px' }}>
+                          {staff.bay || 'Station 1'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Fourth Row: Time on Job + Stage Progress Bar */}
+                    <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          Duration: <strong style={{ color: 'var(--text-main)' }}>{staff.duration || '2h 15m'}</strong> (started {staff.started || '08:30 AM'})
+                        </span>
+                        <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)' }}>
+                          {staff.progress || 75}%
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '5px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${staff.progress || 75}%`,
+                            height: '100%',
+                            background: (staff.progress || 75) >= 80 ? '#10b981' : (staff.progress || 75) >= 50 ? '#3b82f6' : '#f59e0b',
+                            borderRadius: '3px'
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                );
+              })
+            )}
           </div>
         </div>
+
+        {/* Email Activity Log Card */}
+        <div className="section-card" style={{ marginTop: '10px' }}>
+          <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <Mail size={16} color="#2563eb" style={{ flexShrink: 0 }} />
+              <span className="desktop-only-inline">Recent Email Activity</span>
+              <span className="mobile-only-inline">Email Activity</span>
+              {emailLogs.length > 0 && !isClean && (
+                <span className="badge badge-primary mono" style={{ fontSize: '11px', padding: '2px 8px', flexShrink: 0 }}>
+                  {emailLogs.length} Transmissions
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate && onNavigate('email-activity')}
+              style={{ flexShrink: 0 }}
+            >
+              <span className="desktop-only-inline">View All Email Activity</span>
+              <span className="mobile-only-inline">Email Desk</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+
+          {/* Desktop & Tablet: Full 6-Column Data Table */}
+          <div className="table-responsive desktop-table-view">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Recipient / Customer</th>
+                  <th>Subject</th>
+                  <th>Document Ref</th>
+                  <th>Delivery Status</th>
+                  <th>Sent By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isClean || emailLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                      <Mail size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: '#2563eb' }} />
+                      <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                        No Email Activity Recorded
+                      </div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                        Customer quotations, invoices, service teardown reports, and dispatch notifications sent via email will log here.
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => onNavigate && onNavigate('email-activity')}
+                        style={{ marginTop: '12px' }}
+                      >
+                        <Send size={13} />
+                        <span>Open Email Activity Desk</span>
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  emailLogs.slice(0, 6).map((item) => (
+                    <tr
+                      key={item.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => onNavigate && onNavigate('email-activity')}
+                    >
+                      <td className="mono" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        {item.date || '—'}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '12.5px' }}>{item.customer || item.recipient}</div>
+                        <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {item.recipient}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '12.5px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.subject}
+                      </td>
+                      <td>
+                        {item.documentId ? (
+                          <span className="badge badge-neutral mono" style={{ fontSize: '11px' }}>
+                            {item.documentId}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Direct Communication</span>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className="badge"
+                          style={{
+                            fontSize: '11px',
+                            background: item.status === 'Delivered' ? '#ecfdf5' : item.status === 'Sent' ? '#eff6ff' : '#fff7ed',
+                            color: item.status === 'Delivered' ? '#059669' : item.status === 'Sent' ? '#2563eb' : '#ea580c'
+                          }}
+                        >
+                          {item.status || 'Delivered'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {item.sentBy || 'Rahul Patil'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile & Small Screens: Dedicated Responsive Card Feed */}
+          <div className="email-mobile-list mobile-card-view">
+            {isClean || emailLogs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--text-muted)' }}>
+                <Mail size={32} style={{ opacity: 0.3, margin: '0 auto 8px', color: '#2563eb' }} />
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                  No Email Activity Recorded
+                </div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                  Customer quotations, invoices, service teardown reports, and dispatch notifications sent via email will log here.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onNavigate && onNavigate('email-activity')}
+                  style={{ marginTop: '12px' }}
+                >
+                  <Send size={13} />
+                  <span>Open Email Activity Desk</span>
+                </button>
+              </div>
+            ) : (
+              emailLogs.slice(0, 6).map((item) => (
+                <div
+                  key={item.id}
+                  className="email-mobile-item-card"
+                  onClick={() => onNavigate && onNavigate('email-activity')}
+                >
+                  {/* Top Row: Customer/Recipient + Delivery Status */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.customer || item.recipient}
+                      </div>
+                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.recipient}
+                      </div>
+                    </div>
+
+                    <span
+                      className="badge"
+                      style={{
+                        fontSize: '10.5px',
+                        background: item.status === 'Delivered' ? '#ecfdf5' : item.status === 'Sent' ? '#eff6ff' : '#fff7ed',
+                        color: item.status === 'Delivered' ? '#059669' : item.status === 'Sent' ? '#2563eb' : '#ea580c',
+                        fontWeight: 700,
+                        padding: '2px 7px',
+                        flexShrink: 0
+                      }}
+                    >
+                      {item.status || 'Delivered'}
+                    </span>
+                  </div>
+
+                  {/* Subject */}
+                  <div style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    margin: '6px 0',
+                    lineHeight: '1.3'
+                  }}>
+                    {item.subject}
+                  </div>
+
+                  {/* Bottom: Date & Doc Ref & Sent By */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', paddingTop: '6px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="mono">{item.date || '—'}</span>
+                      {item.documentId && (
+                        <span className="badge badge-neutral mono" style={{ fontSize: '10px', padding: '1px 5px' }}>
+                          {item.documentId}
+                        </span>
+                      )}
+                    </div>
+                    <span>Sent by {item.sentBy || 'Rahul Patil'}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Production Shift Report Pop-up Preview Modal */}
-      <DocumentPreviewModal 
+      <DocumentPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         doc={previewDoc}
@@ -1237,17 +1341,17 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           maxWidth="680px"
           footer={
             <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', alignItems: 'center', gap: '10px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setSelectedMaterialForPo(null)}
                 disabled={isRaisingPo}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={() => handleConfirmRaisePo(true)}
                 disabled={isRaisingPo}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
@@ -1259,10 +1363,10 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ 
-              padding: '12px 16px', 
-              background: '#fef2f2', 
-              borderRadius: '8px', 
+            <div style={{
+              padding: '12px 16px',
+              background: '#fef2f2',
+              borderRadius: '8px',
               border: '1px solid #fecaca',
               display: 'flex',
               justifyContent: 'space-between',
@@ -1297,7 +1401,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
             <div className="form-grid">
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label">Approved OEM / Authorized Supplier</label>
-                <CustomSelect 
+                <CustomSelect
                   value={poForm.supplierName}
                   onChange={(e) => handleSupplierSelect(e.target.value)}
                   options={PRESET_SUPPLIERS.map(s => ({ value: s.name, label: `${s.name} (${s.contact.split('(')[0].trim()})` }))}
@@ -1309,9 +1413,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Order Quantity ({selectedMaterialForPo.unit || 'PCS'})</label>
-                <input 
-                  type="number" 
-                  className="form-control mono" 
+                <input
+                  type="number"
+                  className="form-control mono"
                   min="1"
                   value={poForm.quantity}
                   onChange={(e) => setPoForm({ ...poForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
@@ -1320,9 +1424,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Contracted Unit Rate (INR)</label>
-                <input 
-                  type="number" 
-                  className="form-control mono" 
+                <input
+                  type="number"
+                  className="form-control mono"
                   value={poForm.unitPrice}
                   onChange={(e) => setPoForm({ ...poForm, unitPrice: Math.max(0, parseFloat(e.target.value) || 0) })}
                 />
@@ -1330,7 +1434,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Lead Time / Delivery Window</label>
-                <CustomSelect 
+                <CustomSelect
                   value={String(poForm.deliveryDays)}
                   onChange={(e) => setPoForm({ ...poForm, deliveryDays: parseInt(e.target.value) || 14 })}
                   options={[
@@ -1344,20 +1448,20 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Requisition Urgency</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   value={poForm.priority}
-                  readOnly 
+                  readOnly
                   style={{ background: 'var(--bg-surface-subtle)', fontWeight: 600 }}
                 />
               </div>
             </div>
 
-            <div style={{ 
-              padding: '12px 16px', 
-              background: 'var(--bg-surface-subtle)', 
-              borderRadius: '6px', 
+            <div style={{
+              padding: '12px 16px',
+              background: 'var(--bg-surface-subtle)',
+              borderRadius: '6px',
               border: '1px solid var(--border-color)',
               display: 'flex',
               justifyContent: 'space-between',
@@ -1386,17 +1490,17 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           maxWidth="640px"
           footer={
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsNewWoModalOpen(false)}
                 disabled={isCreatingWo}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={handleLaunchWorkOrder}
                 disabled={isCreatingWo}
               >
@@ -1408,7 +1512,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
           <form onSubmit={handleLaunchWorkOrder} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="form-group">
               <label className="form-label">Spindle Engineering Model</label>
-              <CustomSelect 
+              <CustomSelect
                 value={newWoForm.spindleModel}
                 onChange={(e) => setNewWoForm({ ...newWoForm, spindleModel: e.target.value })}
                 options={SPINDLE_MODELS.map(m => ({ value: m.code, label: m.name }))}
@@ -1418,9 +1522,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Assigned Spindle Serial Number</label>
-                <input 
-                  type="text" 
-                  className="form-control mono" 
+                <input
+                  type="text"
+                  className="form-control mono"
                   value={newWoForm.serial}
                   onChange={(e) => setNewWoForm({ ...newWoForm, serial: e.target.value })}
                   required
@@ -1429,7 +1533,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Priority Rating</label>
-                <CustomSelect 
+                <CustomSelect
                   value={newWoForm.priority}
                   onChange={(e) => setNewWoForm({ ...newWoForm, priority: e.target.value })}
                   options={[
@@ -1444,9 +1548,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Customer Legal Entity</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   value={newWoForm.customer}
                   onChange={(e) => setNewWoForm({ ...newWoForm, customer: e.target.value })}
                   required
@@ -1455,9 +1559,9 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
               <div className="form-group">
                 <label className="form-label">Target Completion & Delivery Date</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
+                <input
+                  type="date"
+                  className="form-control"
                   value={newWoForm.dueDate}
                   onChange={(e) => setNewWoForm({ ...newWoForm, dueDate: e.target.value })}
                   required
@@ -1467,7 +1571,7 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
             <div className="form-group">
               <label className="form-label">Initial Manufacturing Stage</label>
-              <CustomSelect 
+              <CustomSelect
                 value={newWoForm.initialStage}
                 onChange={(e) => setNewWoForm({ ...newWoForm, initialStage: e.target.value })}
                 options={[
@@ -1481,8 +1585,8 @@ export default function DashboardScreen({ onNavigate, onSelectWorkOrder, onNotif
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Technical Notes & Specification Details</label>
-              <textarea 
-                className="form-control" 
+              <textarea
+                className="form-control"
                 rows="2"
                 value={newWoForm.notes}
                 onChange={(e) => setNewWoForm({ ...newWoForm, notes: e.target.value })}

@@ -41,8 +41,8 @@ export default function EmailActivityTable({
   return (
     <div className="section-card">
       {/* Filter and Search Bar */}
-      <div className="filter-bar" style={{ padding: '12px 20px' }}>
-        <div className="filter-group" style={{ gap: '12px' }}>
+      <div className="filter-bar">
+        <div className="filter-group">
           <div className="search-input-wrap">
             <Search size={14} className="search-icon" />
             <input 
@@ -51,14 +51,22 @@ export default function EmailActivityTable({
               placeholder="Search by Document #, Recipient, Subject..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ minWidth: '280px' }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
 
           <CustomSelect 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ minWidth: '160px' }}
             options={[
               { value: 'all', label: `All Statuses (${emailList.length})` },
               { value: 'sent', label: `Sent (${emailList.filter(e => e.status === 'Sent').length})` },
@@ -68,7 +76,7 @@ export default function EmailActivityTable({
           />
         </div>
 
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className="filter-summary-count">
           Showing <strong>{filteredEmails.length}</strong> of {emailList.length} dispatch logs
         </div>
       </div>

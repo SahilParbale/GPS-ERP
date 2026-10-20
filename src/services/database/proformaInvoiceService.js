@@ -218,11 +218,6 @@ export const proformaInvoiceService = {
       };
     });
 
-    // Provide authentic TTB reference if list is empty so that Client Directory has complete commercial data
-    if (normalizedData.length === 0) {
-      normalizedData.push(DEFAULT_TTB_PROFORMA);
-    }
-
     return {
       ...res,
       data: normalizedData
@@ -289,11 +284,15 @@ export const proformaInvoiceService = {
         if (existingCust && existingCust.id) {
           targetCustomerId = existingCust.id;
         } else {
+          const nameTrimmed = (customerName || 'General Client').trim();
+          const custCode = 'CUST-' + nameTrimmed.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 8) + '-' + String(Date.now()).slice(-4);
           const { data: newCust } = await supabase.from('customers').insert({
-            company_name: (customerName || 'General Client').trim(),
-            billing_address: customerAddress || '',
+            customer_code: custCode,
+            company_name: nameTrimmed,
+            billing_address: customerAddress || 'Address not provided',
             gstin: customerGstin || null,
-            state: placeOfSupply || '27-Maharashtra'
+            state: placeOfSupply || '27-Maharashtra',
+            is_active: true
           }).select('id').maybeSingle();
           if (newCust && newCust.id) targetCustomerId = newCust.id;
         }

@@ -521,10 +521,6 @@ export const contactService = {
    * Pure database-backed with ZERO mock fallback.
    */
   async getUnifiedDirectory() {
-    if (isCleanSlateMode()) {
-      return { data: [], error: null };
-    }
-
     try {
       const [custRes, contactsRes, suppliersRes] = await Promise.all([
         supabase.from('customers').select('*').eq('is_active', true).order('company_name', { ascending: true }),

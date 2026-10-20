@@ -26,3 +26,4 @@ export { qualityService } from '../quality/qualityService';
 export { dashboardService } from '../dashboard/dashboardService';
 export { clientPaymentService } from './clientPaymentService';
 export { settingsService } from '../settings/settingsService';
+export { databaseCleanService } from './databaseCleanService';

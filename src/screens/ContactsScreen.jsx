@@ -293,16 +293,16 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
         <PageHeader
           title="Contacts & Email Directory"
           subtitle="Centralized client & vendor email directory with systematically pre-stored CC groups"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="content-body">
           <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
             <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-              {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+              {error.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-              {error.message || 'Unable to retrieve live contact records from PostgreSQL database.'}
+              {error.message || 'Unable to retrieve contact records. Please check your connection.'}
             </p>
             <button type="button" className="btn btn-secondary" onClick={loadContacts}>
               <RefreshCw size={14} />
@@ -448,20 +448,30 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
       </div>
 
       {/* 4. UNIVERSAL SEARCH & CATEGORY FILTER BAR */}
-      <div className="section-card" style={{ padding: '12px 18px', flexShrink: 0, overflow: 'visible' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Universal Search Input */}
-          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search company, person, direct email, or any CC email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '32px', height: '34px', fontSize: '12.5px' }}
-            />
-          </div>
+      <div className="section-card" style={{ padding: '0', flexShrink: 0, overflow: 'visible' }}>
+        <div className="filter-bar">
+          <div className="filter-group">
+            {/* Universal Search Input */}
+            <div className="search-input-wrap">
+              <Search size={14} className="search-icon" />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search company, person, direct email, or any CC email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
 
           {/* Category Tabs */}
           <div style={{ display: 'flex', gap: '4px' }}>
@@ -510,12 +520,13 @@ export default function ContactsScreen({ onNavigate, onNotify }) {
               <span>Reset</span>
             </button>
           )}
+        </div>
 
-          <div style={{ marginLeft: 'auto', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-            Showing <strong>{filteredContacts.length}</strong> of {contacts.length} companies
+            <div className="filter-summary-count">
+              Showing <strong>{filteredContacts.length}</strong> of {contacts.length} companies
+            </div>
           </div>
         </div>
-      </div>
 
       {/* 5. SYSTEMATIC CONTACT CARDS DIRECTORY */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flexShrink: 0 }}>

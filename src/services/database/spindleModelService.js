@@ -141,6 +141,47 @@ export const spindleModelService = {
           tempRise: sp.thermal_rise_stabilized_celsius ? `${sp.thermal_rise_stabilized_celsius} °C` : '14.2 °C',
           clampForce: sp.clamping_force_measured_kn ? `${sp.clamping_force_measured_kn} kN` : '18.4 kN'
         }));
+      } else if (res.error) {
+        // Fallback: If join query fails due to relationship mapping, query directly without joins
+        const simpleRes = await baseService.select('spindles', {
+          select: '*',
+          orderBy: options.orderBy || 'serial_number',
+          ascending: options.ascending ?? false,
+          ...options
+        });
+        if (!simpleRes.error && simpleRes.data && simpleRes.data.length > 0) {
+          liveSpindles = simpleRes.data.map(sp => ({
+            id: sp.id,
+            dbId: sp.id,
+            serialNumber: sp.serial_number,
+            make: 'GPS Spindle',
+            model: sp.model_code || 'GPS-HSK-A63-24K',
+            modelName: 'Precision Motorized Spindle',
+            category: 'manufactured',
+            type: sp.spindle_type || 'Motorized Electro-Spindle',
+            customer: sp.customer_name || 'Enterprise Client',
+            rpm: `${sp.max_rpm ? (sp.max_rpm / 1000).toFixed(0) : '24'}k RPM`,
+            maxRpm: sp.max_rpm || 24000,
+            power: `${sp.power_kw || 15} kW`,
+            torque: `${sp.torque_nm || 32} Nm`,
+            taper: sp.taper_interface || 'HSK-A63',
+            interface: sp.taper_interface || 'HSK-A63',
+            lubrication: sp.lubrication || 'Air-Oil Mist',
+            bearings: sp.bearings_spec || 'Ceramic Hybrid',
+            cooling: sp.cooling_spec || 'Water-Glycol Closed Circuit',
+            status: sp.status || 'In Production',
+            stage: sp.current_stage || 'Machining',
+            warranty: sp.warranty_period || 'Active (24 Months)',
+            qrCode: sp.qr_code || sp.serial_number,
+            runout: sp.max_runout_measured_microns ? `${sp.max_runout_measured_microns} µm` : '0.6 µm',
+            runoutTaper: sp.max_runout_measured_microns ? `${sp.max_runout_measured_microns} mm` : '0.0008 mm',
+            balanceGrade: sp.balance_grade || 'ISO 1940 G0.28',
+            vibration: sp.vibration_overall_velocity_mms ? `${sp.vibration_overall_velocity_mms} mm/s` : '0.27 mm/s',
+            vibrationRms: sp.vibration_overall_velocity_mms ? `${sp.vibration_overall_velocity_mms} mm/s` : '0.27 mm/s',
+            tempRise: sp.thermal_rise_stabilized_celsius ? `${sp.thermal_rise_stabilized_celsius} °C` : '14.2 °C',
+            clampForce: sp.clamping_force_measured_kn ? `${sp.clamping_force_measured_kn} kN` : '18.4 kN'
+          }));
+        }
       }
     } catch (e) {
       console.warn('[spindleModelService] live query fallback:', e);

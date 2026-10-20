@@ -137,7 +137,8 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
             }}
           >
             <Download size={14} />
-            <span>Download Certificate</span>
+            <span className="desktop-only-inline">Download Certificate</span>
+            <span className="mobile-only-inline">Certificate</span>
           </button>
           <button 
             type="button" 
@@ -145,7 +146,8 @@ export default function SpindleDetailScreen({ spindle, onNavigate, onNotify }) {
             onClick={() => onNotify && onNotify(`QR Code Pass printed for ${sp.serialNumber}`)}
           >
             <Printer size={14} />
-            <span>Print QR Shop Pass</span>
+            <span className="desktop-only-inline">Print QR Shop Pass</span>
+            <span className="mobile-only-inline">QR Pass</span>
           </button>
         </div>
       </div>

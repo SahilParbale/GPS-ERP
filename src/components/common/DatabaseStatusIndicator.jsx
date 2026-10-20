@@ -79,7 +79,7 @@ export default function DatabaseStatusIndicator() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        title="Supabase PostgreSQL Backend Health Check"
+        title="Enterprise Cloud Sync & Status"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -130,7 +130,7 @@ export default function DatabaseStatusIndicator() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--primary)' }}>
               <Database size={14} />
-              <span>Backend Architecture</span>
+              <span>Enterprise Cloud Status</span>
             </div>
             <button
               type="button"
@@ -156,7 +156,7 @@ export default function DatabaseStatusIndicator() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Platform:</span>
-              <strong style={{ color: 'var(--text-main)' }}>Supabase (PostgreSQL)</strong>
+              <strong style={{ color: 'var(--text-main)' }}>Enterprise Cloud ERP</strong>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -175,8 +175,8 @@ export default function DatabaseStatusIndicator() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Configuration:</span>
-              <span className="mono" style={{ fontSize: '10.5px' }}>
-                {status.isConfigured ? 'Active in .env' : 'Pending (.env.example)'}
+              <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
+                {status.isConfigured ? 'Enterprise Mode' : 'Standalone Mode'}
               </span>
             </div>
 
@@ -188,7 +188,7 @@ export default function DatabaseStatusIndicator() {
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', fontSize: '10.5px', color: 'var(--text-muted)' }}>
-            Phase 1 Foundation active. Client, Auth, Storage & Realtime services initialized.
+            Data Sync, Authentication, Vault Storage & Realtime services active.
           </div>
         </div>
       )}

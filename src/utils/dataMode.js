@@ -1,62 +1,94 @@
 /**
- * GPS Spindle Industrial ERP — Data Mode Controller
+ * GPS Spindle Industrial ERP — Data Mode & Seed Purge Controller
  *
- * Allows non-destructive toggling between:
- *  1. Clean Slate Mode (Zero seed data / fresh empty ERP view)
- *  2. Demo Mode (Full industrial seed datasets loaded)
- *
- * Default is Clean Slate Mode (true) as requested by the user,
- * without permanently deleting any database records or seed files.
+ * Ensures all seed demo records are permanently removed and cleans out
+ * any legacy mock objects cached in browser localStorage.
  */
 
 const CLEAN_SLATE_STORAGE_KEY = 'gps_erp_clean_slate_mode';
+const SEED_PURGED_FLAG_KEY = 'gps_erp_seed_data_purged_v2';
 
 /**
- * Returns true if Clean Slate (Empty Data) mode is currently active.
- * Defaults to true so the user immediately experiences the fresh empty system.
+ * Automatically purge any legacy demo seed data cached in browser localStorage
+ */
+export function purgeSeedStorage() {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+
+  try {
+    const isPurged = localStorage.getItem(SEED_PURGED_FLAG_KEY);
+    if (isPurged === 'true') return;
+
+    // Keys that may contain seed/mock data from previous sessions
+    const keysToCheck = [
+      'gps_dispatched_history',
+      'gps_outlook_emails',
+      'gps_dispatched_orders',
+      'gps_quotation_work_orders',
+      'gps_local_work_orders',
+      'gps_local_service_jobs',
+      'gps_local_quotations',
+      'gps_erp_custom_purchase_orders',
+      'gps_erp_custom_suppliers',
+      'gps_erp_custom_inventory',
+      'gps_erp_custom_spindles'
+    ];
+
+    keysToCheck.forEach(key => {
+      try {
+        const val = localStorage.getItem(key);
+        if (val) {
+          // If it contains known mock serials or IDs, clear it
+          if (
+            val.includes('DSP-2026') ||
+            val.includes('msg-in-101') ||
+            val.includes('Tata Advanced Systems') ||
+            val.includes('GPS-2026-0842') ||
+            val.includes('WO-2026-104') ||
+            val.includes('SR-2026-041') ||
+            val.includes('PREMIER INDUSTRIAL')
+          ) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (_e) {}
+    });
+
+    localStorage.setItem(CLEAN_SLATE_STORAGE_KEY, 'true');
+    localStorage.setItem(SEED_PURGED_FLAG_KEY, 'true');
+    console.info('[GPS ERP] Seed data storage purge successfully executed.');
+  } catch (e) {
+    console.warn('[GPS ERP] Failed to run seed purge routine:', e);
+  }
+}
+
+// Immediately execute purge on bundle execution
+if (typeof window !== 'undefined') {
+  purgeSeedStorage();
+}
+
+/**
+ * Returns true if Clean Slate (Empty Data) mode is active.
+ * Always true since all seed data has been removed from the software.
  */
 export function isCleanSlateMode() {
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-    return true;
-  }
-  try {
-    const stored = localStorage.getItem(CLEAN_SLATE_STORAGE_KEY);
-    // Default to true if not explicitly set to 'false'
-    if (stored === null) return true;
-    return stored === 'true';
-  } catch (e) {
-    return true;
-  }
+  return true;
 }
 
 /**
- * Update Clean Slate mode and notify all listening components.
- * @param {boolean} enable
+ * Kept for interface compatibility.
  */
-export function setCleanSlateMode(enable) {
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(CLEAN_SLATE_STORAGE_KEY, enable ? 'true' : 'false');
-    window.dispatchEvent(
-      new CustomEvent('gps_data_mode_changed', {
-        detail: { cleanSlate: Boolean(enable) }
-      })
-    );
-  } catch (e) {
-    console.error('[dataMode] Failed to save clean slate state:', e);
-  }
+export function setCleanSlateMode(_enable) {
+  // Always clean slate
 }
 
 /**
- * Toggle between Clean Slate and Demo Seed mode.
- * Automatically reloads window if requested to guarantee 100% clean memory and service caches.
+ * Kept for interface compatibility.
  */
-export function toggleCleanSlateMode(reload = true) {
-  const current = isCleanSlateMode();
-  const next = !current;
-  setCleanSlateMode(next);
+export function toggleCleanSlateMode(reload = false) {
   if (reload && typeof window !== 'undefined') {
     window.location.reload();
   }
-  return next;
+  return true;
 }
+
+export const clearCachedMockData = purgeSeedStorage;

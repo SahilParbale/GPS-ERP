@@ -11,12 +11,12 @@ import { exportInventoryValuationPdf } from '../utils/pdfGenerator';
 import DocumentPreviewModal from '../components/email/DocumentPreviewModal';
 import { useAuth } from '../context/AuthContext';
 import { INVENTORY_ITEMS } from '../data/mockData';
-import { 
-  Search, Plus, AlertTriangle, Boxes, 
+import {
+  Search, Plus, AlertTriangle, Boxes,
   Download, PackageCheck, RefreshCw, AlertCircle,
   Tag, Edit3, Trash2, ArrowUpRight, ArrowDownRight,
   Scale, CheckCircle2, ShieldCheck, MapPin, Building2,
-  ShoppingCart, FileText
+  ShoppingCart, FileText, X
 } from 'lucide-react';
 
 const COMMON_MAKES = [
@@ -215,8 +215,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
     const lowStockCount = items.filter(it => (Number(it.availableQty) || 0) <= (Number(it.minStock) || 0)).length;
     const activeMakes = new Set(items.map(it => it.make || 'Generic')).size;
 
-    const formattedVal = totalValuation >= 100000 
-      ? `₹${(totalValuation / 100000).toFixed(2)}L` 
+    const formattedVal = totalValuation >= 100000
+      ? `₹${(totalValuation / 100000).toFixed(2)}L`
       : `₹${totalValuation.toLocaleString('en-IN')}`;
 
     return {
@@ -280,7 +280,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = !q || 
+      const matchesSearch = !q ||
         (item.name && item.name.toLowerCase().includes(q)) ||
         (item.sku && item.sku.toLowerCase().includes(q)) ||
         (item.make && item.make.toLowerCase().includes(q)) ||
@@ -289,10 +289,10 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         (item.location && item.location.toLowerCase().includes(q)) ||
         (item.supplier && item.supplier.toLowerCase().includes(q));
 
-      const matchesMake = makeFilter === 'all' || 
+      const matchesMake = makeFilter === 'all' ||
         (item.make && item.make.toLowerCase() === makeFilter.toLowerCase());
 
-      const matchesCat = categoryFilter === 'all' || 
+      const matchesCat = categoryFilter === 'all' ||
         (item.category && item.category.toLowerCase().includes(categoryFilter.toLowerCase()));
 
       let matchesStatus = true;
@@ -420,10 +420,10 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
       }
 
       setIsAdjustModalOpen(false);
-      const actionLabel = adjustFormData.adjustmentType === 'inward' 
-        ? `Added ${adjustFormData.quantity} units to` 
+      const actionLabel = adjustFormData.adjustmentType === 'inward'
+        ? `Added ${adjustFormData.quantity} units to`
         : (adjustFormData.adjustmentType === 'issue' ? `Issued ${adjustFormData.quantity} units of` : 'Audited stock of');
-      
+
       if (onNotify) onNotify(`${actionLabel} ${selectedItemForAdjust.name}. Available: ${res.data.availableQty} ${selectedItemForAdjust.unit}`);
       await loadInventory();
     } catch (err) {
@@ -453,8 +453,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
   if (error) {
     return (
       <div className="content-area">
-        <PageHeader 
-          title="Materials, Spares & Tooling Inventory" 
+        <PageHeader
+          title="Materials, Spares & Tooling Inventory"
           subtitle="Precision alloy steels, ceramic bearings, stators, and encoder stock controls"
           badge="Database Notice"
         />
@@ -479,22 +479,22 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
 
   return (
     <div className="content-area">
-      <PageHeader 
-        title="Materials, Spares & Tooling Inventory" 
+      <PageHeader
+        title="Materials, Spares & Tooling Inventory"
         subtitle="Catalogued precision raw alloy steels, ceramic hybrid bearings, drawbars, and sensors classified by Make"
         badge={`${items.length} Catalogued Items`}
       >
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-secondary"
           onClick={handleDirectDownloadValuationPdf}
           title="Download Valuation PDF directly"
         >
           <Download size={14} />
-          <span>Download PDF</span>
+          <span>Valuation PDF</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className={`btn ${activeTab === 'valuation' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => {
             if (activeTab === 'valuation') {
@@ -506,22 +506,22 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
           title="Switch to Inventory Valuation view or preview statement"
         >
           <FileText size={14} />
-          <span>{activeTab === 'valuation' ? 'Valuation Report (PDF)' : 'Stock Valuation'}</span>
+          <span>{activeTab === 'valuation' ? 'Valuation Report' : 'Stock Valuation'}</span>
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="btn btn-primary"
           onClick={handleOpenAddItem}
           title="Add a new Material, Spare, or Tooling item with Make specification"
         >
           <Plus size={14} />
-          <span>+ Add Material / Spare / Tooling</span>
+          <span>+ Add Material</span>
         </button>
       </PageHeader>
 
       <div className="content-body">
         {/* KPI Cards */}
-        <div className="metrics-grid">
+        <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           <div className="metric-card">
             <div className="metric-top">
               <span className="metric-label">Total Stock Valuation</span>
@@ -541,8 +541,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             <div className="metric-value" style={{ color: '#dc2626' }}>{metrics.lowStockCount}</div>
             <div className="metric-footer" style={{ color: '#b45309' }}>
               {onNavigate ? (
-                <span 
-                  onClick={() => onNavigate('purchase-orders')} 
+                <span
+                  onClick={() => onNavigate('purchase-orders')}
                   style={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                 >
                   <span>Order via Purchase Order Screen</span>
@@ -572,7 +572,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         </div>
 
         {/* Tabs */}
-        <Tabs 
+        <Tabs
           tabs={[
             { id: 'stock', label: 'All Inventory (By Make)', count: items.length },
             { id: 'low_stock', label: 'Critical Low-Stock Alerts', count: lowStockItems.length },
@@ -586,27 +586,35 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         {/* Tab: Stock List */}
         {(activeTab === 'stock' || activeTab === 'low_stock') && (
           <div className="section-card">
-            <div className="filter-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'nowrap' }}>
-              <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, flexWrap: 'nowrap' }}>
-                <div className="search-input-wrap" style={{ minWidth: '180px', maxWidth: '280px', flex: '1 1 220px' }}>
+            <div className="filter-bar">
+              <div className="filter-group">
+                <div className="search-input-wrap">
                   <Search size={14} className="search-icon" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="form-control"
-                    placeholder="Search Make, Part Name, SKU..." 
+                    placeholder="Search Make, Part Name, SKU..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', height: '32px', minWidth: 'unset' }}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Make / Manufacturer Filter */}
-                <CustomSelect 
+                <CustomSelect
                   size="sm"
                   triggerStyle={{ height: '32px' }}
                   value={makeFilter}
                   onChange={(e) => setMakeFilter(e.target.value)}
-                  style={{ width: '170px', minWidth: '145px', flexShrink: 0 }}
                   options={[
                     { value: 'all', label: `All Makes (${uniqueMakes.length})` },
                     ...uniqueMakes.map(m => ({ value: m, label: `Make: ${m}` }))
@@ -614,12 +622,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                 />
 
                 {/* Category Filter */}
-                <CustomSelect 
+                <CustomSelect
                   size="sm"
                   triggerStyle={{ height: '32px' }}
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  style={{ width: '170px', minWidth: '145px', flexShrink: 0 }}
                   options={[
                     { value: 'all', label: 'All Categories' },
                     { value: 'bearing', label: 'Precision Bearings' },
@@ -633,12 +640,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                 />
 
                 {/* Status Filter */}
-                <CustomSelect 
+                <CustomSelect
                   size="sm"
                   triggerStyle={{ height: '32px' }}
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  style={{ width: '155px', minWidth: '135px', flexShrink: 0 }}
                   options={[
                     { value: 'all', label: 'All Stock Levels' },
                     { value: 'in_stock', label: 'In Stock' },
@@ -646,9 +652,27 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                     { value: 'critical', label: 'Critical / Out of Stock' }
                   ]}
                 />
+
+                {/* Reset Filters Button */}
+                {(searchQuery || makeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setMakeFilter('all');
+                      setCategoryFilter('all');
+                      setStatusFilter('all');
+                    }}
+                    style={{ height: '32px' }}
+                  >
+                    <X size={12} />
+                    <span>Reset</span>
+                  </button>
+                )}
               </div>
 
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px' }}>
+              <div className="filter-summary-count">
                 Showing <strong>{(activeTab === 'low_stock' ? lowStockItems : filteredItems).length}</strong> records
               </div>
             </div>
@@ -659,6 +683,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
               alignItems: 'center',
               gap: '6px',
               overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
               padding: '8px 12px',
               borderBottom: '1px solid var(--border-color)',
               marginBottom: '6px',
@@ -726,7 +751,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
               })}
             </div>
 
-            <div className="table-responsive">
+            {/* Desktop Table View */}
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -770,14 +796,14 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                           </td>
                           <td>
                             {/* Make / Manufacturer Badge */}
-                            <span 
+                            <span
                               onClick={() => setMakeFilter(makeFilter.toLowerCase() === (item.make || '').toLowerCase() ? 'all' : (item.make || 'Generic'))}
-                              style={{ 
+                              style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                padding: '2px 8px', 
-                                borderRadius: '4px', 
-                                fontSize: '11.5px', 
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11.5px',
                                 fontWeight: 700,
                                 background: '#F5E8ED',
                                 color: '#7A1F3D',
@@ -815,8 +841,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                             <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
                               {/* Raise PO Reorder Button (for Low Stock) */}
                               {isLow && onNavigate && (
-                                <button 
-                                  type="button" 
+                                <button
+                                  type="button"
                                   className="btn btn-primary btn-sm"
                                   style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                   onClick={() => onNavigate('purchase-orders')}
@@ -828,8 +854,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                               )}
 
                               {/* Update Stock Button */}
-                              <button 
-                                type="button" 
+                              <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#7A1F3D', color: '#7A1F3D', fontWeight: 600 }}
                                 onClick={() => handleOpenStockAdjust(item)}
@@ -840,8 +866,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                               </button>
 
                               {/* Edit Item */}
-                              <button 
-                                type="button" 
+                              <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '4px 6px' }}
                                 onClick={() => handleOpenEditItem(item)}
@@ -851,8 +877,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                               </button>
 
                               {/* Delete Item */}
-                              <button 
-                                type="button" 
+                              <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '4px 6px', color: 'var(--status-danger-text)' }}
                                 onClick={() => setDeleteConfirmModal({ isOpen: true, item })}
@@ -869,15 +895,167 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch-Friendly Card Feed */}
+            <div className="mobile-card-view">
+              {(activeTab === 'low_stock' ? lowStockItems : filteredItems).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                  No inventory records match the current filters.
+                </div>
+              ) : (
+                (activeTab === 'low_stock' ? lowStockItems : filteredItems).map((item) => {
+                  const isLow = (Number(item.availableQty) || 0) <= (Number(item.minStock) || 0);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="inventory-mobile-card"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        background: isLow ? '#fef2f2' : 'var(--bg-surface)',
+                        border: isLow ? '1px solid #fecaca' : '1px solid var(--border-color)'
+                      }}
+                    >
+                      {/* Top Row: SKU, Make Badge, Status */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
+                            {item.sku}
+                          </span>
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMakeFilter(makeFilter.toLowerCase() === (item.make || '').toLowerCase() ? 'all' : (item.make || 'Generic'));
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              background: '#F5E8ED',
+                              color: '#7A1F3D',
+                              border: '1px solid #e2ccd5',
+                              cursor: 'pointer'
+                            }}
+                            title={`Filter by Make: ${item.make || 'Generic'}`}
+                          >
+                            {item.make || 'Generic'}
+                          </span>
+                        </div>
+                        <StatusBadge status={item.status} />
+                      </div>
+
+                      {/* Name, Model & Category */}
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-main)', lineHeight: 1.35 }}>
+                          {item.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          <span>{item.category}</span>
+                          {item.model && item.model !== item.sku && (
+                            <span className="mono">&bull; Model: {item.model}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Comparative Stock & Valuation Details */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                        gap: '8px',
+                        background: 'var(--bg-surface-subtle)',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-color)',
+                        fontSize: '11.5px'
+                      }}>
+                        <div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Stock on Hand</div>
+                          <div className="mono" style={{ fontWeight: 800, fontSize: '13.5px', color: isLow ? '#dc2626' : 'var(--text-main)', marginTop: '2px' }}>
+                            {item.availableQty} {item.unit}
+                            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '4px' }}>
+                              (Min: {item.minStock} {item.unit})
+                            </span>
+                          </div>
+                          {isLow && (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#dc2626', fontSize: '10.5px', fontWeight: 600, marginTop: '3px' }}>
+                              <AlertTriangle size={11} /> Reorder Critical
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Unit Cost / Location</div>
+                          <div className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginTop: '2px' }}>
+                            {item.unitCost}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                            <MapPin size={11} color="var(--text-muted)" />
+                            <span>{item.location}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', flexWrap: 'wrap', paddingTop: '4px', borderTop: '1px solid var(--border-color)' }}>
+                        {isLow && onNavigate && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => onNavigate('purchase-orders')}
+                            title="Navigate to Purchase Orders to place order"
+                          >
+                            <ShoppingCart size={11} />
+                            <span>Raise PO</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#7A1F3D', color: '#7A1F3D', fontWeight: 600 }}
+                          onClick={() => handleOpenStockAdjust(item)}
+                          title="Update Stock"
+                        >
+                          <RefreshCw size={11} />
+                          <span>Update Stock</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '5px 8px' }}
+                          onClick={() => handleOpenEditItem(item)}
+                          title="Edit Item"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '5px 8px', color: 'var(--status-danger-text)' }}
+                          onClick={() => setDeleteConfirmModal({ isOpen: true, item })}
+                          title="Delete Item"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 
         {/* Tab: Material Movement Transactions */}
         {activeTab === 'transactions' && (
           <div className="section-card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div className="card-title">Material Movement Log (Inward GRN / Store Issue / Audit)</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                   {stockMovements.length} Logged Movement(s)
                 </span>
@@ -891,11 +1069,13 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                   title="Record inward shipment or production issue"
                 >
                   <Plus size={12} />
-                  <span>Record Movement / Issue</span>
+                  <span>+ Record Movement</span>
                 </button>
               </div>
             </div>
-            <div className="table-responsive">
+
+            {/* Desktop Table View */}
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -920,8 +1100,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                       <tr key={tx.id || idx}>
                         <td className="mono" style={{ fontSize: '12px' }}>{tx.time}</td>
                         <td>
-                          <span 
-                            className={`status-badge ${tx.type.includes('Inward') ? 'badge-success' : (tx.type.includes('Issue') ? 'badge-warning' : 'badge-neutral')}`} 
+                          <span
+                            className={`status-badge ${tx.type.includes('Inward') ? 'badge-success' : (tx.type.includes('Issue') ? 'badge-warning' : 'badge-neutral')}`}
                             style={{ fontSize: '11px', fontWeight: 600 }}
                           >
                             {tx.type}
@@ -944,6 +1124,72 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch-Friendly Movement Cards Feed */}
+            <div className="mobile-card-view">
+              {stockMovements.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                  No inventory movements recorded yet.
+                </div>
+              ) : (
+                stockMovements.map((tx, idx) => (
+                  <div key={tx.id || idx} className="movement-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Top Row: Timestamp, Type Badge, Qty */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="mono" style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                        {tx.time}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          className={`status-badge ${tx.type.includes('Inward') ? 'badge-success' : (tx.type.includes('Issue') ? 'badge-warning' : 'badge-neutral')}`}
+                          style={{ fontSize: '11px', fontWeight: 600 }}
+                        >
+                          {tx.type}
+                        </span>
+                        <span className="mono" style={{ fontWeight: 800, fontSize: '13px', color: tx.type.includes('Inward') ? '#047857' : (tx.type.includes('Issue') ? '#b45309' : 'var(--text-main)') }}>
+                          {tx.qty}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Item Name & SKU */}
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>{tx.name}</div>
+                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{tx.sku}</div>
+                    </div>
+
+                    {/* Location & Authorized By */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '8px',
+                      background: 'var(--bg-surface-subtle)',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '11px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Location / Station</div>
+                        <div style={{ color: 'var(--text-main)', fontWeight: 500, marginTop: '2px' }}>
+                          {tx.location || tx.workstation || tx.bay || 'Central Stores'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Authorized Officer</div>
+                        <div style={{ color: 'var(--text-main)', fontWeight: 500, marginTop: '2px' }}>{tx.user}</div>
+                      </div>
+                    </div>
+
+                    {/* Reference & Notes */}
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <div>Ref: <strong className="mono" style={{ color: 'var(--primary)' }}>{tx.ref}</strong></div>
+                      {tx.notes && <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{tx.notes}</div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
@@ -955,7 +1201,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             const matchesCat = filterCat === 'all' || itemCat.includes(filterCat);
             const matchesMake = makeFilter === 'all' || (item.make && item.make.toLowerCase() === makeFilter.toLowerCase());
             const q = (searchQuery || '').toLowerCase().trim();
-            const matchesSearch = !q || 
+            const matchesSearch = !q ||
               (item.name || '').toLowerCase().includes(q) ||
               (item.sku || '').toLowerCase().includes(q) ||
               (item.make || '').toLowerCase().includes(q);
@@ -967,9 +1213,9 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
 
           return (
             <div className="section-card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div className="card-title">Inventory Valuation & Stock Financials (By Make)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -991,7 +1237,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                 </div>
               </div>
 
-              <div className="table-responsive">
+              {/* Desktop Table View */}
+              <div className="table-responsive desktop-table-view">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -1066,6 +1313,97 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
                   )}
                 </table>
               </div>
+
+              {/* Mobile Touch-Friendly Valuation Cards Feed */}
+              <div className="mobile-card-view">
+                {filteredValuationItems.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                    No valuation records match the active search / category filters.
+                  </div>
+                ) : (
+                  <>
+                    {/* Valuation Summary Header Banner */}
+                    <div style={{
+                      padding: '12px 14px',
+                      background: 'linear-gradient(135deg, rgba(122,31,61,0.08), rgba(122,31,61,0.02))',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid rgba(122,31,61,0.2)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Valuation</div>
+                        <div className="mono" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
+                          ₹{totalVal.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Stock</div>
+                        <div className="mono" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
+                          {totalUnits.toLocaleString('en-IN')} Units
+                        </div>
+                      </div>
+                    </div>
+
+                    {filteredValuationItems.map((item) => {
+                      const lineVal = (Number(item.availableQty) || 0) * (Number(item.unitCostNum) || 0);
+                      return (
+                        <div key={item.id} className="valuation-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                            <span className="mono" style={{ fontSize: '12.5px', color: 'var(--primary)', fontWeight: 700 }}>
+                              {item.sku}
+                            </span>
+                            <span style={{ fontWeight: 700, color: '#7A1F3D', fontSize: '11px', background: '#F5E8ED', padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2ccd5' }}>
+                              {item.make || 'Generic'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>{item.name}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{item.category}</div>
+                          </div>
+
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                            gap: '8px',
+                            background: 'var(--bg-surface-subtle)',
+                            padding: '8px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '11px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Unit Cost</div>
+                              <div className="mono" style={{ fontWeight: 600, marginTop: '2px' }}>{item.unitCost}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Stock on Hand</div>
+                              <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                                {item.availableQty} {item.unit}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Total Line Value</div>
+                              <div className="mono" style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '12px', marginTop: '2px' }}>
+                                ₹{lineVal.toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                            <MapPin size={11} />
+                            <span>{item.location}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
             </div>
           );
         })()}
@@ -1080,18 +1418,20 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         title={editingItemId ? `Edit Material Spec: ${itemFormData.name}` : '+ Add Material, Spare or Tooling Item'}
         maxWidth="680px"
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
               onClick={() => setIsItemModalOpen(false)}
+              style={{ flex: '1 1 auto', minWidth: '70px' }}
             >
               Cancel
             </button>
-            <button 
-              type="button" 
-              className="btn btn-primary" 
+            <button
+              type="button"
+              className="btn btn-primary"
               onClick={handleSaveItem}
+              style={{ flex: '1 1 auto', justifyContent: 'center' }}
             >
               <CheckCircle2 size={13} />
               <span>{editingItemId ? 'Update Material Spec' : 'Add to Inventory'}</span>
@@ -1100,11 +1440,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         }
       >
         <form onSubmit={handleSaveItem} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Part Code / SKU *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="form-control mono"
                 value={itemFormData.sku}
                 onChange={e => setItemFormData(prev => ({ ...prev, sku: e.target.value.toUpperCase() }))}
@@ -1114,7 +1454,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Make / Manufacturer *</label>
-              <input 
+              <input
                 list="common-makes-list"
                 className="form-control"
                 style={{ fontWeight: 600, color: '#7A1F3D' }}
@@ -1131,8 +1471,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
 
           <div>
             <label className="form-label" style={{ fontSize: '11px' }}>Material / Component Name *</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               className="form-control"
               value={itemFormData.name}
               onChange={e => setItemFormData(prev => ({ ...prev, name: e.target.value }))}
@@ -1141,11 +1481,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Model / Spec Number</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="form-control mono"
                 value={itemFormData.model}
                 onChange={e => setItemFormData(prev => ({ ...prev, model: e.target.value }))}
@@ -1154,7 +1494,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Material Category</label>
-              <select 
+              <select
                 className="form-control"
                 value={itemFormData.category}
                 onChange={e => setItemFormData(prev => ({ ...prev, category: e.target.value }))}
@@ -1171,11 +1511,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Available Qty *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 min="0"
                 className="form-control mono"
                 value={itemFormData.availableQty}
@@ -1185,8 +1525,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Min Reorder Level *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 min="1"
                 className="form-control mono"
                 value={itemFormData.minStock}
@@ -1196,7 +1536,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Unit of Measure</label>
-              <select 
+              <select
                 className="form-control"
                 value={itemFormData.unit}
                 onChange={e => setItemFormData(prev => ({ ...prev, unit: e.target.value }))}
@@ -1213,11 +1553,11 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Unit Cost (₹) *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 min="0"
                 step="any"
                 className="form-control mono"
@@ -1228,8 +1568,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Warehouse Bin / Location</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="form-control"
                 value={itemFormData.location}
                 onChange={e => setItemFormData(prev => ({ ...prev, location: e.target.value }))}
@@ -1271,18 +1611,20 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
           title={`Update Stock — ${selectedItemForAdjust.name}`}
           maxWidth="560px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsAdjustModalOpen(false)}
+                style={{ flex: '1 1 auto', minWidth: '70px' }}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={handleApplyStockAdjustment}
+                style={{ flex: '1 1 auto', justifyContent: 'center' }}
               >
                 <CheckCircle2 size={13} />
                 <span>Apply Stock Update</span>
@@ -1292,14 +1634,16 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
         >
           <form onSubmit={handleApplyStockAdjustment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* Item Summary Banner */}
-            <div style={{ 
-              padding: '10px 14px', 
-              background: '#F5E8ED', 
-              border: '1px solid #e2ccd5', 
+            <div style={{
+              padding: '10px 14px',
+              background: '#F5E8ED',
+              border: '1px solid #e2ccd5',
               borderRadius: '6px',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
             }}>
               <div>
                 <div style={{ fontWeight: 800, color: '#7A1F3D', fontSize: '13px' }}>
@@ -1320,7 +1664,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             {/* Adjustment Type Selector */}
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Adjustment Operation</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
                 <button
                   type="button"
                   style={{
@@ -1390,12 +1734,12 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
             </div>
 
             {/* Quantity Input with Live Preview */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'center' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '11px' }}>
                   {adjustFormData.adjustmentType === 'set' ? 'New Exact Stock Level' : 'Quantity to Add / Deduct'} *
                 </label>
-                <input 
+                <input
                   type="number"
                   min={adjustFormData.adjustmentType === 'set' ? '0' : '1'}
                   className="form-control mono"
@@ -1407,10 +1751,10 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
               </div>
 
               {/* Calculated Result */}
-              <div style={{ 
-                padding: '10px', 
-                background: '#F8FAF9', 
-                borderRadius: '6px', 
+              <div style={{
+                padding: '10px',
+                background: '#F8FAF9',
+                borderRadius: '6px',
                 border: '1px solid var(--border-color)',
                 textAlign: 'center'
               }}>
@@ -1429,8 +1773,8 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
 
             <div>
               <label className="form-label" style={{ fontSize: '11px' }}>Reason / Movement Notes *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="form-control"
                 value={adjustFormData.reason}
                 onChange={e => setAdjustFormData(prev => ({ ...prev, reason: e.target.value }))}
@@ -1452,16 +1796,16 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
           title="Delete Material Item from Inventory Registry"
           maxWidth="440px"
           footer={
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
-              <button 
-                type="button" 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+              <button
+                type="button"
                 className="btn btn-secondary"
                 onClick={() => setDeleteConfirmModal({ isOpen: false, item: null })}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-primary"
                 style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
                 onClick={handleExecuteDeleteItem}
@@ -1485,7 +1829,7 @@ export default function InventoryScreen({ onNavigate, onNotify }) {
       {/* ========================================================================= */}
       {/* 4. DOCUMENT PREVIEW MODAL (INVENTORY VALUATION REPORT)                    */}
       {/* ========================================================================= */}
-      <DocumentPreviewModal 
+      <DocumentPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         doc={previewDoc}

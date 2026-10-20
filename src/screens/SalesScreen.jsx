@@ -13,7 +13,7 @@ import {
   Send, DollarSign, ArrowRight, Download, Trash2, Edit3, 
   Check, RefreshCw, X, FileCheck, Building2, User, Phone, 
   MapPin, Hash, Maximize2, Minimize2, ChevronRight, Mail, AlertCircle,
-  Loader2, Calendar, Clock, XCircle, ChevronDown, ZoomIn, ZoomOut
+  Loader2, Calendar, Clock, XCircle, ChevronDown, ChevronUp, ZoomIn, ZoomOut, ChevronLeft
 } from 'lucide-react';
 import OutlookEmailComposer from '../components/email/OutlookEmailComposer';
 import UpiQrCode from '../components/common/UpiQrCode';
@@ -121,20 +121,85 @@ const DEFAULT_LINAMAR_TEMPLATE = {
 export default function SalesScreen({ onNavigate, onNotify }) {
   const [quotations, setQuotations] = useState([]);
   const [selectedQuote, setSelectedQuote] = useState(null);
+  const [mobileTab, setMobileTab] = useState('list'); // 'list' | 'preview' for mobile
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState(null);
+  const [editingQuote, setEditingQuote] = useState(null);
   const [isDocExpanded, setIsDocExpanded] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConvertingToPI, setIsConvertingToPI] = useState(false);
   const [clientsList, setClientsList] = useState([]);
 
+  // Searchable Client Directory Picker state
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [isClientSearchOpen, setIsClientSearchOpen] = useState(false);
+  const clientSearchRef = useRef(null);
+  const clientSearchInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (clientSearchRef.current && !clientSearchRef.current.contains(e.target)) {
+        setIsClientSearchOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsClientSearchOpen(false);
+    };
+    if (isClientSearchOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isClientSearchOpen]);
+
+  useEffect(() => {
+    if (!isNewQuoteOpen) {
+      setClientSearchQuery('');
+      setIsClientSearchOpen(false);
+    }
+  }, [isNewQuoteOpen]);
+
+  const filteredClients = useMemo(() => {
+    if (!clientSearchQuery.trim()) return clientsList;
+    const q = clientSearchQuery.trim().toLowerCase();
+    return clientsList.filter(c => {
+      const name = (c.company_name || c.name || '').toLowerCase();
+      const city = (c.city || '').toLowerCase();
+      const gstin = (c.gstin || '').toLowerCase();
+      const contact = (c.primary_contact_name || c.contact_person || '').toLowerCase();
+      return name.includes(q) || city.includes(q) || gstin.includes(q) || contact.includes(q);
+    });
+  }, [clientsList, clientSearchQuery]);
+
+  const handleSelectClientFromDirectory = (selected) => {
+    if (!selected) return;
+    setFormState(prev => ({
+      ...prev,
+      customer: selected.company_name || selected.name || '',
+      customerAddress: selected.billing_address || selected.address || prev.customerAddress,
+      contactPerson: selected.primary_contact_name || selected.contact_person || prev.contactPerson,
+      contactNo: selected.primary_phone || selected.phone || prev.contactNo,
+      customerEmail: selected.primary_email || selected.email || prev.customerEmail,
+      gstin: selected.gstin || prev.gstin,
+      state: selected.state || prev.state,
+      placeOfSupply: selected.state ? (selected.state.includes('-') ? selected.state : `27-${selected.state}`) : prev.placeOfSupply
+    }));
+    setClientSearchQuery('');
+    setIsClientSearchOpen(false);
+    if (onNotify) onNotify(`Auto-filled details from Client Directory for ${selected.company_name || selected.name}`);
+  };
+
   const [updatingQuoteId, setUpdatingQuoteId] = useState(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [isMobilePreviewActionsOpen, setIsMobilePreviewActionsOpen] = useState(false);
   const [sidebarStatusMenuQuoteId, setSidebarStatusMenuQuoteId] = useState(null);
 
   const previewContainerRef = useRef(null);
@@ -181,9 +246,9 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
   const handleFitWidth = useCallback(() => {
     if (previewContainerRef.current) {
-      const containerWidth = previewContainerRef.current.clientWidth - 48;
+      const containerWidth = previewContainerRef.current.clientWidth - 24;
       if (containerWidth > 0 && containerWidth < 794) {
-        const calculatedScale = Math.max(0.5, Math.min(1, Number((containerWidth / 794).toFixed(2))));
+        const calculatedScale = Math.max(0.35, Math.min(1, Number((containerWidth / 794).toFixed(2))));
         setZoomScale(calculatedScale);
       } else {
         setZoomScale(1);
@@ -429,99 +494,175 @@ export default function SalesScreen({ onNavigate, onNotify }) {
   };
 
   const handleOpenEdit = (quote) => {
-    setEditingQuoteId(quote.id || quote.dbId);
+    if (!quote) return;
+    const targetId = quote.dbId || quote.id;
+    setEditingQuoteId(targetId);
+    setEditingQuote(quote);
     setFormState({
-      estimateNo: quote.estimateNo || quote.id || '',
-      date: quote.date || new Date().toISOString().split('T')[0],
+      estimateNo: quote.estimateNo || quote.quotation_number || quote.id || '',
+      date: quote.date || quote.quotation_date || new Date().toISOString().split('T')[0],
       status: quote.status || 'Under Review',
-      placeOfSupply: quote.placeOfSupply || '27-Maharashtra',
-      customer: quote.customer || '',
-      customerAddress: quote.customerAddress || '',
+      placeOfSupply: quote.placeOfSupply || quote.place_of_supply || '27-Maharashtra',
+      customer: quote.customer || quote.customer_name || '',
+      customerId: quote.customerId || quote.customer_id || null,
+      dbId: quote.dbId || quote.id || null,
+      customerAddress: quote.customerAddress || quote.customer_address || '',
+      contactPerson: quote.contactPerson || '',
       contactNo: quote.contactNo || '',
-      gstin: quote.gstin || '',
-      state: quote.state || '',
-      spindleSerial: quote.spindleSerial || '',
+      customerEmail: quote.customerEmail || '',
+      gstin: quote.gstin || quote.customer_gstin || '',
+      state: quote.state || quote.placeOfSupply || '27-Maharashtra',
+      spindleSerial: quote.spindleSerial || quote.spindle_serial || '',
       challanNo: quote.challanNo || 'N/A',
-      inwardDate: quote.inwardDate || '',
-      scopeOfWork: quote.scopeOfWork || '',
+      inwardDate: quote.inwardDate || quote.date || '',
+      scopeOfWork: Array.isArray(quote.scopeOfWork)
+        ? quote.scopeOfWork.join('\n')
+        : (quote.scopeOfWork || ''),
       taxRate: quote.taxRate || 18,
       terms: quote.terms || 'Standard MSME terms apply.',
-      items: quote.items?.length > 0 ? [...quote.items] : [{ id: 1, name: '', hsn: '998717', qty: 1, unitPrice: 0 }]
+      notes: quote.notes || '',
+      items: quote.items?.length > 0
+        ? quote.items.map((it, idx) => ({
+            id: it.id || idx + 1,
+            name: it.name || it.item_name || it.desc || '',
+            desc: it.desc || it.description || it.name || '',
+            hsn: it.hsn != null ? String(it.hsn).trim() : (it.hsn_sac_code != null ? String(it.hsn_sac_code).trim() : '998717'),
+            qty: Number(it.qty || it.quantity || 1),
+            unitPrice: Number(it.unitPrice || it.unit_price || it.rate || 0)
+          }))
+        : [{ id: 1, name: '', hsn: '998717', qty: 1, unitPrice: 0 }]
     });
     setIsNewQuoteOpen(true);
   };
 
-  // Submit and create or update quotation in live Supabase
+  // Submit and create or update quotation in live Supabase & local persistence
   const handleCreateQuotation = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
-    if (!formState.customer.trim()) {
+    if (!formState.customer?.trim()) {
       onNotify('Please enter a Customer / Company name', 'warning');
       return;
     }
 
-    // Always generate a unique quotation number to avoid unique-constraint 400 errors.
-    // Use the form's estimateNo only if the user explicitly changed it from a generated one;
-    // fall back to a timestamp-based unique number.
     const now = new Date();
     const fy = now.getMonth() >= 3
       ? `${now.getFullYear()}-${String(now.getFullYear() + 1).slice(-2)}`
       : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
     const seq = String(Date.now()).slice(-5);
-    // If the estimateNo still looks like the default template value, generate a fresh one
-    const isDefaultNo = formState.estimateNo === 'QTN/2026-27/294' || !formState.estimateNo;
-    const qNo = isDefaultNo
-      ? `QTN/${fy}/${seq}`
-      : formState.estimateNo;
+
+    let qNo;
+    if (editingQuoteId) {
+      // When editing an existing quotation, ALWAYS keep its current estimate number unless user explicitly edited it
+      qNo = formState.estimateNo?.trim() || editingQuote?.estimateNo || editingQuote?.id || editingQuoteId;
+    } else {
+      // If creating new and the estimateNo is empty or matches default template, generate fresh sequence
+      const isDefaultNo = formState.estimateNo === 'QTN/2026-27/294' || !formState.estimateNo?.trim();
+      qNo = isDefaultNo ? `QTN/${fy}/${seq}` : formState.estimateNo.trim();
+    }
+
+    const scopeLines = (formState.scopeOfWork || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const subtotal = Number(formCalculations.subtotal || 0);
+    const totalAmount = Number(formCalculations.totalAmount || 0);
+
+    const quotePayload = {
+      quotationNumber: qNo,
+      estimateNo: qNo,
+      date: formState.date || new Date().toISOString().split('T')[0],
+      customerId: formState.customerId || editingQuote?.customerId || editingQuote?.customer_id,
+      dbId: formState.dbId || editingQuote?.dbId,
+      customerName: formState.customer.trim(),
+      customerAddress: formState.customerAddress,
+      customerGstin: formState.gstin,
+      contactPerson: formState.contactPerson,
+      contactNo: formState.contactNo,
+      customerEmail: formState.customerEmail,
+      placeOfSupply: formState.placeOfSupply || '27-Maharashtra',
+      spindleSerial: formState.spindleSerial,
+      scopeOfWork: scopeLines,
+      subtotal,
+      totalAmount,
+      status: formState.status || 'Under Review',
+      terms: formState.terms,
+      notes: formState.notes,
+      items: formState.items.map((it, idx) => ({
+        id: it.id || idx + 1,
+        name: it.name || it.desc || 'Spindle Service Item',
+        desc: it.desc || it.name,
+        hsn: it.hsn != null ? String(it.hsn).trim() : '84669390',
+        qty: Number(it.qty || 1),
+        unitPrice: Number(it.unitPrice || it.rate || 0),
+        total: Number(it.qty || 1) * Number(it.unitPrice || it.rate || 0)
+      }))
+    };
 
     let res;
     if (editingQuoteId) {
-      res = await salesService.updateQuotation(editingQuoteId, {
-        quotationNumber: qNo,
-        customerName: formState.customer,
-        customerAddress: formState.customerAddress,
-        customerGstin: formState.gstin,
-        contactPerson: formState.contactPerson,
-        contactNo: formState.contactNo,
-        customerEmail: formState.customerEmail,
-        placeOfSupply: formState.placeOfSupply,
-        spindleSerial: formState.spindleSerial,
-        scopeOfWork: formState.scopeOfWork,
-        subtotal: formCalculations.subtotal,
-        totalAmount: formCalculations.totalAmount,
-        status: formState.status || 'Under Review',
-        terms: formState.terms,
-        items: formState.items
-      });
+      res = await salesService.updateQuotation(editingQuoteId, quotePayload);
     } else {
-      res = await salesService.createQuotation({
-        quotationNumber: qNo,
-        customerName: formState.customer,
-        customerAddress: formState.customerAddress,
-        customerGstin: formState.gstin,
-        contactPerson: formState.contactPerson,
-        contactNo: formState.contactNo,
-        customerEmail: formState.customerEmail,
-        placeOfSupply: formState.placeOfSupply,
-        spindleSerial: formState.spindleSerial,
-        scopeOfWork: formState.scopeOfWork,
-        subtotal: formCalculations.subtotal,
-        totalAmount: formCalculations.totalAmount,
-        status: formState.status || 'Under Review',
-        terms: formState.terms,
-        items: formState.items
-      });
+      res = await salesService.createQuotation(quotePayload);
     }
 
-    if (res.error) {
-      onNotify(res.error.message || 'Failed to save quotation in database.', 'error');
+    if (res && res.error) {
+      onNotify(res.error.message || 'Failed to save quotation.', 'error');
       return;
+    }
+
+    // Resolve the saved quotation object
+    const savedQuote = (res?.data && res.data[0]) || {
+      ...quotePayload,
+      id: qNo,
+      dbId: editingQuote?.dbId || editingQuoteId || qNo,
+      customer: formState.customer.trim(),
+      state: formState.placeOfSupply || '27-Maharashtra',
+      taxRate: 18,
+      gstAmount: totalAmount - subtotal
+    };
+
+    // Optimistically update the UI state so edits show up IMMEDIATELY
+    if (editingQuoteId) {
+      setQuotations(prev => {
+        const idx = prev.findIndex(q => 
+          q.id === editingQuoteId || 
+          q.dbId === editingQuoteId || 
+          q.estimateNo === editingQuoteId ||
+          (editingQuote?.dbId && q.dbId === editingQuote.dbId) ||
+          (editingQuote?.estimateNo && q.estimateNo === editingQuote.estimateNo)
+        );
+        if (idx !== -1) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...savedQuote };
+          return updated;
+        }
+        return [savedQuote, ...prev];
+      });
+
+      setSelectedQuote(prev => {
+        if (!prev) return savedQuote;
+        if (
+          prev.id === editingQuoteId || 
+          prev.dbId === editingQuoteId || 
+          prev.estimateNo === editingQuoteId ||
+          (editingQuote?.dbId && prev.dbId === editingQuote.dbId) ||
+          (editingQuote?.estimateNo && prev.estimateNo === editingQuote.estimateNo)
+        ) {
+          return { ...prev, ...savedQuote };
+        }
+        return prev;
+      });
+    } else {
+      setQuotations(prev => [savedQuote, ...prev]);
+      setSelectedQuote(savedQuote);
     }
 
     setStatusFilter('all');
     setSearchQuery('');
     setIsNewQuoteOpen(false);
     setEditingQuoteId(null);
+    setEditingQuote(null);
     onNotify(editingQuoteId ? `Estimate ${qNo} updated successfully` : `Estimate ${qNo} created successfully for ${formState.customer}`);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('gps_quotations_updated'));
@@ -644,15 +785,15 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         <PageHeader 
           title="Sales Enquiries, Quotations & Commercial Orders" 
           subtitle="Customer precision spindle proposals, GST calculations, and line items"
-          badge="Database Notice"
+          badge="Notice"
         />
         <div className="section-card" style={{ padding: '40px', textAlign: 'center' }}>
           <AlertCircle size={32} color="#dc2626" style={{ marginBottom: '12px' }} />
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
-            {error.isRlsDenied ? 'Permission Denied (Row Level Security)' : 'Database Operation Notice'}
+            {error.isRlsDenied ? 'Access Restricted' : 'Connection Notice'}
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px' }}>
-            {error.message || 'Unable to retrieve commercial quotations from PostgreSQL database.'}
+            {error.message || 'Unable to retrieve commercial quotations. Please check your connection.'}
           </p>
           <button type="button" className="btn btn-secondary" onClick={loadQuotations}>
             <RefreshCw size={14} />
@@ -690,7 +831,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           }}
         >
           <Plus size={14} />
-          <span>New Quotation</span>
+          <span className="desktop-only-inline">New Quotation</span>
+          <span className="mobile-only-inline">New Quote</span>
         </button>
       </PageHeader>
 
@@ -734,6 +876,31 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           </div>
         </div>
 
+        {/* Mobile View Switcher (Quotations List vs Document Preview) */}
+        <div className="mobile-only-flex sales-mobile-tabs">
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
+            onClick={() => setMobileTab('list')}
+          >
+            <FileText size={14} />
+            <span>Quotations ({filteredQuotes.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`sales-mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+            onClick={() => {
+              if (!selectedQuote && filteredQuotes.length > 0) {
+                setSelectedQuote(filteredQuotes[0]);
+              }
+              setMobileTab('preview');
+            }}
+          >
+            <Eye size={14} />
+            <span>Document Preview</span>
+          </button>
+        </div>
+
         {/* Quotations Master-Detail View */}
         <div 
           className="grid-2col-sales" 
@@ -744,7 +911,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         >
         {/* Left Column: Compact Master Quotations List */}
         {!isDocExpanded && (
-          <div className="section-card" style={{ height: 'fit-content', padding: '0', overflow: 'hidden' }}>
+          <div className={`section-card sales-col-list ${mobileTab !== 'list' ? 'mobile-hidden' : ''}`} style={{ height: 'fit-content', padding: '0', overflow: 'hidden' }}>
             {/* Filter Header */}
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -752,29 +919,53 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Select to preview</span>
               </div>
               
-              <div style={{ position: 'relative' }}>
-                <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <div className="search-input-wrap" style={{ width: '100%', position: 'relative' }}>
+                <Search size={14} className="search-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', zIndex: 1 }} />
                 <input 
                   type="text" 
                   className="form-control"
                   placeholder="Search Quote #, Customer, Serial..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ height: '28px', fontSize: '11px', paddingLeft: '28px' }}
+                  style={{ width: '100%', height: '32px', fontSize: '12px', paddingLeft: '32px', paddingRight: searchQuery ? '28px' : '10px', boxSizing: 'border-box' }}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: 'var(--text-muted)'
+                    }}
+                    title="Clear search"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
 
-              <CustomSelect 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                size="sm"
-                style={{ width: '160px' }}
-              >
-                <option value="all">All Statuses ({quotations.length})</option>
-                <option value="under review">Under Review ({quotations.filter(q => q.status?.toLowerCase() === 'under review').length})</option>
-                <option value="approved">Approved ({quotations.filter(q => q.status?.toLowerCase() === 'approved').length})</option>
-                <option value="rejected">Rejected ({quotations.filter(q => q.status?.toLowerCase() === 'rejected').length})</option>
-              </CustomSelect>
+              <div style={{ width: '100%' }}>
+                <CustomSelect 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  size="sm"
+                  style={{ width: '100%', height: '32px' }}
+                >
+                  <option value="all">All Statuses ({quotations.length})</option>
+                  <option value="under review">Under Review ({quotations.filter(q => q.status?.toLowerCase() === 'under review').length})</option>
+                  <option value="approved">Approved ({quotations.filter(q => q.status?.toLowerCase() === 'approved').length})</option>
+                  <option value="rejected">Rejected ({quotations.filter(q => q.status?.toLowerCase() === 'rejected').length})</option>
+                </CustomSelect>
+              </div>
             </div>
 
             {/* Scrollable Master List */}
@@ -789,7 +980,12 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                   return (
                     <div
                       key={q.id}
-                      onClick={() => setSelectedQuote(q)}
+                      onClick={() => {
+                        setSelectedQuote(q);
+                        setMobileTab('preview');
+                        setIsMobilePreviewActionsOpen(false);
+                        setTimeout(handleFitWidth, 50);
+                      }}
                       style={{
                         padding: '10px 12px',
                         borderBottom: '1px solid var(--border-color)',
@@ -936,14 +1132,17 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                           <button 
                             type="button" 
                             className="btn btn-secondary btn-sm"
-                            style={{ height: '22px', padding: '0 6px', fontSize: '10.5px', gap: '3px' }}
+                            style={{ height: '26px', padding: '0 8px', fontSize: '11px', gap: '3px' }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedQuote(q);
+                              setMobileTab('preview');
+                              setIsMobilePreviewActionsOpen(false);
+                              setTimeout(handleFitWidth, 50);
                             }}
                             title="Preview Estimate"
                           >
-                            <Eye size={10} />
+                            <Eye size={11} />
                             <span>View</span>
                           </button>
                           <button 
@@ -993,144 +1192,170 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         {/* Right Column: Authentic PDF Invoice Document View */}
         {selectedQuote && (() => {
           return (
-            <div className="section-card" style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className={`section-card sales-col-preview ${mobileTab !== 'preview' ? 'mobile-hidden' : ''}`} style={{ padding: '0', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
               {/* Top Action Header with Under Review, Approved, Draft, and Rejected Functions */}
-              <div style={{ 
-                padding: '10px 14px', 
-                background: 'var(--bg-surface-subtle)', 
-                borderBottom: '1px solid var(--border-color)', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <span className="mono" style={{ fontWeight: 700, fontSize: '14px' }}>{selectedQuote.id}</span>
-
-                  {/* Interactive Status Changer Dropdown */}
-                  <div style={{ position: 'relative' }} className="status-dropdown-container">
-                    <button 
-                      type="button" 
-                      onClick={() => setStatusDropdownOpen(prev => !prev)}
-                      title={`Status is "${selectedQuote.status}". Click to switch to Under Review, Approved, or Rejected.`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '3px 8px',
-                        borderRadius: '20px',
-                        border: '1px solid var(--border-color)',
-                        background: 'var(--bg-surface)',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+              <div className="sales-preview-toolbar">
+                {/* Top Row: Navigation, ID, Status, Customer and Mobile Actions Toggle */}
+                <div className="sales-preview-top-row">
+                  <div className="sales-preview-id-group">
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm mobile-only-inline sales-mobile-back-btn"
+                      onClick={() => setMobileTab('list')}
+                      style={{ height: '26px', fontSize: '11px', padding: '0 7px', gap: '4px', flexShrink: 0 }}
+                      title="Back to Quotations List"
                     >
-                      {updatingQuoteId === selectedQuote.id ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '11px' }}>
-                          <Loader2 size={12} className="animate-spin" />
-                          <span>Updating...</span>
-                        </span>
-                      ) : (
-                        <StatusBadge status={selectedQuote.status} size="sm" />
-                      )}
-                      <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                      <ChevronLeft size={13} />
+                      <span>List</span>
                     </button>
 
-                    {statusDropdownOpen && (
-                      <div 
-                        style={{
-                          position: 'absolute',
-                          top: 'calc(100% + 6px)',
-                          left: 0,
-                          zIndex: 100,
-                          minWidth: '220px',
-                          background: 'var(--bg-surface)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
-                          padding: '6px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '3px',
-                          animation: 'fadeIn 0.15s ease-out'
-                        }}
-                      >
-                        <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Change Quotation Status
-                        </div>
-                        {QUOTE_STATUS_OPTIONS.map(opt => {
-                          const isCurrent = selectedQuote.status === opt.value;
-                          const Icon = opt.icon;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                handleUpdateStatus(selectedQuote.id, opt.value);
-                                setStatusDropdownOpen(false);
-                              }}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '6px 10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: isCurrent ? opt.bg : 'transparent',
-                                color: opt.color,
-                                fontSize: '11.5px',
-                                fontWeight: isCurrent ? 700 : 500,
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                transition: 'all 0.12s ease'
-                              }}
-                              onMouseEnter={e => {
-                                if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
-                              }}
-                              onMouseLeave={e => {
-                                if (!isCurrent) e.currentTarget.style.background = 'transparent';
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Icon size={13} color={opt.color} />
-                                <div>
-                                  <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
-                                  <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
-                                </div>
-                              </div>
-                              {isCurrent && <Check size={13} color={opt.color} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <span className="mono sales-preview-quote-id" style={{ fontWeight: 700, fontSize: '12.5px', whiteSpace: 'nowrap', flexShrink: 0 }}>{selectedQuote.id}</span>
                   </div>
 
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>• {selectedQuote.customer}</span>
+                  <div className="sales-preview-status-customer-wrap">
+                    {/* Interactive Status Changer Dropdown */}
+                    <div style={{ position: 'relative' }} className="status-dropdown-container">
+                      <button 
+                        type="button" 
+                        onClick={() => setStatusDropdownOpen(prev => !prev)}
+                        title={`Status is "${selectedQuote.status}". Click to switch to Under Review, Approved, or Rejected.`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '2px 7px',
+                          borderRadius: '16px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-surface)',
+                          cursor: 'pointer',
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                          transition: 'all 0.15s ease',
+                          height: '24px'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                      >
+                        {updatingQuoteId === selectedQuote.id ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '10.5px' }}>
+                            <Loader2 size={11} className="animate-spin" />
+                            <span>Updating...</span>
+                          </span>
+                        ) : (
+                          <StatusBadge status={selectedQuote.status} size="sm" />
+                        )}
+                        <ChevronDown size={10} color="var(--text-muted)" style={{ transition: 'transform 0.2s ease', transform: statusDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                      </button>
+
+                      {statusDropdownOpen && (
+                        <div 
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            zIndex: 100,
+                            minWidth: '220px',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                            padding: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            animation: 'fadeIn 0.15s ease-out'
+                          }}
+                        >
+                          <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Change Quotation Status
+                          </div>
+                          {QUOTE_STATUS_OPTIONS.map(opt => {
+                            const isCurrent = selectedQuote.status === opt.value;
+                            const Icon = opt.icon;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateStatus(selectedQuote.id, opt.value);
+                                  setStatusDropdownOpen(false);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  background: isCurrent ? opt.bg : 'transparent',
+                                  color: opt.color,
+                                  fontSize: '11.5px',
+                                  fontWeight: isCurrent ? 700 : 500,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'all 0.12s ease'
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface-subtle)';
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Icon size={13} color={opt.color} />
+                                  <div>
+                                    <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                                    <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 400 }}>{opt.description}</div>
+                                  </div>
+                                </div>
+                                {isCurrent && <Check size={13} color={opt.color} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <span className="sales-preview-customer-label">
+                      <span className="desktop-only-inline">• </span>
+                      <span className="mobile-only-inline" style={{ color: 'var(--text-muted)' }}>Customer: </span>
+                      <strong style={{ color: 'var(--text-main)' }}>{selectedQuote.customer}</strong>
+                    </span>
+                  </div>
+
+                  {/* Actions button for mobile screens */}
+                  <button
+                    type="button"
+                    className="sales-preview-actions-toggle-mobile"
+                    onClick={() => setIsMobilePreviewActionsOpen(prev => !prev)}
+                    aria-expanded={isMobilePreviewActionsOpen}
+                    title={isMobilePreviewActionsOpen ? 'Hide action buttons' : 'Show action buttons'}
+                  >
+                    <span>Actions</span>
+                    {isMobilePreviewActionsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* Action Buttons Group */}
+                <div className={`sales-preview-actions-group ${isMobilePreviewActionsOpen ? 'is-open' : 'is-collapsed'}`}>
                   {/* Removed Contextual 1-Click Status Workflow Actions in favor of upper dropdown */}
                   <button 
                     type="button" 
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-secondary btn-sm sales-btn-email"
                     onClick={() => handleOpenEmailForQuote(selectedQuote)}
                     title="Send quotation via Outlook-style email composer"
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                   >
                     <Mail size={12} color="var(--primary)" />
-                    <span>Send Email</span>
+                    <span className="desktop-only-inline">Send Email</span>
+                    <span className="mobile-only-inline">Email</span>
                   </button>
 
                   <button 
                     type="button" 
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-primary btn-sm sales-btn-pi"
                     onClick={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? () => { if (onNavigate) onNavigate('proforma-invoices'); } : handleConvertToProformaInvoice}
                     disabled={isConvertingToPI}
                     title={(issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? "A Proforma Invoice has already been issued. Click to view Proforma Invoices." : "Issue Proforma Invoice from this Quotation"}
@@ -1164,32 +1389,35 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     ) : (issuedPIQuotations.has(selectedQuote?.dbId) || issuedPIQuotations.has(selectedQuote?.estimateNo || selectedQuote?.id)) ? (
                       <>
                         <Eye size={12} color="var(--primary)" />
-                        <span>View Proforma Invoice</span>
+                        <span className="desktop-only-inline">View Proforma Invoice</span>
+                        <span className="mobile-only-inline">View PI</span>
                       </>
                     ) : (
                       <>
                         <FileCheck size={12} />
-                        <span>Issue Proforma Invoice</span>
+                        <span className="desktop-only-inline">Issue Proforma Invoice</span>
+                        <span className="mobile-only-inline">Issue PI</span>
                       </>
                     )}
                   </button>
 
-                  <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
+                  <div className="sales-preview-divider" style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 2px' }} />
 
                   <button 
                     type="button" 
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-secondary btn-sm sales-btn-download"
                     onClick={handleDownload}
                     title="Download official Estimate / Invoice PDF"
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
                   >
                     <Download size={12} />
-                    <span>Download PDF</span>
+                    <span className="desktop-only-inline">Download PDF</span>
+                    <span className="mobile-only-inline">PDF</span>
                   </button>
 
                   <button 
                     type="button" 
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-secondary btn-sm sales-btn-print"
                     onClick={handlePrint}
                     title="Print official Estimate / Invoice"
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1198,56 +1426,129 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     <span>Print</span>
                   </button>
 
-                  {/* Zoom & Fit Controls */}
-                  <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', height: '28px', padding: '0 2px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
-                      title="Zoom Out"
-                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                    >
-                      <ZoomOut size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZoomScale(1)}
-                      title="Reset to 100%"
-                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', fontSize: '10px', fontWeight: 600, color: 'var(--text-main)', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
-                    >
-                      {Math.round(zoomScale * 100)}%
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
-                      title="Zoom In"
-                      style={{ background: 'transparent', border: 'none', padding: '0 5px', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}
-                    >
-                      <ZoomIn size={12} />
-                    </button>
+                  {/* Zoom & Fit Controls Bar */}
+                  <div 
+                    className="sales-preview-zoom-controls" 
+                    style={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      background: 'var(--bg-surface)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px', 
+                      height: '26px', 
+                      padding: '1px 4px',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {/* Left Side: Zoom Out / Percentage / Zoom In */}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                        title="Zoom Out (reduce scale)"
+                        style={{ 
+                          background: 'var(--bg-surface-subtle)', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: '4px',
+                          padding: '0 6px', 
+                          cursor: 'pointer', 
+                          height: '22px', 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '2px',
+                          color: 'var(--text-main)',
+                          fontSize: '10.5px',
+                          fontWeight: 500
+                        }}
+                      >
+                        <ZoomOut size={12} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(1)}
+                        title="Reset to 100% (Actual Desktop Size)"
+                        style={{ 
+                          background: 'transparent', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: '4px',
+                          padding: '0 6px', 
+                          cursor: 'pointer', 
+                          height: '22px', 
+                          fontSize: '10.5px', 
+                          fontWeight: 700, 
+                          color: 'var(--text-main)', 
+                          minWidth: '42px',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {Math.round(zoomScale * 100)}%
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                        title="Zoom In (enlarge scale)"
+                        style={{ 
+                          background: 'var(--bg-surface-subtle)', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: '4px',
+                          padding: '0 6px', 
+                          cursor: 'pointer', 
+                          height: '22px', 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '2px',
+                          color: 'var(--text-main)',
+                          fontSize: '10.5px',
+                          fontWeight: 500
+                        }}
+                      >
+                        <ZoomIn size={12} />
+                      </button>
+                    </div>
+
+                    {/* Right Side: Fit Button */}
                     <button
                       type="button"
                       onClick={handleFitWidth}
-                      title="Auto-fit quotation to screen width"
-                      style={{ background: 'transparent', border: 'none', padding: '0 6px', cursor: 'pointer', height: '100%', fontSize: '10px', color: 'var(--primary)', fontWeight: 600, borderLeft: '1px solid var(--border-color)' }}
+                      title="Fit quotation to screen width"
+                      style={{ 
+                        background: 'var(--primary-bg, #fdf2f4)', 
+                        border: '1px solid rgba(122, 31, 61, 0.25)', 
+                        borderRadius: '4px',
+                        padding: '0 8px', 
+                        cursor: 'pointer', 
+                        height: '22px', 
+                        fontSize: '10.5px', 
+                        color: 'var(--primary, #7A1F3D)', 
+                        fontWeight: 600, 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
                     >
-                      Fit
+                      <Maximize2 size={11} />
+                      <span>Fit</span>
                     </button>
                   </div>
 
                   <button 
                     type="button" 
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-secondary btn-sm sales-btn-expand"
                     onClick={() => setIsDocExpanded(!isDocExpanded)}
                     title={isDocExpanded ? "Split view" : "Full screen preview"}
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
                   >
                     {isDocExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                    <span>{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                    <span className="desktop-only-inline">{isDocExpanded ? "Split View" : "Full Screen"}</span>
+                    <span className="mobile-only-inline">{isDocExpanded ? "Split" : "Expand"}</span>
                   </button>
 
                   <button 
                     type="button" 
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-secondary btn-sm sales-btn-edit"
                     onClick={() => handleOpenEdit(selectedQuote)}
                     title="Edit Quotation details"
                     style={{ height: '28px', fontSize: '11px', padding: '0 8px', gap: '4px' }}
@@ -1258,7 +1559,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
                   <button 
                     type="button" 
-                    className="btn btn-sm"
+                    className="btn btn-sm sales-preview-delete-btn"
                     onClick={() => confirmDeleteQuotation(selectedQuote)}
                     title="Delete this quotation / invoice"
                     style={{ 
@@ -1278,14 +1579,15 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 </div>
               </div>
 
-            {/* Document Body — A4 Page Preview */}
+            {/* Document Body — A4 Page Preview (Identical to Desktop View) */}
             <div 
               ref={previewContainerRef}
               style={{ 
                 background: 'transparent', 
-                padding: '16px 0', 
+                padding: '16px 8px', 
                 overflowY: 'auto', 
                 overflowX: 'auto', 
+                WebkitOverflowScrolling: 'touch',
                 flex: 1, 
                 minHeight: '0',
                 width: '100%',
@@ -1294,12 +1596,11 @@ export default function SalesScreen({ onNavigate, onNotify }) {
             >
               <div 
                 style={{ 
-                  minWidth: 'max-content',
-                  width: '100%',
+                  width: 'max-content',
+                  minWidth: '100%',
                   display: 'flex',
                   justifyContent: 'center',
                   minHeight: '100%',
-                  padding: '0 8px',
                   boxSizing: 'border-box'
                 }}
               >
@@ -1322,6 +1623,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
+                    margin: '0 auto',
+                    flexShrink: 0,
                     zoom: zoomScale !== 1 ? zoomScale : undefined
                   }}
                 >
@@ -1342,7 +1645,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 }}>
 
                   {/* Company Header & Metadata Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                  <div className="preview-header-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                     {/* Left: Company Logo & Details */}
                     <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                       <img 
@@ -1369,7 +1672,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                     {/* Right: Metadata Grid (3 rows: Row 1 = Estimate No/Date, Row 2 = Place of supply/empty corner, Row 3 = empty bottom space) */}
                     <div style={{ borderLeft: '1px solid #b8b8b8', display: 'flex', flexDirection: 'column' }}>
                       {/* Row 1: Estimate No. & Date */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                      <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
                         <div style={{ padding: '3.5px 6px' }}>
                           <div style={{ fontSize: '7px', color: '#000000' }}>Estimate No.</div>
                           <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
@@ -1385,7 +1688,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                       </div>
 
                       {/* Row 2: Place of supply & empty right corner */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
+                      <div className="preview-meta-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #b8b8b8', minHeight: '32px' }}>
                         <div style={{ padding: '3.5px 6px' }}>
                           <div style={{ fontSize: '7px', color: '#000000' }}>Place of supply</div>
                           <div style={{ fontWeight: 700, fontSize: '8px', color: '#000000', marginTop: '1px' }}>
@@ -1544,7 +1847,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         </table>
 
                         {/* Middle Section: Words, Description & Amounts */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
+                        <div className="preview-amounts-grid" style={{ display: 'grid', gridTemplateColumns: '62% 38%', borderBottom: '1px solid #b8b8b8', flexShrink: 0 }}>
                           {/* Left: Words + Description */}
                           <div>
                             {/* Estimate Amount in Words */}
@@ -1666,7 +1969,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         </table>
 
                         {/* Bottom: Bank Details, Terms, and Signatory (3 Columns matching Image 2) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
+                        <div className="preview-footer-grid" style={{ display: 'grid', gridTemplateColumns: '29% 41% 30%', fontSize: '7.2px', color: '#000000', flex: 1, minHeight: 0 }}>
                           {/* Col 1: Bank Details */}
                           <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ fontWeight: 700, fontSize: '8.5px', marginBottom: '6px' }}>Bank Details</div>
@@ -1740,7 +2043,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
       })()}
 
       {!selectedQuote && (
-        <div className="section-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className={`section-card sales-col-preview ${mobileTab !== 'preview' ? 'mobile-hidden' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
           <FileText size={48} style={{ opacity: 0.25, marginBottom: '16px', color: 'var(--primary)' }} />
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>No Quotation Selected</h3>
           <p style={{ fontSize: '13px', maxWidth: '360px', margin: '0 auto 16px', lineHeight: '1.5' }}>
@@ -1765,6 +2068,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
         onClose={() => {
           setIsNewQuoteOpen(false);
           setEditingQuoteId(null);
+          setEditingQuote(null);
         }}
         title={editingQuoteId ? `Edit Estimate / Quotation ${formState.estimateNo}` : "Create New Precision Spindle Estimate / Quotation (Official GPS Format)"}
         maxWidth="920px"
@@ -1780,13 +2084,14 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               <span>Reset / Clear Form</span>
             </button>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button 
                 type="button" 
                 className="btn btn-secondary btn-sm" 
                 onClick={() => {
                   setIsNewQuoteOpen(false);
                   setEditingQuoteId(null);
+                  setEditingQuote(null);
                 }}
               >
                 Cancel
@@ -1817,6 +2122,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <input 
                   type="text" 
                   className="form-control mono" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.estimateNo}
                   onChange={(e) => setFormState({ ...formState, estimateNo: e.target.value })}
                   placeholder="e.g. QTN/2026-27/294"
@@ -1830,6 +2137,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <input 
                   type="text" 
                   className="form-control mono" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.date}
                   onChange={(e) => setFormState({ ...formState, date: e.target.value })}
                   placeholder="DD-MM-YYYY"
@@ -1843,6 +2152,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <input 
                   type="text" 
                   className="form-control" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.placeOfSupply}
                   onChange={(e) => setFormState({ ...formState, placeOfSupply: e.target.value })}
                   placeholder="e.g. 23-Madhya Pradesh"
@@ -1869,69 +2180,216 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
           {/* SECTION 2: Estimate For (Customer / Buyer Details) */}
           <div style={{ padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Building2 size={12} color="#7A1F3D" />
                 <span>Estimate For (Customer / Buyer Details)</span>
               </div>
               {clientsList.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Client Directory:</span>
-                  <select
+                <div ref={clientSearchRef} className="sales-client-search-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Client Directory:</span>
+                  
+                  <div
+                    className="sales-client-search-input-box"
                     style={{
-                      fontSize: '10.5px',
-                      height: '22px',
-                      padding: '0 6px',
-                      borderRadius: '4px',
-                      border: '1px solid #bfdbfe',
-                      background: '#eff6ff',
-                      color: '#1e40af',
-                      fontWeight: 600,
-                      cursor: 'pointer'
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: '#ffffff',
+                      border: isClientSearchOpen ? '1.5px solid #7A1F3D' : '1px solid #cbd5e1',
+                      borderRadius: '5px',
+                      padding: '0 8px',
+                      height: '28px',
+                      minWidth: '180px',
+                      maxWidth: '300px',
+                      boxShadow: isClientSearchOpen ? '0 0 0 3px rgba(122, 31, 61, 0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                      transition: 'all 0.15s ease',
+                      cursor: 'text'
                     }}
-                    onChange={(e) => {
-                      const selected = clientsList.find(c => (c.company_name || c.name || '').trim().toLowerCase() === e.target.value.trim().toLowerCase());
-                      if (selected) {
-                        setFormState(prev => ({
-                          ...prev,
-                          customer: selected.company_name || selected.name || '',
-                          customerAddress: selected.billing_address || selected.address || prev.customerAddress,
-                          contactPerson: selected.contact_person || prev.contactPerson,
-                          contactNo: selected.primary_phone || selected.phone || prev.contactNo,
-                          customerEmail: selected.email || prev.customerEmail,
-                          gstin: selected.gstin || prev.gstin,
-                          state: selected.state || prev.state,
-                          placeOfSupply: selected.state ? (selected.state.includes('-') ? selected.state : `27-${selected.state}`) : prev.placeOfSupply
-                        }));
-                        if (onNotify) onNotify(`Auto-filled details from Client Directory for ${selected.company_name || selected.name}`);
-                      }
+                    onClick={() => {
+                      setIsClientSearchOpen(true);
+                      setTimeout(() => clientSearchInputRef.current?.focus(), 20);
                     }}
-                    value=""
                   >
-                    <option value="">-- Auto-Fill from Client Directory --</option>
-                    {clientsList.map(c => (
-                      <option key={c.id || c.company_name} value={c.company_name || c.name}>
-                        {c.company_name || c.name} {c.city ? `(${c.city})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    <Search size={12} color={isClientSearchOpen ? '#7A1F3D' : '#64748b'} style={{ flexShrink: 0, marginRight: '6px' }} />
+                    <input
+                      ref={clientSearchInputRef}
+                      type="text"
+                      placeholder={isClientSearchOpen ? "Type client name, city..." : "Auto-Fill from Client Directory"}
+                      value={clientSearchQuery}
+                      onChange={(e) => {
+                        setClientSearchQuery(e.target.value);
+                        if (!isClientSearchOpen) setIsClientSearchOpen(true);
+                      }}
+                      onFocus={() => setIsClientSearchOpen(true)}
+                      style={{
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        color: '#1e293b',
+                        width: '100%',
+                        height: '100%',
+                        padding: 0,
+                        lineHeight: '28px'
+                      }}
+                    />
+                    {clientSearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setClientSearchQuery('');
+                          clientSearchInputRef.current?.focus();
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '2px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#94a3b8'
+                        }}
+                        title="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsClientSearchOpen(prev => !prev);
+                          if (!isClientSearchOpen) {
+                            setTimeout(() => clientSearchInputRef.current?.focus(), 20);
+                          }
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#64748b'
+                        }}
+                      >
+                        <ChevronDown
+                          size={13}
+                          style={{
+                            transform: isClientSearchOpen ? 'rotate(180deg)' : 'none',
+                            transition: 'transform 0.2s ease'
+                          }}
+                        />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Menu */}
+                  {isClientSearchOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        width: 'min(320px, calc(100vw - 32px))',
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        boxShadow: '0 10px 25px -5px rgba(122, 31, 61, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 9999,
+                        padding: '4px'
+                      }}
+                    >
+                      <div style={{
+                        padding: '4px 8px 6px',
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: '#64748b',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span>CLIENT DIRECTORY ({filteredClients.length})</span>
+                        {clientSearchQuery && (
+                          <span style={{ color: '#7A1F3D', fontWeight: 600 }}>Filter: "{clientSearchQuery}"</span>
+                        )}
+                      </div>
+
+                      {filteredClients.length === 0 ? (
+                        <div style={{ padding: '14px 8px', textAlign: 'center', color: '#64748b', fontSize: '11px' }}>
+                          No clients matching "{clientSearchQuery}"
+                        </div>
+                      ) : (
+                        filteredClients.map((client) => {
+                          const name = client.company_name || client.name;
+                          const isSelected = formState.customer && formState.customer.trim().toLowerCase() === name.trim().toLowerCase();
+                          return (
+                            <div
+                              key={client.id || name}
+                              onClick={() => handleSelectClientFromDirectory(client)}
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                background: isSelected ? '#fdf2f4' : 'transparent',
+                                borderLeft: isSelected ? '3px solid #7A1F3D' : '3px solid transparent',
+                                transition: 'background 0.12s ease',
+                                marginBottom: '2px'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600, fontSize: '11px', color: isSelected ? '#7A1F3D' : '#1e293b' }}>
+                                  {name}
+                                </span>
+                                {client.city && (
+                                  <span style={{ fontSize: '9px', background: '#f1f5f9', color: '#475569', padding: '1px 5px', borderRadius: '3px' }}>
+                                    {client.city}
+                                  </span>
+                                )}
+                              </div>
+                              {(client.primary_contact_name || client.gstin) && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9.5px', color: '#64748b', marginTop: '2px' }}>
+                                  {client.primary_contact_name && <span>{client.primary_contact_name}</span>}
+                                  {client.primary_contact_name && client.gstin && <span>•</span>}
+                                  {client.gstin && <span>GST: {client.gstin}</span>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
             
-            <datalist id="client-directory-options">
-              {clientsList.map(c => (
-                <option key={c.id || c.company_name} value={c.company_name || c.name} />
-              ))}
-            </datalist>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group form-group-col-span" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label" style={{ fontSize: '10px' }}>Customer Legal Entity Name *</label>
                 <input 
                   type="text" 
+                  name="gps_customer_entity_name"
+                  id="gps_customer_entity_name"
                   className="form-control" 
-                  list="client-directory-options"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="words"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={formState.customer}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -1942,26 +2400,30 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                         ...prev,
                         customer: matched.company_name || matched.name,
                         customerAddress: matched.billing_address || matched.address || prev.customerAddress,
-                        contactPerson: matched.contact_person || prev.contactPerson,
+                        contactPerson: matched.primary_contact_name || matched.contact_person || prev.contactPerson,
                         contactNo: matched.primary_phone || matched.phone || prev.contactNo,
-                        customerEmail: matched.email || prev.customerEmail,
+                        customerEmail: matched.primary_email || matched.email || prev.customerEmail,
                         gstin: matched.gstin || prev.gstin,
                         state: matched.state || prev.state,
                         placeOfSupply: matched.state ? (matched.state.includes('-') ? matched.state : `27-${matched.state}`) : prev.placeOfSupply
                       }));
                     }
                   }}
-                  placeholder="e.g. LINAMAR INDIA PRIVATE LIMITED (or select from Client Directory)"
+                  placeholder="e.g. LINAMAR INDIA PRIVATE LIMITED (or select from Client Directory above)"
                   style={{ height: '28px', fontSize: '11px' }}
                   required
                 />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group form-group-col-span" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label" style={{ fontSize: '10px' }}>Factory / Plant Physical Address</label>
                 <input 
                   type="text" 
+                  name="gps_customer_plant_address"
                   className="form-control" 
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formState.customerAddress}
                   onChange={(e) => setFormState({ ...formState, customerAddress: e.target.value })}
                   placeholder="Survey No.-332/3, 334 Industrial Area-3 AB Road Dewas..."
@@ -1973,7 +2435,11 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Contact Person Name</label>
                 <input 
                   type="text" 
+                  name="gps_contact_person_name"
                   className="form-control" 
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formState.contactPerson || ''}
                   onChange={(e) => setFormState({ ...formState, contactPerson: e.target.value })}
                   placeholder="e.g. Materials & Maintenance Head"
@@ -1985,7 +2451,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Contact Phone / Mobile</label>
                 <input 
                   type="text" 
+                  name="gps_contact_phone_number"
                   className="form-control mono" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.contactNo}
                   onChange={(e) => setFormState({ ...formState, contactNo: e.target.value })}
                   placeholder="e.g. 7773877714"
@@ -1997,7 +2466,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Direct Email Address</label>
                 <input 
                   type="email" 
+                  name="gps_contact_email_address"
                   className="form-control mono" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.customerEmail || ''}
                   onChange={(e) => setFormState({ ...formState, customerEmail: e.target.value })}
                   placeholder="e.g. purchase@company.com"
@@ -2009,7 +2481,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Customer GSTIN</label>
                 <input 
                   type="text" 
+                  name="gps_customer_gstin"
                   className="form-control mono" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.gstin}
                   onChange={(e) => setFormState({ ...formState, gstin: e.target.value })}
                   placeholder="e.g. 23AACCL5351J1ZM"
@@ -2021,7 +2496,10 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <label className="form-label" style={{ fontSize: '10px' }}>Customer State / Place of Supply</label>
                 <input 
                   type="text" 
+                  name="gps_customer_supply_state"
                   className="form-control" 
+                  autoComplete="off"
+                  spellCheck={false}
                   value={formState.state}
                   onChange={(e) => setFormState({ ...formState, state: e.target.value, placeOfSupply: e.target.value })}
                   placeholder="e.g. 23-Madhya Pradesh"
@@ -2038,12 +2516,14 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               <span>Job Identification & Scope of Work</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
+            <div className="sales-job-id-grid">
               <div className="form-group">
                 <label className="form-label" style={{ fontSize: '10px' }}>Serial No.</label>
                 <input 
                   type="text" 
                   className="form-control mono" 
+                  autoComplete="off" 
+                  spellCheck={false}
                   value={formState.spindleSerial}
                   onChange={(e) => setFormState({ ...formState, spindleSerial: e.target.value })}
                   placeholder="e.g. HMMXXVI or GPS-2026-XXXX"
@@ -2056,6 +2536,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <input 
                   type="text" 
                   className="form-control mono" 
+                  autoComplete="off" 
+                  spellCheck={false}
                   value={formState.challanNo}
                   onChange={(e) => setFormState({ ...formState, challanNo: e.target.value })}
                   placeholder="e.g. N/A or CH-2026-881"
@@ -2068,6 +2550,8 @@ export default function SalesScreen({ onNavigate, onNotify }) {
                 <input 
                   type="text" 
                   className="form-control mono" 
+                  autoComplete="off" 
+                  spellCheck={false}
                   value={formState.inwardDate}
                   onChange={(e) => setFormState({ ...formState, inwardDate: e.target.value })}
                   placeholder="e.g. 22-08-2026"
@@ -2091,10 +2575,11 @@ export default function SalesScreen({ onNavigate, onNotify }) {
 
           {/* SECTION 4: Line Items Table */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                 <DollarSign size={12} color="#7A1F3D" />
                 <span>Line Items (# Item name, HSN/SAC, Quantity, Price/Unit, Amount)</span>
+                <span className="mobile-only-inline" style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>(Swipe to edit items →)</span>
               </div>
               <button 
                 type="button" 
@@ -2107,7 +2592,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
               </button>
             </div>
 
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
+            <div className="table-responsive sales-items-table-wrapper">
               <table className="data-table" style={{ margin: 0, fontSize: '11px' }}>
                 <thead>
                   <tr>
@@ -2194,7 +2679,7 @@ export default function SalesScreen({ onNavigate, onNotify }) {
           </div>
 
           {/* SECTION 5: Commercial Totals, GST Breakdown & Amount in Words */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px', padding: '8px 10px', background: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+          <div className="sales-totals-grid">
             <div>
               <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
                 Estimate Amount in Words

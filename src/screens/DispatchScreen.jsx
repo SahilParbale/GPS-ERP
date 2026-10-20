@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import MetricCard from '../components/common/MetricCard';
 import StatusBadge from '../components/common/StatusBadge';
+import { TablePageSkeleton } from '../components/common/Skeleton';
 import Tabs from '../components/common/Tabs';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
@@ -24,58 +25,7 @@ import {
 } from 'lucide-react';
 
 // Seed Initial Dispatches if none in storage
-const INITIAL_DISPATCHED_HISTORY = [
-  {
-    id: 'DSP-2026-0078',
-    challanNo: 'DC-2026-0078',
-    workOrder: 'WO-2026-098',
-    stream: 'production',
-    spindleSerial: 'GPS-2026-0838',
-    spindleModel: 'GPS-BT40-15K Inline Direct Drive',
-    customer: 'Bharat Forge Ltd',
-    customerContact: 'Ajay Kulkarni (Works Head)',
-    customerEmail: 'a.kulkarni@bharatforge.com',
-    destination: 'Mundhwa Plant 2, Pune, Maharashtra 411036',
-    transporter: 'Blue Dart Express Ltd',
-    docketNo: 'BD-994829104',
-    vehicleNo: 'MH-12-RN-4820',
-    deliveryMode: 'Express Air Freight',
-    packagingType: 'Heavy-Duty VCI Sealed Hardwood Export Crate',
-    grossWeight: '46.5 kg',
-    dispatchDate: '12 Oct 2026',
-    estimatedArrival: '14 Oct 2026',
-    status: 'In Transit',
-    trackingUrl: 'https://www.bluedart.com',
-    emailSent: true,
-    emailSentAt: '12 Oct 2026, 16:30',
-    qcVerified: true
-  },
-  {
-    id: 'DSP-2026-0075',
-    challanNo: 'DC-2026-0075',
-    workOrder: 'SR-2026-038',
-    stream: 'service',
-    spindleSerial: 'FIS-2022-7801',
-    spindleModel: 'Fischer HF 150 High-Speed Overhaul',
-    customer: 'Hindustan Aeronautics Ltd (HAL)',
-    customerContact: 'R. K. Raman (Plant In-charge)',
-    customerEmail: 'rk.raman@hal-india.co.in',
-    destination: 'Aerospace Division, Bangalore, Karnataka 560017',
-    transporter: 'V-Trans India Ltd',
-    docketNo: 'VT-88204910',
-    vehicleNo: 'MH-14-BA-2291',
-    deliveryMode: 'Dedicated Surface Express',
-    packagingType: 'Shock-Sensor Hardwood Crate with Hermetic Seal',
-    grossWeight: '52.0 kg',
-    dispatchDate: '10 Oct 2026',
-    estimatedArrival: '13 Oct 2026',
-    status: 'Delivered',
-    trackingUrl: 'https://vtransgroup.com',
-    emailSent: true,
-    emailSentAt: '10 Oct 2026, 11:15',
-    qcVerified: true
-  }
-];
+const INITIAL_DISPATCHED_HISTORY = [];
 
 // Carrier Logistics Partners Directory
 const APPROVED_CARRIERS = [
@@ -186,10 +136,10 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
     jobRef: '',
     spindleSerial: '',
     spindleModel: 'GPS-HSK-A63-24K',
-    customer: 'Tata Motors Limited',
-    destination: 'Pune Plant 1 Industrial Premises',
+    customer: '',
+    destination: '',
     packagingType: 'Hardwood Export Crate with Hermetic VCI Seal',
-    weight: '45.0 kg'
+    weight: ''
   });
 
   // Load Dispatch Ready Units from both Production & Service
@@ -278,8 +228,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
       } catch (e) { }
 
       if (savedHistory.length === 0) {
-        setDispatchedHistory(INITIAL_DISPATCHED_HISTORY);
-        localStorage.setItem('gps_dispatched_history', JSON.stringify(INITIAL_DISPATCHED_HISTORY));
+        setDispatchedHistory([]);
       } else {
         setDispatchedHistory(savedHistory);
       }
@@ -557,6 +506,17 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
     setIsPreviewModalOpen(true);
   };
 
+  if (isLoading) {
+    return (
+      <TablePageSkeleton 
+        hasMetrics={true} 
+        metricCount={4} 
+        columns={['120px', '180px', '160px', '140px', '120px', '110px', '90px']} 
+        rows={6} 
+      />
+    );
+  }
+
   return (
     <div className="content-area">
       {/* 1. TOP PAGE HEADER */}
@@ -604,7 +564,8 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
             title="Download Latest Delivery Challan PDF"
           >
             <Download size={14} />
-            <span>Delivery Challan (PDF)</span>
+            <span className="desktop-only-inline">Delivery Challan (PDF)</span>
+            <span className="mobile-only-inline">Challan PDF</span>
           </button>
 
           <button
@@ -614,14 +575,15 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
             title="Add a spindle unit directly to the dispatch clearance queue"
           >
             <Plus size={14} />
-            <span>New Dispatch Entry</span>
+            <span className="desktop-only-inline">New Dispatch Entry</span>
+            <span className="mobile-only-inline">+ New Entry</span>
           </button>
         </div>
       </PageHeader>
 
       <div className="content-body">
         {/* 2. TOP 4 EXECUTIVE OPERATIONAL KPI CARDS */}
-        <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '16px' }}>
+        <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
           {kpiData.map((kpi) => (
             <MetricCard
               key={kpi.id}
@@ -695,47 +657,60 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
 
           {/* Search Input & Select Controls */}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
-            <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-              <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <div className="search-input-wrap">
+              <Search size={13} className="search-icon" />
               <input
                 type="text"
                 className="form-control"
                 placeholder="Search spindle serial, customer, job order, docket number, model..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: '32px', height: '32px', fontSize: '12px' }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Stream:</span>
-              <CustomSelect
-                value={streamFilter}
-                onChange={e => setStreamFilter(e.target.value)}
-                style={{ minWidth: '130px' }}
-                options={[
-                  { value: 'all', label: 'All Streams' },
-                  { value: 'production', label: 'Production (OEM)' },
-                  { value: 'service', label: 'Service (RMA)' }
-                ]}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 140px', minWidth: 0 }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Stream:</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <CustomSelect
+                  value={streamFilter}
+                  onChange={e => setStreamFilter(e.target.value)}
+                  style={{ width: '100%' }}
+                  options={[
+                    { value: 'all', label: 'All Streams' },
+                    { value: 'production', label: 'Production (OEM)' },
+                    { value: 'service', label: 'Service (RMA)' }
+                  ]}
+                />
+              </div>
             </div>
 
             {activeTab === 'history' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Courier:</span>
-                <CustomSelect
-                  value={transporterFilter}
-                  onChange={e => setTransporterFilter(e.target.value)}
-                  style={{ minWidth: '150px' }}
-                  options={[
-                    { value: 'all', label: 'All Couriers' },
-                    { value: 'Blue Dart Express Ltd', label: 'Blue Dart Express' },
-                    { value: 'V-Trans India Ltd', label: 'V-Trans Logistics' },
-                    { value: 'DTDC Priority Air Cargo', label: 'DTDC Priority' },
-                    { value: 'Dedicated GPS Plant Vehicle', label: 'Dedicated Fleet' }
-                  ]}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 150px', minWidth: 0 }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>Courier:</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CustomSelect
+                    value={transporterFilter}
+                    onChange={e => setTransporterFilter(e.target.value)}
+                    style={{ width: '100%' }}
+                    options={[
+                      { value: 'all', label: 'All Couriers' },
+                      { value: 'Blue Dart Express Ltd', label: 'Blue Dart Express' },
+                      { value: 'V-Trans India Ltd', label: 'V-Trans Logistics' },
+                      { value: 'DTDC Priority Air Cargo', label: 'DTDC Priority' },
+                      { value: 'Dedicated GPS Plant Vehicle', label: 'Dedicated Fleet' }
+                    ]}
+                  />
+                </div>
               </div>
             )}
 
@@ -749,7 +724,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                   setStatusFilter('all');
                   setTransporterFilter('all');
                 }}
-                style={{ height: '32px', fontSize: '11px' }}
+                style={{ height: '32px', fontSize: '11px', flexShrink: 0 }}
               >
                 <X size={12} />
                 <span>Reset</span>
@@ -773,7 +748,8 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
               </span>
             </div>
 
-            <div className="table-responsive">
+            {/* Desktop Table View */}
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -949,6 +925,148 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch Card View */}
+            <div className="mobile-card-view" style={{ flexDirection: 'column', gap: '12px', padding: '12px' }}>
+              {filteredReady.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  <PackageCheck size={28} color="var(--border-color)" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontSize: '13px' }}>No spindles currently waiting in the dispatch queue.</div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setIsNewEntryModalOpen(true)}
+                    style={{ marginTop: '10px' }}
+                  >
+                    <Plus size={12} />
+                    <span>+ New Dispatch Entry</span>
+                  </button>
+                </div>
+              ) : (
+                filteredReady.map((item) => (
+                  <div key={item.id} className="dispatch-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Card Top: Order No, Stream Badge, Target Date */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
+                          {item.workOrder || item.id}
+                        </span>
+                        <span style={{
+                          fontSize: '9.5px',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          background: item.stream === 'production' ? '#dbeafe' : '#ede9fe',
+                          color: item.stream === 'production' ? '#1d4ed8' : '#6d28d9',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          {item.stream === 'production' ? <Cpu size={9} /> : <Wrench size={9} />}
+                          {item.stream === 'production' ? 'OEM NEW' : 'RMA REPAIR'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Target: <strong style={{ color: '#b45309' }}>{item.targetDate}</strong>
+                      </div>
+                    </div>
+
+                    {/* Spindle & Customer details */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '8px',
+                      background: 'var(--bg-surface-subtle)',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '11.5px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Spindle Unit</div>
+                        <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>{item.spindleSerial}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.spindleModel}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Consignee Client</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{item.customer}</div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                          <MapPin size={10} color="#64748b" /> {item.destination}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QC & Packaging Spec Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', fontSize: '11px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f0fdf4', color: '#166534', border: '1px solid #86efac', padding: '2px 7px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700 }}>
+                        <ShieldCheck size={11} color="#166534" />
+                        <span>QC Certified · Runout: {item.runoutMetric}</span>
+                      </div>
+
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        Crate: <strong className="mono">{item.grossWeight}</strong>
+                      </div>
+                    </div>
+
+                    {/* Customer Email Status */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', fontSize: '11px', borderTop: '1px solid var(--border-color)', paddingTop: '8px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Customer Notice:</span>
+                      {item.emailSent ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#15803d', fontSize: '11px', fontWeight: 600 }}>
+                          <CheckCircle2 size={12} color="#15803d" />
+                          <span>Email Sent</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleOpenEmailComposer(item)}
+                          style={{ padding: '3px 8px', fontSize: '11px', borderColor: '#7A1F3D', color: '#7A1F3D', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Send size={11} color="#7A1F3D" />
+                          <span>Send Ready Email</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleOpenShipModal(item)}
+                        style={{ flex: '1 1 120px', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Truck size={13} />
+                        <span>Ship Consignment</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDownloadChallan(item)}
+                        style={{ flex: '1 1 80px', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Download size={13} color="#7A1F3D" />
+                        <span>Challan</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenVerifyModal(item)}
+                        style={{ flex: '0 0 38px', minHeight: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Inspect Pre-Dispatch Quality Checklist"
+                      >
+                        <ShieldCheck size={14} color="#059669" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
@@ -967,7 +1085,8 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
               </span>
             </div>
 
-            <div className="table-responsive">
+            {/* Desktop Table View */}
+            <div className="table-responsive desktop-table-view">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1141,6 +1260,144 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch Card View */}
+            <div className="mobile-card-view" style={{ flexDirection: 'column', gap: '12px', padding: '12px' }}>
+              {filteredHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                  <Truck size={28} color="var(--border-color)" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontSize: '13px' }}>No dispatched consignments match your filter criteria.</div>
+                </div>
+              ) : (
+                filteredHistory.map((item) => (
+                  <div key={item.id} className="dispatch-history-mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Card Top: Challan No, Transit Status, Stream */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="mono" style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
+                          {item.challanNo}
+                        </span>
+                        <span style={{
+                          fontSize: '9px',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: item.stream === 'production' ? '#dbeafe' : '#ede9fe',
+                          color: item.stream === 'production' ? '#1d4ed8' : '#6d28d9',
+                          fontWeight: 700,
+                          textTransform: 'uppercase'
+                        }}>
+                          {item.stream === 'production' ? 'OEM NEW' : 'RMA REPAIR'}
+                        </span>
+                      </div>
+
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        background: item.status === 'Delivered' ? '#f0fdf4' : '#eff6ff',
+                        color: item.status === 'Delivered' ? '#15803d' : '#1d4ed8',
+                        border: `1px solid ${item.status === 'Delivered' ? '#86efac' : '#93c5fd'}`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        {item.status === 'Delivered' ? <CheckCircle2 size={11} /> : <Truck size={11} />}
+                        {item.status}
+                      </span>
+                    </div>
+
+                    {/* Carrier & Tracking Box */}
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '10px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      fontSize: '11.5px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.transporter}</span>
+                        <span className="mono" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.vehicleNo}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="mono" style={{ fontWeight: 700, color: '#1e40af' }}>Docket: {item.docketNo}</span>
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{item.deliveryMode}</span>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '8px',
+                      background: 'var(--bg-surface-subtle)',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '11.5px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Spindle Unit</div>
+                        <div className="mono" style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>{item.spindleSerial}</div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>{item.spindleModel}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Consignee Client</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{item.customer}</div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>{item.destination}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Dispatched Date</div>
+                        <div className="mono" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{item.dispatchDate}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>Estimated Arrival</div>
+                        <div className="mono" style={{ fontWeight: 700, color: '#b45309', marginTop: '2px' }}>{item.estimatedArrival}</div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDownloadChallan(item)}
+                        style={{ flex: '1 1 90px', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Download size={13} color="#7A1F3D" />
+                        <span>Challan PDF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenEmailComposer(item)}
+                        style={{ flex: '1 1 110px', minHeight: '34px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Send size={13} color="#1d4ed8" />
+                        <span>Tracking Email</span>
+                      </button>
+
+                      {item.trackingUrl && (
+                        <a
+                          href={item.trackingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ flex: '0 0 38px', minHeight: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Open Carrier Live Tracking Portal"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
@@ -1159,7 +1416,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', padding: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', padding: '14px' }}>
               {APPROVED_CARRIERS.map((carrier, idx) => (
                 <div
                   key={idx}
@@ -1237,19 +1494,20 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
           title={`Outward Dispatch Clearance — ${shipTargetItem.spindleSerial}`}
           maxWidth="620px"
           footer={
-            <>
-              <button type="button" className="btn btn-secondary" onClick={() => setIsShipModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsShipModalOpen(false)} style={{ flex: '1 1 auto', minWidth: '80px' }}>
                 Cancel
               </button>
-              <button type="button" className="btn btn-primary" onClick={handleConfirmShipment}>
+              <button type="button" className="btn btn-primary" onClick={handleConfirmShipment} style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', justifyContent: 'center' }}>
                 <Truck size={14} />
-                <span>Confirm Outward Dispatch & Issue Gate Pass</span>
+                <span className="desktop-only-inline">Confirm Outward Dispatch & Gate Pass</span>
+                <span className="mobile-only-inline">Confirm & Gate Pass</span>
               </button>
-            </>
+            </div>
           }
         >
           <form onSubmit={handleConfirmShipment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SPINDLE CONSIGNMENT</div>
                 <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
@@ -1267,7 +1525,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <div className="form-group">
                 <label className="form-label">Delivery Challan No *</label>
                 <input
@@ -1361,7 +1619,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                   type="checkbox"
                   checked={shipForm.sendEmailNow}
                   onChange={e => setShipForm(prev => ({ ...prev, sendEmailNow: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#166534' }}
+                  style={{ width: '16px', height: '16px', accentColor: '#166534', flexShrink: 0 }}
                 />
                 <span>Automatically open Email Composer to send "Parcel is Ready & Dispatched" email to customer</span>
               </label>
@@ -1383,8 +1641,8 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
           title={`Pre-Dispatch Verification Station — ${verifyTargetItem.spindleSerial}`}
           maxWidth="540px"
           footer={
-            <>
-              <button type="button" className="btn btn-secondary" onClick={() => setIsVerifyModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsVerifyModalOpen(false)} style={{ flex: '1 1 auto', minWidth: '80px' }}>
                 Close
               </button>
               <button
@@ -1394,11 +1652,13 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                   setIsVerifyModalOpen(false);
                   if (onNotify) onNotify('Pre-dispatch quality gate certified & sealed.');
                 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', justifyContent: 'center' }}
               >
                 <Check size={14} />
-                <span>Certify Quality Gate & Seal Crate</span>
+                <span className="desktop-only-inline">Certify Quality Gate & Seal Crate</span>
+                <span className="mobile-only-inline">Certify & Seal Crate</span>
               </button>
-            </>
+            </div>
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1424,9 +1684,9 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                     type="checkbox"
                     checked={checklist[item.key]}
                     onChange={e => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                    style={{ marginTop: '2px', width: '15px', height: '15px', accentColor: '#7A1F3D' }}
+                    style={{ marginTop: '2px', width: '15px', height: '15px', accentColor: '#7A1F3D', flexShrink: 0 }}
                   />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{item.label}</div>
                     <div style={{ fontSize: '10.5px', color: '#059669' }}>Status: {item.metric}</div>
                   </div>
@@ -1447,8 +1707,8 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
           title="Create New Outward Dispatch Clearance"
           maxWidth="540px"
           footer={
-            <>
-              <button type="button" className="btn btn-secondary" onClick={() => setIsNewEntryModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsNewEntryModalOpen(false)} style={{ flex: '1 1 auto', minWidth: '80px' }}>
                 Cancel
               </button>
               <button
@@ -1482,11 +1742,13 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
                   setIsNewEntryModalOpen(false);
                   if (onNotify) onNotify(`Unit ${newSpindle.spindleSerial} added to Dispatch Ready Queue.`);
                 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', justifyContent: 'center' }}
               >
                 <Plus size={14} />
-                <span>Add to Dispatch Queue</span>
+                <span className="desktop-only-inline">Add to Dispatch Queue</span>
+                <span className="mobile-only-inline">Add to Queue</span>
               </button>
-            </>
+            </div>
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1502,7 +1764,7 @@ export default function DispatchScreen({ onNavigate, onSelectWorkOrder, onSelect
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
               <div className="form-group">
                 <label className="form-label">Job / Work Order No *</label>
                 <input
